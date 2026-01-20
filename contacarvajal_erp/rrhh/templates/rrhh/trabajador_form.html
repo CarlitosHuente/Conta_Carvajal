@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<h2>{{ titulo }}</h2>
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Información Principal</h4>
+                    <hr>
+                    <div class="mb-3">{{ form.empresa.label_tag }} {{ form.empresa }}</div>
+                    <div class="mb-3">{{ form.rut.label_tag }} {{ form.rut }}</div>
+                    <div class="mb-3">{{ form.nombres.label_tag }} {{ form.nombres }}</div>
+                    <div class="mb-3">{{ form.apellido_paterno.label_tag }} {{ form.apellido_paterno }}</div>
+                    <div class="mb-3">{{ form.apellido_materno.label_tag }} {{ form.apellido_materno }}</div>
+                    <div class="mb-3">{{ form.fecha_nacimiento.label_tag }} {{ form.fecha_nacimiento }}</div>
+                    <div class="mb-3">{{ form.nacionalidad.label_tag }} {{ form.nacionalidad }}</div>
+                    <div class="mb-3">{{ form.estado_civil.label_tag }} {{ form.estado_civil }}</div>
+                </div>
+
+                <div class="col-md-6">
+                    <h4>Información de Contacto</h4>
+                    <hr>
+                    <div class="mb-3">{{ form.direccion.label_tag }} {{ form.direccion }}</div>
+                    <div class="mb-3">{{ form.comuna.label_tag }} {{ form.comuna }}</div>
+                    <div class="mb-3">{{ form.telefono.label_tag }} {{ form.telefono }}</div>
+                    <div class="mb-3">{{ form.email_personal.label_tag }} {{ form.email_personal }}</div>
+
+                    <h4 class="mt-4">Información Bancaria</h4>
+                    <hr>
+                    <div class="mb-3">{{ form.banco.label_tag }} {{ form.banco }}</div>
+                    <div class="mb-3">{{ form.tipo_cuenta.label_tag }} {{ form.tipo_cuenta }}</div>
+                    <div class="mb-3">{{ form.numero_cuenta.label_tag }} {{ form.numero_cuenta }}</div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Trabajador</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

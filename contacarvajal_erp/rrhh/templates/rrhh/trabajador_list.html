@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Trabajadores{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Listado de Trabajadores</h2>
+    <a href="{% url 'rrhh:trabajador_create' %}" class="btn btn-primary">Añadir Nuevo Trabajador</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>RUT</th>
+                    <th>Nombre Completo</th>
+                    <th>Empresa</th>
+                    <th>Email</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trabajador in trabajadores %}
+                <tr>
+                    <td>{{ trabajador.rut }}</td>
+                    <td>{{ trabajador.nombre_completo }}</td>
+                    <td>{{ trabajador.empresa.razon_social }}</td>
+                    <td>{{ trabajador.email_personal }}</td>
+                    <td>
+                        <a href="{% url 'rrhh:trabajador_detail' pk=trabajador.id %}" class="btn btn-sm btn-secondary">Ver/Editar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No hay trabajadores registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
