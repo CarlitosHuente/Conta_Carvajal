@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row align-items-center mb-5 text-center" style="min-height: 60vh;">
+    <div class="col-md-12">
+        <h1 class="display-4 fw-bold text-dark">Bienvenido a ContaCarvajal</h1>
+        <p class="lead text-muted">Sistema Centralizado de Gestión ERP</p>
+        <hr class="my-4">
+        
+        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+            <a href="{% url 'rrhh:empresa_list' %}" class="btn btn-primary btn-lg px-4 gap-3">
+                Ingresar a RRHH
+            </a>
+            
+            <a href="/admin" class="btn btn-outline-secondary btn-lg px-4">
+                Panel Administrativo
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
