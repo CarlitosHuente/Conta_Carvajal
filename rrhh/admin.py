@@ -5,6 +5,10 @@ from .models import (
     Empresa, AFP, SistemaSalud, Trabajador, 
     Contrato, ItemContrato, Liquidacion, ItemLiquidacion, Prestamo
 )
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from .models import PerfilUsuario
+from .models import RegistroCobro
 
 # --- INLINES ---
 
@@ -93,7 +97,32 @@ class LiquidacionAdmin(admin.ModelAdmin):
                 del self.contrato_id_for_inlines
             yield formset
 
-# Registros Simples
+# SECCION: Integración de Perfil en el Admin de Usuarios
+class PerfilUsuarioInline(admin.StackedInline):
+    model = PerfilUsuario
+    can_delete = False
+    verbose_name_plural = 'Información de Rol y Empresa'
+
+class UserAdmin(BaseUserAdmin):
+    inlines = (PerfilUsuarioInline,)
+    # Opcional: Mostrar el rol en la lista de usuarios
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_rol')
+
+    def get_rol(self, instance):
+        return instance.perfil.rol if hasattr(instance, 'perfil') else "Sin Rol"
+    get_rol.short_description = 'Rol'
+    
+@admin.register(RegistroCobro)
+class RegistroCobroAdmin(admin.ModelAdmin):
+    list_display = ('empresa', 'mes', 'ano', 'monto_uf', 'total_pesos', 'nro_bh_emitida', 'pagado')
+    list_filter = ('mes', 'ano', 'pagado', 'empresa')
+    search_fields = ('empresa__razon_social', 'nro_bh_emitida')
+    # Ordenamos para ver lo más reciente arriba
+    ordering = ('-ano', '-mes')
+
+# Reinscribimos el modelo User con nuestra nueva configuración
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
 admin.site.register(AFP)
 admin.site.register(SistemaSalud)
 admin.site.register(Prestamo)

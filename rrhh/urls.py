@@ -23,4 +23,7 @@ urlpatterns = [
     # NUEVAS URLs para Indicadores Económicos
     path('indicadores/', views.indicador_list_view, name='indicador_list'),
     path('indicadores/nuevo/', views.indicador_create_view, name='indicador_create'),
+    
+    path('portal/', views.home_cliente_view, name='home_cliente'),
+    path('cobranza-maestro/', views.planilla_cobranza_view, name='planilla_cobranza'),
 ]

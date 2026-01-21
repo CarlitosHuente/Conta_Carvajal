@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+    <h2 style="text-align: center; color: #2c3e50;">ContaCarvajal - Acceso</h2>
+    <hr>
+    <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom: 15px;">
+            {{ form.as_p }}
+        </div>
+        <button type="submit" style="width: 100%; padding: 10px; background-color: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Iniciar Sesión
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,14 +1,16 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import TemplateView # <--- Necesario para la portada simple
+from django.contrib.auth import views as auth_views # <--- SECCION 1: Importar vistas de auth
+from .views import home_redirect_view # <--- SECCION 2: Importar nuestra nueva lógica
 
 urlpatterns = [
-    # Portada (Home)
-    path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    # Si entran a la raíz, ejecutamos una lógica de redirección
+    path('', home_redirect_view, name='home'), 
     
-    # Admin
+    # Rutas de autenticación (Login/Logout)
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+
     path('admin/', admin.site.urls),
-    
-    # Tus aplicaciones
     path('rrhh/', include('rrhh.urls')),
 ]

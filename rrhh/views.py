@@ -4,20 +4,30 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect # Asegúrate de que redirect esté importado
 from .models import Contrato, Empresa, Trabajador, IndicadorEconomico # Añade Empresa a los modelos importados
 from .forms import EmpresaForm, TrabajadorForm, ContratoForm, IndicadorEconomicoForm # ¡Importa el nuevo formulario!
+from django.contrib.auth.decorators import login_required
+from datetime import datetime
+from django.db.models import Prefetch
+from .models import Empresa, RegistroCobro
+from django.db import models  # Esto quita la alerta amarilla de 'models.Prefetch'
+
 
 
 # ... (las otras vistas de liquidación pueden quedar abajo)
-
+@login_required
 def empresa_list_view(request):
-    """
-    Esta vista muestra la lista de todas las empresas.
-    """
-    empresas = Empresa.objects.all() # Obtenemos todas las empresas de la BD
-    context = {
-        'empresas': empresas,
-    }
+    # SECCION: Filtro por Rol
+    if request.user.perfil.rol == 'admin':
+        # El contador ve todas las empresas
+        empresas = Empresa.objects.all()
+    else:
+        # El cliente SOLO ve su propia empresa
+        # Si no tiene empresa asignada, devolvemos lista vacía o error
+        empresas = Empresa.objects.filter(id=request.user.perfil.empresa_id)
+    
+    context = {'empresas': empresas}
     return render(request, 'rrhh/empresa_list.html', context)
 
+@login_required
 def empresa_create_view(request):
     """
     Esta vista maneja el formulario para crear una nueva empresa.
@@ -37,6 +47,7 @@ def empresa_create_view(request):
     }
     return render(request, 'rrhh/empresa_form.html', context)
 
+@login_required
 def crear_liquidacion_view(request):
     """
     Esta vista muestra la página/formulario para crear una nueva liquidación.
@@ -49,7 +60,7 @@ def crear_liquidacion_view(request):
     }
     return render(request, 'rrhh/crear_liquidacion.html', context)
 
-
+@login_required
 def cargar_datos_contrato_api(request, contrato_id):
     """
     Esta es una 'mini-API' interna. JavaScript la llamará cuando el usuario
@@ -85,7 +96,7 @@ def cargar_datos_contrato_api(request, contrato_id):
 
 
 
-
+@login_required
 def trabajador_list_view(request):
     """
     Muestra la lista de todos los trabajadores.
@@ -95,7 +106,7 @@ def trabajador_list_view(request):
         'trabajadores': trabajadores
     }
     return render(request, 'rrhh/trabajador_list.html', context)
-
+@login_required
 def trabajador_create_view(request):
     """
     Maneja el formulario para crear un nuevo trabajador.
@@ -113,7 +124,7 @@ def trabajador_create_view(request):
         'titulo': 'Añadir Nuevo Trabajador' # Un título para reutilizar la plantilla
     }
     return render(request, 'rrhh/trabajador_form.html', context)
-
+@login_required
 def trabajador_detail_view(request, pk):
     """
     Muestra la información detallada de un trabajador y sus contratos.
@@ -129,6 +140,7 @@ def trabajador_detail_view(request, pk):
     }
     return render(request, 'rrhh/trabajador_detail.html', context)
 
+@login_required
 def contrato_create_view(request, trabajador_pk):
     trabajador = Trabajador.objects.get(id=trabajador_pk)
     if request.method == 'POST':
@@ -147,6 +159,7 @@ def contrato_create_view(request, trabajador_pk):
     }
     return render(request, 'rrhh/contrato_form.html', context)
 
+@login_required
 def indicador_list_view(request):
     """ Muestra el historial de indicadores económicos. """
     indicadores = IndicadorEconomico.objects.all()
@@ -155,6 +168,7 @@ def indicador_list_view(request):
     }
     return render(request, 'rrhh/indicador_list.html', context)
 
+@login_required
 def indicador_create_view(request):
     """ Maneja la creación de indicadores para un nuevo período. """
     initial_data = {}
@@ -186,3 +200,41 @@ def indicador_create_view(request):
         'form': form,
     }
     return render(request, 'rrhh/indicador_form.html', context)
+
+@login_required
+def home_cliente_view(request):
+    # Obtenemos la empresa vinculada al perfil del usuario
+    empresa = request.user.perfil.empresa
+    
+    # Si por error un cliente no tiene empresa asignada, podrías manejarlo aquí
+    if not empresa:
+        return render(request, 'rrhh/home_cliente.html', {'error': 'No tienes una empresa asignada. Contacta al administrador.'})
+
+    context = {
+        'empresa': empresa,
+        # Aquí podrías pasar más cosas luego, como sus últimos documentos
+    }
+    return render(request, 'rrhh/home_cliente.html', context)
+
+
+
+@login_required
+def planilla_cobranza_view(request):
+    if request.user.perfil.rol != 'admin':
+        return redirect('rrhh:home_cliente')
+
+    # Si no hay año en la URL, usamos el actual
+    anio_sel = int(request.GET.get('anio', datetime.now().year))
+    
+    # Filtramos empresas y sus cobros de ese año específico
+    empresas = Empresa.objects.prefetch_related(
+        models.Prefetch('cobros', queryset=RegistroCobro.objects.filter(ano=anio_sel))
+    ).all()
+
+    context = {
+        'empresas': empresas,
+        'anio_sel': anio_sel,
+        'anios_opciones': range(2024, datetime.now().year + 2),
+        'meses': range(1, 13),
+    }
+    return render(request, 'rrhh/planilla_cobranza.html', context)

@@ -3,6 +3,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
 
 # --- Modelos Base sin cambios ---
 class Empresa(models.Model):
@@ -10,6 +13,26 @@ class Empresa(models.Model):
     rut = models.CharField(max_length=12, unique=True, verbose_name="RUT")
     razon_social = models.CharField(max_length=255, verbose_name="Razón Social")
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)
+    correo_contacto = models.EmailField(verbose_name="Correo de Contacto")
+    
+    # SECCION: Gestión de Cliente y Claves
+    tipo_contribuyente = models.CharField(max_length=1, choices=[('P', 'Persona'), ('E', 'Empresa')], default='E')
+    giro = models.CharField(max_length=255, blank=True)
+    direccion = models.CharField(max_length=255, blank=True)
+
+    # Representante
+    rep_legal_nombre = models.CharField(max_length=255, blank=True)
+    rep_legal_rut = models.CharField(max_length=12, blank=True)
+
+    # Credenciales
+    clave_sii = models.CharField(max_length=100, blank=True)
+    clave_previred = models.CharField(max_length=100, blank=True)
+    clave_unica = models.CharField(max_length=100, blank=True)
+    clave_certificado = models.CharField(max_length=100, blank=True)
+
+    # Honorarios fijos
+    honorario_mensual_uf = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_renta_anual = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.razon_social
@@ -178,3 +201,59 @@ class IndicadorEconomico(models.Model):
 
     def __str__(self):
         return f"Indicadores para {self.mes}/{self.ano}"
+    
+
+# --- SECCION PERFILES Y ROLES ---
+class PerfilUsuario(models.Model):
+    ROLES = (
+        ('admin', 'Administrador/Contador'),
+        ('cliente', 'Cliente'),
+    )
+    # Relación uno a uno con el usuario nativo de Django
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
+    
+    # Define qué puede hacer en el ERP
+    rol = models.CharField(max_length=20, choices=ROLES, default='cliente')
+    
+    # Vinculación obligatoria para Clientes
+    empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, help_text="Asignar solo si el rol es Cliente")
+
+    def __str__(self):
+        return f"{self.user.username} ({self.get_rol_display()})"
+    
+# SECCION: Control de Cobranza Mensual
+class RegistroCobro(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='cobros')
+    mes = models.PositiveIntegerField()
+    ano = models.PositiveIntegerField()
+    
+    monto_uf = models.DecimalField(max_digits=10, decimal_places=2)
+    valor_uf_aplicado = models.DecimalField(max_digits=10, decimal_places=2)
+    total_pesos = models.PositiveIntegerField(editable=False)
+
+    pagado = models.BooleanField(default=False)
+    nro_bh_emitida = models.CharField(max_length=50, blank=True, verbose_name="N° Boleta")
+    fecha_pago = models.DateField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('empresa', 'mes', 'ano')
+
+    def save(self, *args, **kwargs):
+        self.total_pesos = round(self.monto_uf * self.valor_uf_aplicado)
+        super().save(*args, **kwargs)
+        
+
+# === SIGNALS / AUTOMATIZACIONES ===
+@receiver(post_save, sender=Empresa)
+def crear_usuario_cliente(sender, instance, created, **kwargs):
+    if created:
+        # Creamos usuario usando el RUT como username (sin puntos ni guión)
+        username = instance.rut.replace(".", "").replace("-", "").lower()
+        user, _ = User.objects.get_or_create(username=username, email=instance.correo_contacto)
+        # Seteamos una clave inicial por defecto (el mismo rut o algo genérico)
+        user.set_password(username) 
+        user.save()
+        
+        # Le asignamos el PerfilUsuario con rol cliente
+        from .models import PerfilUsuario
+        PerfilUsuario.objects.get_or_create(user=user, rol='cliente', empresa=instance)

@@ -69,6 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'rrhh.context_processors.indicadores_globales',
             ],
         },
     },
@@ -133,4 +134,13 @@ STATICFILES_DIRS = [
 # Esto permite que Django sirva los archivos comprimidos y cacheados eficientemente.
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    
+# --- ARCHIVOS MEDIA (LOGOS Y DOCUMENTOS SUBIDOS) ---
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # --- FIN SECTOR ESTÁTICOS ---
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
