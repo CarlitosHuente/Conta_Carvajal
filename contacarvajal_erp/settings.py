@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 import sys
 
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -110,8 +112,10 @@ USE_L10N = True
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, IMAGES) ---
 # Esto es vital para que se vea "bonito" en cPanel
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+STATIC_URL = '/static/'
