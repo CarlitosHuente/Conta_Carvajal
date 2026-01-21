@@ -28,9 +28,9 @@ else:
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# Solo usamos el storage de WhiteNoise en Producción para evitar conflictos
 if IN_PRODUCTION:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # Cambiamos a CompressedStaticFilesStorage para evitar el error de manifiesto faltante
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # --- FIN SECTOR SEGURIDAD ---
 
 # Application definition
