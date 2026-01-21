@@ -1,17 +1,13 @@
 import os
 import sys
 
-# LÓGICA HÍBRIDA (La Solución Definitiva)
-# Si el sistema NO es Windows (o sea, es Linux/cPanel), usa la ruta absoluta.
-if sys.platform != 'win32':
-    sys.path.insert(0, '/home/contaca3/repositories/erp_sistema')
-else:
-    # Si estamos en Windows (Tu PC), usa la ruta relativa normal
-    sys.path.insert(0, os.path.dirname(__file__))
+# 1. Agregamos el directorio actual a las rutas de Python
+sys.path.insert(0, os.path.dirname(__file__))
 
-# Configuración
+# 2. Definimos cuál es el archivo de configuración (settings.py)
+# Asegúrate de que 'contacarvajal_erp' sea el nombre real de tu carpeta de configuración
 os.environ['DJANGO_SETTINGS_MODULE'] = 'contacarvajal_erp.settings'
 
-# Arranque
+# 3. Arrancamos la aplicación Django
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
