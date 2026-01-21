@@ -1,18 +1,18 @@
 ---
 deployment:
   tasks:
-    # 1. Copiar archivos a la carpeta del proyecto (por seguridad)
+    # SECCIÓN 1: Sincronización de archivos
     - export DEPLOYPATH=/home/contaca3/repositories/erp_sistema/
     - /bin/cp -R * $DEPLOYPATH
 
-    # 2. Instalar librerías nuevas (si agregaste alguna)
-    - /home/contaca3/virtualenv/repositories/erp_sistema/3.9/bin/pip install -r requirements.txt
+    # SECCIÓN 2: Instalación de dependencias (Usando Python 3.12)
+    - /home/contaca3/virtualenv/repositories/erp_sistema/3.12/bin/pip install -r requirements.txt
 
-    # 3. Recolectar estilos (CSS/JS) automáticamente
-    - /home/contaca3/virtualenv/repositories/erp_sistema/3.9/bin/python $DEPLOYPATH/manage.py collectstatic --noinput
+    # SECCIÓN 3: Gestión de Estáticos (Vital para que se vea el CSS)
+    - /home/contaca3/virtualenv/repositories/erp_sistema/3.12/bin/python $DEPLOYPATH/manage.py collectstatic --noinput
 
-    # 4. Migrar base de datos (crear tablas nuevas si hacen falta)
-    - /home/contaca3/virtualenv/repositories/erp_sistema/3.9/bin/python $DEPLOYPATH/manage.py migrate
+    # SECCIÓN 4: Base de Datos (MySQL en Producción)
+    - /home/contaca3/virtualenv/repositories/erp_sistema/3.12/bin/python $DEPLOYPATH/manage.py migrate --noinput
 
-    # 5. Reiniciar la aplicación
+    # SECCIÓN 5: Reinicio del Servidor
     - touch $DEPLOYPATH/tmp/restart.txt

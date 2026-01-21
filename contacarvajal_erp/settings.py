@@ -16,14 +16,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # o si existe una variable de entorno específica.
 IN_PRODUCTION = '/home/contaca3' in str(BASE_DIR)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-iii7&h+qe76kz0ek=i$dii1rf=9p-9o65%1o2d0yxjugv1%-4%'
+# --- INICIO SECTOR SEGURIDAD ---
 
-# Si estamos en producción, DEBUG es False (por seguridad). En local es True.
-DEBUG = not IN_PRODUCTION
+# Si no existe (Local), usa la clave insegura por defecto para desarrollo.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-clave-local-desarrollo')
+
+# DEBUG solo será True si NO estamos en producción.
+# Puedes forzarlo en cPanel creando la variable DJANGO_DEBUG = 'False'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' and not IN_PRODUCTION
 
 ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl', 'localhost', '127.0.0.1']
-
+# --- FIN SECTOR SEGURIDAD ---
 
 # Application definition
 
@@ -110,12 +113,19 @@ USE_L10N = True
 
 
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, IMAGES) ---
+# --- INICIO SECTOR ESTÁTICOS ---
 STATIC_URL = '/static/'
 
-# Carpeta FINAL donde cPanel buscará los archivos (se llena sola)
+# Carpeta FINAL donde cPanel recolectará todo (Prohibido editar archivos aquí manualmente)
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# Carpeta donde TÚ pones tus CSS/imágenes locales (fuente)
+# Carpeta donde TÚ trabajas tus CSS/JS (Aquí sí editas)
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static_local'),
 ]
+
+# MOTOR DE WHITENOISE (Vital para Producción)
+# Esto permite que Django sirva los archivos comprimidos y cacheados eficientemente.
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# --- FIN SECTOR ESTÁTICOS ---
