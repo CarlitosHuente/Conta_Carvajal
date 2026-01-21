@@ -11,23 +11,21 @@ import sys
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- CONFIGURACIÓN HÍBRIDA (LOCAL vs PRODUCCIÓN) ---
-# Detectamos si estamos en cPanel buscando el usuario 'contaca3' en la ruta
-# o si existe una variable de entorno específica.
+# --- SECTOR SEGURIDAD (LOCAL vs PRODUCCIÓN) ---
+# Detectamos si estamos en cPanel
 IN_PRODUCTION = '/home/contaca3' in str(BASE_DIR)
 
-# --- INICIO SECTOR SEGURIDAD ---
+# SECRET_KEY desde cPanel (ya la configuraste) o local
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-iii7&h+qe76kz0ek=i$dii1rf=9p-9o65%1o2d0yxjugv1%-4%')
 
-# Si no existe (Local), usa la clave insegura por defecto para desarrollo.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-clave-local-desarrollo')
+# DEBUG automático: False en producción, True en local
+DEBUG = not IN_PRODUCTION
 
-# DEBUG solo será True si NO estamos en producción.
-# Puedes forzarlo en cPanel creando la variable DJANGO_DEBUG = 'False'
-#DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' and not IN_PRODUCTION
-#ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl', 'localhost', '127.0.0.1']
-DEBUG = True 
-ALLOWED_HOSTS = ['*']
-
+# Solo permitimos tus dominios en producción
+if IN_PRODUCTION:
+    ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl']
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 # --- FIN SECTOR SEGURIDAD ---
 
 # Application definition
