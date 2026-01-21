@@ -23,9 +23,11 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-clave-local-de
 
 # DEBUG solo será True si NO estamos en producción.
 # Puedes forzarlo en cPanel creando la variable DJANGO_DEBUG = 'False'
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' and not IN_PRODUCTION
+#DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' and not IN_PRODUCTION
+#ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl', 'localhost', '127.0.0.1']
+DEBUG = True 
+ALLOWED_HOSTS = ['*']
 
-ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl', 'localhost', '127.0.0.1']
 # --- FIN SECTOR SEGURIDAD ---
 
 # Application definition
