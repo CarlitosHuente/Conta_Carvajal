@@ -12,20 +12,25 @@ import sys
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SECTOR SEGURIDAD (LOCAL vs PRODUCCIÓN) ---
-# Detectamos si estamos en cPanel
 IN_PRODUCTION = '/home/contaca3' in str(BASE_DIR)
 
-# SECRET_KEY desde cPanel (ya la configuraste) o local
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-iii7&h+qe76kz0ek=i$dii1rf=9p-9o65%1o2d0yxjugv1%-4%')
 
-# DEBUG automático: False en producción, True en local
 DEBUG = not IN_PRODUCTION
 
-# Solo permitimos tus dominios en producción
+# IMPORTANTE: En producción, Django es muy estricto con los nombres de dominio.
 if IN_PRODUCTION:
     ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl']
 else:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+# --- SECTOR ESTÁTICOS (PARA WHITENOISE) ---
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Solo usamos el storage de WhiteNoise en Producción para evitar conflictos
+if IN_PRODUCTION:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # --- FIN SECTOR SEGURIDAD ---
 
 # Application definition
