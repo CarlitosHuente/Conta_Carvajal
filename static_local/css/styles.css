@@ -1,0 +1,36 @@
+/* static_local/css/styles.css */
+
+/* --- Estilos Globales --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* --- Barra de Navegación --- */
+.navbar-custom {
+    background-color: #0A2B4C; /* Azul oscuro corporativo */
+}
+.navbar-custom .navbar-brand,
+.navbar-custom .nav-link {
+    color: #ffffff !important;
+}
+.navbar-custom .nav-link:hover {
+    color: #ff6b6b !important; /* Color de acento al pasar el mouse */
+}
+
+/* --- Estilos para la Portada (Dashboard) --- */
+.hero-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease;
+    border: none;
+}
+.hero-card:hover {
+    transform: translateY(-5px);
+}
+.icon-box {
+    font-size: 2.5rem;
+    color: #0A2B4C;
+    margin-bottom: 1rem;
+}
