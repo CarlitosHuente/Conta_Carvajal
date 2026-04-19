@@ -1,7 +1,8 @@
 # rrhh/forms.py
 
 from django import forms
-from .models import Empresa, Trabajador, Contrato, IndicadorEconomico
+from .models import Trabajador, Contrato, IndicadorEconomico
+from core.models import Empresa
 
 class EmpresaForm(forms.ModelForm):
     class Meta:

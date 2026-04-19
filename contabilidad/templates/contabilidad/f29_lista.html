@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-invoice-dollar text-primary"></i> Historial de Declaraciones F29</h2>
+        <a href="{% url 'contabilidad:f29_subir' %}" class="btn btn-primary btn-lg shadow-sm">
+            <i class="fas fa-cloud-upload-alt"></i> Subir Nuevo F29
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Empresa</th>
+                            <th>Período</th>
+                            <th>Folio</th>
+                            <th>Total a Pagar</th>
+                            <th>Estado</th>
+                            <th>Fecha de Carga</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f29 in declaraciones %}
+                        <tr>
+                            <td class="fw-bold">{{ f29.empresa.razon_social }}</td>
+                            <td>{{ f29.mes }}/{{ f29.ano }}</td>
+                            <td>{{ f29.folio|default:"N/A" }}</td>
+                            <td class="text-success fw-bold">${{ f29.total_a_pagar|intcomma }}</td>
+                            <td>
+                                {% if f29.estado == 'pendiente' %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% else %}
+                                    <!-- Botón que activa el Pop-up -->
+                                    <button type="button" class="btn btn-sm {% if f29.estado == 'verificado' %}btn-outline-success{% else %}btn-outline-danger{% endif %} fw-bold" data-bs-toggle="modal" data-bs-target="#modalCuadratura{{ f29.id }}">
+                                        {% if f29.estado == 'verificado' %}<i class="fas fa-check-circle"></i> Verificado{% else %}<i class="fas fa-exclamation-triangle"></i> Error{% endif %}
+                                    </button>
+                                {% endif %}
+                            </td>
+                            <td>{{ f29.fecha_carga|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <div class="btn-group shadow-sm" role="group">
+                                    <a href="{% url 'contabilidad:f29_detalle' f29.pk %}" class="btn btn-sm btn-outline-info" title="Ver Detalles"><i class="fas fa-eye"></i></a>
+                                    <a href="{% url 'contabilidad:f29_editar' f29.pk %}" class="btn btn-sm btn-outline-primary" title="Editar Datos"><i class="fas fa-edit"></i></a>
+                                    <form action="{% url 'contabilidad:f29_recalcular' f29.pk %}" method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Reaplicar Reglas"><i class="fas fa-sync-alt"></i></button>
+                                    </form>
+                                    <form action="{% url 'contabilidad:f29_eliminar' f29.pk %}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este F29 de manera permanente?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">No hay declaraciones F29 cargadas en el sistema.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<!-- ZONA DE MODALS (FUERA DE LA TABLA PARA QUE FUNCIONE EL POP-UP) -->
+{% for f29 in declaraciones %}
+<div class="modal fade" id="modalCuadratura{{ f29.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header {% if f29.estado == 'error' %}bg-danger{% else %}bg-success{% endif %} text-white">
+                <h5 class="modal-title"><i class="fas fa-calculator"></i> Detalles de Auditoría - Folio {{ f29.folio|default:"N/A" }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if f29.detalles_cuadratura %}
+                    {% for detalle in f29.detalles_cuadratura %}
+                    <div class="card mb-4 border-{% if detalle.cumple %}success{% else %}danger{% endif %} shadow-sm">
+                        <div class="card-header bg-{% if detalle.cumple %}success{% else %}danger{% endif %} text-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="fas fa-balance-scale me-2"></i>{{ detalle.regla }}</h6>
+                            <span class="badge bg-white text-{% if detalle.cumple %}success{% else %}danger{% endif %} fs-6">
+                                {% if detalle.cumple %}<i class="fas fa-check-circle"></i> Válido (Cuadra){% else %}<i class="fas fa-times-circle"></i> Falla{% endif %}
+                            </span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="ps-3">Detalle de Códigos</th>
+                                            <th class="text-center">Operación</th>
+                                            <th class="text-end pe-3">Monto F29 Extraído</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for c, v in detalle.elementos_suma.items %}
+                                        <tr>
+                                            <td class="ps-3"><span class="badge bg-secondary me-2" style="width: 60px;">Cód {{ c }}</span> (Suma al cálculo)</td>
+                                            <td class="text-center text-success fw-bold"><i class="fas fa-plus"></i></td>
+                                            <td class="text-end pe-3">${{ v|intcomma }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% for c, v in detalle.elementos_resta.items %}
+                                        <tr>
+                                            <td class="ps-3"><span class="badge bg-secondary me-2" style="width: 60px;">Cód {{ c }}</span> (Resta al cálculo)</td>
+                                            <td class="text-center text-danger fw-bold"><i class="fas fa-minus"></i></td>
+                                            <td class="text-end pe-3">${{ v|intcomma }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        <tr class="table-light border-top">
+                                            <td colspan="2" class="text-end fw-bold text-primary pt-3">TOTAL CALCULADO POR EL ERP:</td>
+                                            <td class="text-end fw-bold text-primary pt-3 pe-3">${{ detalle.calculado|intcomma }}</td>
+                                        </tr>
+                                        <tr class="table-light">
+                                            <td colspan="2" class="text-end fw-bold text-secondary">TOTAL DECLARADO EN F29 <span class="badge bg-dark ms-1">Cód {{ detalle.codigo_resultado }}</span> :</td>
+                                            <td class="text-end fw-bold text-secondary pe-3">${{ detalle.esperado|intcomma }}</td>
+                                        </tr>
+                                        <tr class="{% if detalle.cumple %}table-success text-success{% else %}table-danger text-danger{% endif %} border-top">
+                                            <td colspan="2" class="text-end fw-bold pb-3">DIFERENCIA:</td>
+                                            <td class="text-end fw-bold pb-3 pe-3">${{ detalle.diferencia|intcomma }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aún no hay detalles guardados. Haz clic en el <strong>botón amarillo (Sincronizar)</strong> para recalcular esta declaración.
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+</div>
+{% endblock %}

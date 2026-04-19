@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ERP Contable{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h1 class="h2">Dashboard Administrador</h1>
+</div>
+
+<p class="lead text-muted">Resumen general del sistema y accesos directos.</p>
+
+<!-- Fila de Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-4">
+        <div class="dashboard-card text-center p-4 h-100">
+            <div class="icon mb-3"><i class="fas fa-building"></i></div>
+            <div class="stat-number">{{ total_empresas }}</div>
+            <div class="stat-label h5">Empresas Clientes</div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="dashboard-card text-center p-4 h-100">
+            <div class="icon mb-3"><i class="fas fa-users"></i></div>
+            <div class="stat-number">{{ total_trabajadores }}</div>
+            <div class="stat-label h5">Trabajadores Activos</div>
+        </div>
+    </div>
+</div>
+
+<!-- Fila de Accesos Directos -->
+<h3 class="h4 mb-3">Acciones Rápidas</h3>
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <a href="{% url 'rrhh:empresa_create' %}" class="d-block btn btn-success btn-lg p-4"><i class="fas fa-plus-circle me-2"></i>Añadir Nueva Empresa</a>
+    </div>
+    <div class="col-md-4 mb-3">
+        <a href="{% url 'rrhh:trabajador_list' %}" class="d-block btn btn-primary btn-lg p-4"><i class="fas fa-user-plus me-2"></i>Gestionar Trabajadores</a>
+    </div>
+    <div class="col-md-4 mb-3">
+        <a href="{% url 'rrhh:planilla_cobranza' %}" class="d-block btn btn-secondary btn-lg p-4"><i class="fas fa-file-invoice-dollar me-2"></i>Ir a Planilla de Cobranza</a>
+    </div>
+</div>
+{% endblock %}

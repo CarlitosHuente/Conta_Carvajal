@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-file-upload"></i> Cargar Formulario 29</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">Sube el archivo PDF nativo descargado desde el SII. El sistema escaneará automáticamente el documento y extraerá todos sus códigos.</p>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label for="archivo_pdf" class="form-label fw-bold">Archivo PDF del F29</label>
+                            <input class="form-control form-control-lg" type="file" id="archivo_pdf" name="archivo_pdf" accept=".pdf" required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">Escanear y Extraer Datos <i class="fas fa-arrow-right"></i></button>
+                            <a href="{% url 'contabilidad:f29_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

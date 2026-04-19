@@ -2,12 +2,12 @@
 
 from django.contrib import admin
 from .models import (
-    Empresa, AFP, SistemaSalud, Trabajador, 
+    AFP, SistemaSalud, Trabajador, 
     Contrato, ItemContrato, Liquidacion, ItemLiquidacion, Prestamo
 )
+from core.models import Empresa, PerfilUsuario
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import PerfilUsuario
 from .models import RegistroCobro
 
 # --- INLINES ---

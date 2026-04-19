@@ -9,6 +9,6 @@ def home_redirect_view(request):
     
     # Redirigir según rol
     if request.user.perfil.rol == 'admin':
-        return redirect('rrhh:planilla_cobranza') # <--- Cambia esto para ir directo a la tabla # O tu dashboard de contador
+        return redirect('rrhh:dashboard_admin') # <-- ¡NUEVO! Redirigimos al Dashboard de Admin
     else:
         return redirect('rrhh:home_cliente') # Crearemos esta ruta después

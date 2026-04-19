@@ -1,13 +1,14 @@
 # rrhh/views.py
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect # Asegúrate de que redirect esté importado
-from .models import Contrato, Empresa, Trabajador, IndicadorEconomico # Añade Empresa a los modelos importados
+from .models import Contrato, Trabajador, IndicadorEconomico
+from core.models import Empresa, PerfilUsuario
 from .forms import EmpresaForm, TrabajadorForm, ContratoForm, IndicadorEconomicoForm # ¡Importa el nuevo formulario!
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
 from django.db.models import Prefetch
-from .models import Empresa, RegistroCobro
+from .models import RegistroCobro
 from django.db import models  # Esto quita la alerta amarilla de 'models.Prefetch'
 
 
@@ -32,6 +33,10 @@ def empresa_create_view(request):
     """
     Esta vista maneja el formulario para crear una nueva empresa.
     """
+    # SECCION: Solo admin puede crear empresas
+    if request.user.perfil.rol != 'admin':
+        return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
+
     if request.method == 'POST':
         # Si el usuario envió el formulario...
         form = EmpresaForm(request.POST, request.FILES) # request.FILES es para la imagen del logo
@@ -101,7 +106,18 @@ def trabajador_list_view(request):
     """
     Muestra la lista de todos los trabajadores.
     """
-    trabajadores = Trabajador.objects.filter(activo=True).order_by('apellido_paterno')
+    # SECCION: Filtro por Rol
+    if request.user.perfil.rol == 'admin':
+        # El admin ve todos los trabajadores activos
+        trabajadores = Trabajador.objects.filter(activo=True).order_by('apellido_paterno')
+    else:
+        # El cliente SOLO ve los trabajadores de su propia empresa
+        empresa_id = request.user.perfil.empresa_id
+        if not empresa_id:
+            trabajadores = Trabajador.objects.none() # Devuelve una lista vacía si no tiene empresa
+        else:
+            trabajadores = Trabajador.objects.filter(empresa_id=empresa_id, activo=True).order_by('apellido_paterno')
+
     context = {
         'trabajadores': trabajadores
     }
@@ -111,6 +127,10 @@ def trabajador_create_view(request):
     """
     Maneja el formulario para crear un nuevo trabajador.
     """
+    # SECCION: Solo admin puede crear trabajadores
+    if request.user.perfil.rol != 'admin':
+        return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
+
     if request.method == 'POST':
         form = TrabajadorForm(request.POST)
         if form.is_valid():
@@ -131,6 +151,11 @@ def trabajador_detail_view(request, pk):
     'pk' es la "Primary Key" o ID del trabajador.
     """
     trabajador = Trabajador.objects.get(id=pk)
+    # SECCION: Filtro por Rol
+    # Un cliente solo puede ver trabajadores de su propia empresa
+    if request.user.perfil.rol == 'cliente' and trabajador.empresa != request.user.perfil.empresa:
+        return HttpResponseForbidden("No tienes permiso para ver este trabajador.")
+
     # Obtenemos todos los contratos asociados a este trabajador
     contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio')
 
@@ -142,6 +167,10 @@ def trabajador_detail_view(request, pk):
 
 @login_required
 def contrato_create_view(request, trabajador_pk):
+    # SECCION: Solo admin puede crear contratos
+    if request.user.perfil.rol != 'admin':
+        return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
+
     trabajador = Trabajador.objects.get(id=trabajador_pk)
     if request.method == 'POST':
         form = ContratoForm(request.POST)
@@ -162,6 +191,10 @@ def contrato_create_view(request, trabajador_pk):
 @login_required
 def indicador_list_view(request):
     """ Muestra el historial de indicadores económicos. """
+    # SECCION: Solo admin puede ver esta lista
+    if request.user.perfil.rol != 'admin':
+        return HttpResponseForbidden("No tienes permiso para ver esta página.")
+
     indicadores = IndicadorEconomico.objects.all()
     context = {
         'indicadores': indicadores,
@@ -171,6 +204,10 @@ def indicador_list_view(request):
 @login_required
 def indicador_create_view(request):
     """ Maneja la creación de indicadores para un nuevo período. """
+    # SECCION: Solo admin puede crear indicadores
+    if request.user.perfil.rol != 'admin':
+        return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
+
     initial_data = {}
     # Lógica de precarga: busca el último período guardado
     ultimo_periodo = IndicadorEconomico.objects.order_by('-ano', '-mes').first()
@@ -201,27 +238,11 @@ def indicador_create_view(request):
     }
     return render(request, 'rrhh/indicador_form.html', context)
 
-@login_required
-def home_cliente_view(request):
-    # Obtenemos la empresa vinculada al perfil del usuario
-    empresa = request.user.perfil.empresa
-    
-    # Si por error un cliente no tiene empresa asignada, podrías manejarlo aquí
-    if not empresa:
-        return render(request, 'rrhh/home_cliente.html', {'error': 'No tienes una empresa asignada. Contacta al administrador.'})
-
-    context = {
-        'empresa': empresa,
-        # Aquí podrías pasar más cosas luego, como sus últimos documentos
-    }
-    return render(request, 'rrhh/home_cliente.html', context)
-
-
 
 @login_required
 def planilla_cobranza_view(request):
     if request.user.perfil.rol != 'admin':
-        return redirect('rrhh:home_cliente')
+        return redirect('core:home_cliente')
 
     # Si no hay año en la URL, usamos el actual
     anio_sel = int(request.GET.get('anio', datetime.now().year))

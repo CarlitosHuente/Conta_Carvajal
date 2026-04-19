@@ -5,119 +5,119 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ContaCarvajal ERP{% endblock %}</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Font Awesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Estilos personalizados -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
 </head>
-<body class="d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{% url 'home' %}">
-                <i class="fas fa-chart-bar text-primary me-2"></i>ContaCarvajal
+            <a class="navbar-brand fw-bold" href="{% url 'core:home' %}">
+                <i class="fas fa-chart-line me-2"></i>ContaCarvajal ERP
             </a>
-            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
-            <div class="navbar-nav mx-auto text-white d-none d-lg-flex align-items-center">
-                <button class="btn btn-link text-decoration-none p-0 d-flex align-items-center text-white" 
-                        data-bs-toggle="modal" data-bs-target="#modalIndicadores">
-                    <div class="border-end border-secondary px-3 text-start">
-                        <small class="d-block text-secondary text-uppercase" style="font-size: 0.6rem;">UF Hoy</small>
-                        <span class="fw-bold text-info">${{ ind_api.uf }}</span>
-                    </div>
-                    <div class="border-end border-secondary px-3 text-start">
-                        <small class="d-block text-secondary text-uppercase" style="font-size: 0.6rem;">UF Cierre Mes</small>
-                        <span class="fw-bold text-success">${{ ind_api.uf_mensual }}</span>
-                    </div>
-                    <div class="px-3 text-start">
-                        <small class="d-block text-secondary text-uppercase" style="font-size: 0.6rem;">UTM Mes</small>
-                        <span class="fw-bold text-warning">${{ ind_api.utm }}</span>
-                    </div>
-                </button>
-            </div>
-
-            <div class="modal fade" id="modalIndicadores" tabindex="-1">
-                <div class="modal-dialog modal-sm">
-                    <div class="modal-content text-dark shadow">
-                        <div class="modal-header py-2 bg-dark text-white">
-                            <h6 class="modal-title">Detalle Indicadores</h6>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Sección Central: Indicadores Económicos -->
+                <div class="navbar-nav mx-auto text-white d-none d-lg-flex align-items-center">
+                    <button class="btn btn-link text-decoration-none p-0 d-flex align-items-center text-white" 
+                            data-bs-toggle="modal" data-bs-target="#modalIndicadores">
+                        <div class="border-end border-secondary px-3 text-start">
+                            <small class="d-block text-secondary text-uppercase" style="font-size: 0.6rem;">UF Hoy</small>
+                            <span class="fw-bold text-info">${{ ind_api.uf|default:"-" }}</span>
                         </div>
-                        <div class="modal-body p-0">
-                            <table class="table table-sm mb-0">
-                                <tr class="border-bottom"><td class="ps-3 py-2">UF Hoy:</td><td class="pe-3 text-end fw-bold text-primary">${{ ind_api.uf }}</td></tr>
-                                <tr class="border-bottom"><td class="ps-3 py-2">UF Cierre Mes:</td><td class="pe-3 text-end fw-bold text-success">${{ ind_api.uf_mensual }}</td></tr>
-                                <tr class="border-bottom"><td class="ps-3 py-2">UTM:</td><td class="pe-3 text-end fw-bold">${{ ind_api.utm }}</td></tr>
-                                <tr><td class="ps-3 py-2">Sueldo Mín:</td><td class="pe-3 text-end fw-bold text-danger">$539.000</td></tr>
-                                <tr class="bg-light">
-                                    <td colspan="2" class="ps-3 py-2 text-center">
-                                        <a href="https://www.previred.com/indicadores-previsionales/" 
-                                        target="_blank" 
-                                        class="text-decoration-none fw-bold" 
-                                        style="font-size: 0.75rem; color: #007bff;">
-                                        <i class="fas fa-external-link-alt me-1"></i> Ver Indicadores en Previred
-                                        </a>
-                                    </td>
-                                </tr>
-                            </table>
+                        <div class="px-3 text-start">
+                            <small class="d-block text-secondary text-uppercase" style="font-size: 0.6rem;">UTM</small>
+                            <span class="fw-bold text-warning">${{ ind_api.utm|default:"-" }}</span>
                         </div>
-                    </div>
+                    </button>
                 </div>
-            </div>
 
-                <ul class="navbar-nav ms-auto align-items-center">
+                <!-- Menú Principal -->
+                <div class="navbar-nav ms-auto align-items-center">
                     {% if user.is_authenticated %}
                         {% if user.perfil.rol == 'admin' or user.is_superuser %}
-                            <li class="nav-item"><a class="nav-link" href="{% url 'rrhh:planilla_cobranza' %}"><i class="fas fa-dollar-sign"></i> Cobranza</a></li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Recursos Humanos</a>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="{% url 'rrhh:empresa_list' %}">Empresas</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'rrhh:trabajador_list' %}">Trabajadores</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{% url 'rrhh:crear_liquidacion' %}">Liquidaciones</a></li>
-                                </ul>
-                            </li>
-                            <li class="nav-item"><a class="nav-link text-info" href="/admin" target="_blank">Admin</a></li>
+                            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'core:dashboard_admin' %}"><i class="fas fa-tachometer-alt me-1"></i>Dashboard</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'rrhh:empresa_list' %}"><i class="fas fa-building me-1"></i>Empresas</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'rrhh:trabajador_list' %}"><i class="fas fa-users me-1"></i>Trabajadores</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'rrhh:planilla_cobranza' %}"><i class="fas fa-file-invoice-dollar me-1"></i>Cobranza</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'contabilidad:f29_lista' %}"><i class="fas fa-calculator me-1"></i>Contabilidad</a>
+                                </li>
+                            </ul>
                         {% endif %}
                         
-                        <li class="nav-item ms-lg-3">
-                            <form action="{% url 'logout' %}" method="post">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-danger btn-sm">
-                                    <i class="fas fa-power-off"></i> Salir ({{ user.username }})
-                                </button>
-                            </form>
-                        </li>
+                        <!-- Menú de Usuario -->
+                        <ul class="navbar-nav ms-auto align-items-center">
+                            <li class="nav-item dropdown ms-lg-3">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-circle me-1"></i>{{ user.username }}
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                    <li><a class="dropdown-item" href="/admin" target="_blank"><i class="fas fa-cog me-2"></i>Panel Técnico</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    {% endif %}
+                                    <li>
+                                        <form action="{% url 'logout' %}" method="post" class="px-3 py-1">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-sm w-100">
+                                                <i class="fas fa-power-off me-1"></i> Cerrar Sesión
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
                     {% endif %}
-                </ul>
+                </div>
             </div>
         </div>
     </nav>
 
-    {% if ind_global %}
+    <!-- Modal de Indicadores (Fusionado y Mejorado) -->
     <div class="modal fade" id="modalIndicadores" tabindex="-1">
         <div class="modal-dialog modal-sm">
-            <div class="modal-content text-dark">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title">Detalles {{ ind_global.mes }}/{{ ind_global.ano }}</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content text-dark shadow">
+                <div class="modal-header py-2 bg-dark text-white">
+                    <h6 class="modal-title">Detalle Indicadores</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="mb-1 d-flex justify-content-between">Sueldo Mín: <strong>${{ ind_global.sueldo_minimo }}</strong></p>
-                    <p class="mb-1 d-flex justify-content-between">Tope AFP: <strong>{{ ind_global.tope_imponible_afp_uf }} UF</strong></p>
+                <div class="modal-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tr class="border-bottom"><td class="ps-3 py-2">UF Hoy:</td><td class="pe-3 text-end fw-bold text-primary">${{ ind_api.uf|default:"-" }}</td></tr>
+                        <tr class="border-bottom"><td class="ps-3 py-2">UF Cierre:</td><td class="pe-3 text-end fw-bold text-success">${{ ind_api.uf_mensual|default:"-" }}</td></tr>
+                        <tr class="border-bottom"><td class="ps-3 py-2">UTM:</td><td class="pe-3 text-end fw-bold">${{ ind_api.utm|default:"-" }}</td></tr>
+                        {% if ind_global %}
+                        <tr><td class="ps-3 py-2">Sueldo Mín:</td><td class="pe-3 text-end fw-bold text-danger">${{ ind_global.sueldo_minimo }}</td></tr>
+                        <tr><td class="ps-3 py-2">Tope AFP:</td><td class="pe-3 text-end fw-bold text-danger">{{ ind_global.tope_imponible_afp_uf }} UF</td></tr>
+                        {% endif %}
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
-    <main class="container-fluid py-4">
+    <main class="container mt-5 pt-4">
         {% block content %}{% endblock %}
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

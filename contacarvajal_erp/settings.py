@@ -42,7 +42,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
+    'core',
     'rrhh',
+    'contabilidad',
 ]
 
 MIDDLEWARE = [
@@ -142,5 +145,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # --- FIN SECTOR ESTÁTICOS ---
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'core:home'
 LOGOUT_REDIRECT_URL = 'login'
+
+# --- SEGURIDAD ---
+# Permite que los PDFs se previsualicen en la pantalla dividida (iframes/embeds)
+X_FRAME_OPTIONS = 'SAMEORIGIN'

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-alt text-primary"></i> Detalle Formulario 29</h2>
+        <a href="{% url 'contabilidad:f29_lista' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a la Lista
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Información General de la Empresa -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información General</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Empresa:</strong> {{ f29.empresa.razon_social }}</p>
+                    <p><strong>RUT:</strong> {{ f29.empresa.rut }}</p>
+                    <p><strong>Período:</strong> {{ f29.mes }}/{{ f29.ano }}</p>
+                    <p><strong>Folio:</strong> {{ f29.folio|default:"No registrado" }}</p>
+                    <p><strong>Estado:</strong> 
+                        <span class="badge {% if f29.estado == 'pendiente' %}bg-warning text-dark{% elif f29.estado == 'verificado' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ f29.get_estado_display }}
+                        </span>
+                    </p>
+                    <hr>
+                    <h4 class="text-success mb-0">Total a Pagar: ${{ f29.total_a_pagar|intcomma }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Códigos Detectados -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Códigos Registrados</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for nombre_codigo, monto in f29.detalles_legibles.items %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <span><i class="fas fa-check text-success me-2"></i> {{ nombre_codigo }}</span>
+                            <span class="badge bg-secondary rounded-pill fs-6">${{ monto|intcomma }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

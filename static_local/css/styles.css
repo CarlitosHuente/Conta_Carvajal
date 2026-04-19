@@ -1,33 +1,83 @@
 /* static_local/css/styles.css */
 
-/* --- Estilos Globales --- */
+/* --- Paleta de Colores y Fuentes --- */
+:root {
+    --bs-primary-rgb: 10, 43, 76; /* Azul corporativo para Bootstrap */
+    --color-primary: #0A2B4C;
+    --color-secondary: #495057;
+    --color-light-gray: #f8f9fa;
+    --color-accent: #28a745; /* Verde para acciones */
+    --color-danger: #dc3545;
+    --font-family-sans-serif: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
+    font-family: var(--font-family-sans-serif);
+    background-color: var(--color-light-gray);
+    padding-top: 56px; /* Espacio para la barra de navegación fija */
 }
 
 /* --- Barra de Navegación --- */
 .navbar-custom {
-    background-color: #0A2B4C; /* Azul oscuro corporativo */
-}
-.navbar-custom .navbar-brand,
-.navbar-custom .nav-link {
-    color: #ffffff !important;
-}
-.navbar-custom .nav-link:hover {
-    color: #ff6b6b !important; /* Color de acento al pasar el mouse */
+    background-color: var(--color-primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
 }
 
-/* --- Estilos para la Portada (Dashboard) --- */
-.hero-card {
+/* --- Dashboard (Página de Inicio Admin) --- */
+.dashboard-card {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    transition: transform 0.3s ease;
-    border: none;
+    border: 1px solid #e9ecef;
+    border-radius: .75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    text-decoration: none;
+    color: var(--color-secondary);
 }
-.hero-card:hover {
+
+.dashboard-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+    color: var(--color-primary);
+}
+
+.dashboard-card .icon {
+    font-size: 3rem;
+    color: var(--color-primary);
+}
+
+.dashboard-card .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+/* --- Cabeceras de Página --- */
+.page-header {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+}
+
+/* --- Tablas --- */
+.table {
+    border-color: #dee2e6;
+}
+.table thead th {
+    background-color: #e9ecef;
+    border-bottom-width: 1px;
+    font-weight: 600;
+}
+
+/* --- Formularios --- */
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* --- Botones --- */
+.btn-primary {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
 }
 .icon-box {
     font-size: 2.5rem;

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <h2 class="mb-4 text-center text-primary"><i class="fas fa-edit"></i> Editar Formulario 29</h2>
+    
+    <div class="card shadow-sm border-0 mx-auto" style="max-width: 900px;">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-building"></i> {{ f29.empresa.razon_social }} (RUT: {{ f29.empresa.rut }})</h5>
+        </div>
+        <div class="card-body">
+            <form action="{% url 'contabilidad:f29_editar' f29.pk %}" method="POST">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Mes</label>
+                        <input type="number" name="mes" class="form-control" min="1" max="12" value="{{ f29.mes }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Año</label>
+                        <input type="number" name="ano" class="form-control" min="2000" max="2100" value="{{ f29.ano }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Folio</label>
+                        <input type="text" name="folio" class="form-control" value="{{ f29.folio|default:'' }}">
+                    </div>
+                </div>
+
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 text-primary">Códigos Registrados</h5>
+                    <button type="button" class="btn btn-sm btn-success" onclick="agregarFilaManual()"><i class="fas fa-plus"></i> Agregar Fila Manual</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center" title="¿Mantener?"><i class="fas fa-check-square"></i></th>
+                                <th class="text-center">Código</th>
+                                <th>Nombre del Código</th>
+                                <th class="text-end">Monto ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody_codigos">
+                            {% for desc, valor in f29.detalles_legibles.items %}
+                            {% for cod_real, val_real in f29.datos_extraidos.items %}
+                            <!-- Hacemos un cruce para obtener el código exacto desde el diccionario de la propiedad -->
+                            {% if val_real == valor %}
+                            <tr>
+                                <td class="text-center"><input class="form-check-input" type="checkbox" name="incluir_{{ cod_real }}" checked></td>
+                                <td class="text-center fw-bold">{{ cod_real }}</td>
+                                <td><input type="text" name="desc_{{ cod_real }}" class="form-control form-control-sm border-0" value="{{ desc }}" readonly></td>
+                                <td><input type="number" name="valor_{{ cod_real }}" class="form-control form-control-sm text-end" value="{{ val_real }}" required></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'contabilidad:f29_lista' %}" class="btn btn-outline-secondary btn-lg">Cancelar</a>
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-save"></i> Guardar Cambios y Auditar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function agregarFilaManual() {
+    const tbody = document.getElementById('tbody_codigos');
+    const tr = document.createElement('tr');
+    tr.classList.add('table-info');
+    tr.innerHTML = `
+        <td class="text-center align-middle"><span class="badge bg-primary">Manual</span></td>
+        <td><input type="number" name="codigo_manual" class="form-control form-control-sm text-center fw-bold text-primary" placeholder="Ej: 142" required></td>
+        <td><input type="text" name="desc_manual" class="form-control form-control-sm" placeholder="Descripción del código" required></td>
+        <td>
+            <div class="input-group input-group-sm">
+                <input type="number" name="valor_manual" class="form-control text-end bg-white" placeholder="0" required>
+                <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button>
+            </div>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+</script>
+{% endblock %}
+{% endblock %}
