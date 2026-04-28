@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+                <div class="card-header bg-warning text-dark py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                    <h3 class="mb-0 fw-bold"><i class="fas fa-copy me-2"></i> Importar Plantilla de Centralización</h3>
+                    <p class="mb-0 mt-2">Clona la configuración matemática de otra empresa hacia <strong>{{ empresa_dest.razon_social }}</strong>.</p>
+                </div>
+                
+                <div class="card-body p-4 bg-light">
+                    <div class="alert alert-info border-info small">
+                        <i class="fas fa-info-circle me-1"></i> <strong>Atención:</strong> El sistema intentará enlazar las líneas matemáticas buscando cuentas con el <strong>mismo código</strong>. Si esta empresa no tiene la cuenta creada, esa línea específica no se copiará.
+                    </div>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4 mt-4">
+                            <label class="form-label fw-bold text-secondary">Selecciona la Plantilla de Origen</label>
+                            <select name="plantilla_id" class="form-select form-select-lg border-primary" required>
+                                <option value="">-- Elige una plantilla --</option>
+                                {% regroup plantillas_otras by empresa as empresas_list %}
+                                {% for empresa_group in empresas_list %}
+                                    <optgroup label="🏢 {{ empresa_group.grouper.razon_social }}">
+                                        {% for plantilla in empresa_group.list %}
+                                            <option value="{{ plantilla.id }}">{{ plantilla.nombre }} ({{ plantilla.get_tipo_origen_display }})</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-grid mt-5">
+                            <button type="submit" class="btn btn-warning btn-lg fw-bold shadow-sm">
+                                <i class="fas fa-download me-2"></i> Clonar Plantilla Seleccionada
+                            </button>
+                            <a href="{% url 'contabilidad:plantilla_lista' %}" class="btn btn-outline-secondary mt-3">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

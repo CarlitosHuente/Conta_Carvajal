@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'core:home' %}" class="btn btn-sm btn-outline-secondary mb-2 rounded-pill px-3 shadow-sm"><i class="fas fa-arrow-left me-1"></i> Volver al Panel</a>
+            <h2 class="text-primary mb-0"><i class="fas fa-book-open"></i> Libro Diario</h2>
+            <p class="text-muted mb-0">Registro histórico de todos los asientos contables de la empresa.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            {% if asientos %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-primary text-white">
+                        <tr>
+                            <th class="ps-4">N° Asiento</th>
+                            <th>Fecha</th>
+                            <th>Glosa / Descripción</th>
+                            <th>Origen</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asiento in asientos %}
+                        <tr>
+                            <td class="fw-bold text-primary ps-4">#{{ asiento.id }}</td>
+                            <td>{{ asiento.fecha|date:"d/m/Y" }}</td>
+                            <td class="fw-bold">{{ asiento.glosa }}</td>
+                            <td>
+                                {% if asiento.origen_f29 %}
+                                    <span class="badge bg-info text-dark"><i class="fas fa-file-invoice me-1"></i> F29 ({{ asiento.origen_f29.mes }}/{{ asiento.origen_f29.ano }})</span>
+                                {% else %}
+                                    <span class="badge bg-secondary"><i class="fas fa-keyboard me-1"></i> Manual</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'contabilidad:asiento_detalle' asiento.id %}" class="btn btn-sm btn-outline-primary shadow-sm">
+                                    <i class="fas fa-eye"></i> Ver Detalle
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center m-4">
+                <i class="fas fa-info-circle fa-2x mb-3 d-block text-info"></i> No hay asientos contables registrados. Centraliza un F29 para generar tu primer comprobante.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

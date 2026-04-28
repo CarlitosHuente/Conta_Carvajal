@@ -1,32 +1,51 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from core.models import Empresa
-from rrhh.models import Trabajador # Necesario solo para contar en el dashboard
+from .models import Empresa
 
 @login_required
-def home_redirect_view(request):
-    """Controlador de tráfico: Envía a cada usuario a su portal según su rol"""
+def home_view(request):
+    """
+    Controlador de tráfico principal.
+    - Si es admin, muestra el selector de empresas.
+    - Si es cliente, selecciona su empresa y lo redirige al dashboard.
+    """
+    # Limpiamos cualquier contexto de empresa previo para empezar de cero.
+    if 'empresa_activa_id' in request.session:
+        del request.session['empresa_activa_id']
+
     if request.user.perfil.rol == 'admin':
-        return redirect('core:dashboard_admin')
+        empresas = Empresa.objects.all()
+        return render(request, 'core/seleccionar_empresa.html', {'empresas': empresas})
     else:
-        return redirect('core:home_cliente')
+        # Es un cliente, lo asignamos a su empresa y lo mandamos a su dashboard
+        empresa_cliente = request.user.perfil.empresa
+        if empresa_cliente:
+            request.session['empresa_activa_id'] = empresa_cliente.id
+            return redirect('core:empresa_dashboard')
+        else:
+            # Caso borde: cliente sin empresa asignada
+            return render(request, 'core/error_sin_empresa.html')
 
 @login_required
-def dashboard_admin_view(request):
-    """Vista principal para el rol de Administrador."""
+def seleccionar_empresa_view(request, empresa_id):
+    """Guarda la empresa seleccionada por el admin en la sesión y redirige al dashboard."""
     if request.user.perfil.rol != 'admin':
-        return redirect('core:home_cliente')
-
-    context = {
-        'total_empresas': Empresa.objects.count(),
-        'total_trabajadores': Trabajador.objects.filter(activo=True).count(),
-    }
-    return render(request, 'core/dashboard_admin.html', context)
+        return redirect('core:home')
+    empresa = get_object_or_404(Empresa, id=empresa_id)
+    request.session['empresa_activa_id'] = empresa.id
+    return redirect('core:empresa_dashboard')
 
 @login_required
-def home_cliente_view(request):
-    empresa = request.user.perfil.empresa
-    if not empresa:
-        return render(request, 'core/home_cliente.html', {'error': 'No tienes una empresa asignada. Contacta al administrador.'})
+def salir_empresa_view(request):
+    """Limpia la empresa de la sesión y devuelve al admin al selector."""
+    if 'empresa_activa_id' in request.session:
+        del request.session['empresa_activa_id']
+    return redirect('core:home')
 
-    return render(request, 'core/home_cliente.html', {'empresa': empresa})
+@login_required
+def empresa_dashboard_view(request):
+    """Dashboard principal para la empresa que está activa en la sesión."""
+    if not request.session.get('empresa_activa_id'):
+        return redirect('core:home')
+    # El objeto 'empresa_activa' ya está disponible en el template gracias al context processor.
+    return render(request, 'core/empresa_dashboard.html')

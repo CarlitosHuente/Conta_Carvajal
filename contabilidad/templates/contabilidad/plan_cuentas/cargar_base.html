@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+        <div class="card-header bg-warning text-dark py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+            <h3 class="mb-0 fw-bold"><i class="fas fa-cloud-download-alt me-2"></i> Cargar Plan de Cuentas Predefinido</h3>
+            <p class="mb-0 mt-2">Selecciona las cuentas del estándar contable chileno que deseas importar a <strong>{{ empresa_actual.razon_social }}</strong>.</p>
+        </div>
+        
+        <div class="card-body p-4 bg-light">
+            <form method="POST">
+                {% csrf_token %}
+                {% if request.user.perfil.rol == 'admin' %}
+                    <input type="hidden" name="empresa_id" value="{{ empresa_actual.id }}">
+                {% endif %}
+
+                <div class="row">
+                    {% for tipo, lista_cuentas in cuentas_agrupadas.items %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-white text-uppercase fw-bold text-primary border-bottom-0 pt-3">
+                                <i class="fas fa-folder-open me-2"></i> {{ tipo|title }}
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                {% for cuenta in lista_cuentas %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3 {% if cuenta.ya_existe %}bg-light text-muted{% endif %}">
+                                    <div>
+                                        <div class="fw-bold">{{ cuenta.codigo }} - {{ cuenta.nombre }}</div>
+                                        {% if cuenta.obligatoria %}
+                                            <span class="badge bg-danger mt-1" style="font-size: 0.7rem;">Obligatoria</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary mt-1" style="font-size: 0.7rem;">Opcional</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="form-check form-switch fs-4">
+                                        {% if cuenta.ya_existe %}
+                                            <span class="badge bg-success fs-6"><i class="fas fa-check"></i> Ya existe</span>
+                                        {% else %}
+                                            <input class="form-check-input cursor-pointer" type="checkbox" 
+                                                name="cuentas_seleccionadas" value="{{ cuenta.codigo }}" 
+                                                id="chk_{{ cuenta.codigo|slugify }}"
+                                                {% if cuenta.obligatoria %}checked{% endif %}>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Barra Flotante de Acciones -->
+                <div class="card border-0 shadow mt-4 position-sticky bottom-0 bg-white" style="z-index: 1000; bottom: 20px;">
+                    <div class="card-body d-flex justify-content-between align-items-center p-4">
+                        <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-left me-2"></i> Cancelar
+                        </a>
+                        <div>
+                            <div class="text-muted small text-end mb-1"><i class="fas fa-info-circle"></i> Las cuentas marcadas como "Ya existe" no serán duplicadas.</div>
+                            <button type="submit" class="btn btn-warning btn-lg fw-bold shadow-sm px-5">
+                                <i class="fas fa-save me-2"></i> Importar Cuentas Seleccionadas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

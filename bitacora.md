@@ -1,5 +1,14 @@
 # Bitácora de Desarrollo - ContaCarvajal ERP
 
+## ⚠️ Reglas de Trabajo y Prompting (¡LEER SIEMPRE PRIMERO!)
+1. **Debatir antes de codificar:** Antes de generar código, proponer la solución, explicar el "por qué" y debatir si es la mejor alternativa.
+2. **Estructura Estricta y Ordenada:** Mantener el orden modular del proyecto. No crear archivos en lugares aleatorios o que rompan la arquitectura.
+3. **Delegación de Carpetas:** Si se requiere una nueva carpeta, indicar la ruta exacta al desarrollador para que él la cree. Solo continuar cuando el directorio exista.
+4. **Preservar Formatos:** Respetar los formatos existentes de UI/UX, plantillas HTML, clases de Bootstrap y convenciones de nombres.
+5. **Restricción por Roles (RBAC):** Más adelante, cada "submódulo" o funcionalidad específica deberá estar restringida o adaptada dependiendo de los roles del usuario (Admin vs Cliente vs Staff). Nunca asumir que un usuario tiene acceso a todo sin validarlo.
+
+---
+
 ## Estado Actual del Proyecto
 * **Entorno Actual:** Desarrollo Local (VS Code, SQLite3, DEBUG=True).
 * **Entorno Futuro (Producción):** cPanel (HostingChile), MySQL, servidor WSGI, `whitenoise` para archivos estáticos.
@@ -54,3 +63,41 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 * **Edición Ágil:** Se permite agregar filas manuales (JavaScript) y editar un F29 ya guardado sin necesidad de volver a subir el PDF, recalculando la auditoría automáticamente al guardar.
 * **Humanize:** Se integró `django.contrib.humanize` para que todos los montos en tablas y pop-ups se presenten con separador de miles (`|intcomma`), mejorando drásticamente la lectura contable.
 * **Seguridad de iFrames:** Se agregó `X_FRAME_OPTIONS = 'SAMEORIGIN'` en `settings.py` para permitir la visualización de los PDFs locales en el navegador sin bloqueos de seguridad.
+
+### Fecha: 28 de Abril de 2026
+**Resumen:** Automatización de Superusuario y personalización de la página de Login.
+
+#### 1. Creación de Superusuario por Defecto
+* **Decisión:** Se optó por la **Opción A (Señales de Django)**. Se utilizará la señal `post_migrate` para verificar la existencia del superusuario "Carlos" cada vez que se ejecuten las migraciones.
+* **Justificación:** Es un método robusto y automático. El código se diseñó para que **solo cree el usuario si no existe**, evitando así sobreescribir la contraseña si esta se cambia manualmente en el futuro.
+
+#### 2. Página de Inicio de Sesión Profesional
+* **Decisión:** Se sobreescribirá la plantilla de login por defecto de Django.
+* **Justificación:** Siguiendo la convención de Django, se crea el archivo `templates/registration/login.html`. El motor de plantillas de Django priorizará este archivo sobre el que viene por defecto, permitiendo una personalización completa sin tocar el núcleo del framework.
+
+### Fecha: [Fase de Planificación] 
+**Resumen:** Módulo de Plan de Cuentas y Centralización Automática de F29
+* **Objetivo:** Permitir la creación de Planes de Cuentas bajo norma chilena por empresa.
+* **Contabilidad Simplificada vs Completa:** Se establece que este método de centralización vía F29 será el de "Contabilidad Simplificada". La arquitectura dejará preparado el terreno para un futuro módulo de captura por "Registro de Compra y Ventas (RCV)" para "Contabilidad Completa".
+* **Carga Masiva (Plan Base):** Se implementó un diccionario hardcodeado en Python (`plan_base.py`) con el estándar contable chileno. Permite cargar masivamente cuentas agrupadas (Activos, Pasivos, etc.) sugiriendo cuentas obligatorias marcadas por defecto, evitando la digitación manual.
+* **Motor de Fórmulas:** Sistema de plantillas de centralización donde el usuario pueda usar variables de códigos SII (Ej: `([520] / 19) * 100`) para calcular cuentas y automatizar asientos.
+* **Partida Doble:** Modelos `AsientoContable` y `LineaAsiento` para respetar el Debe y Haber. El origen del asiento estará vinculado dinámicamente (ahora al F29, a futuro al RCV).
+* **Clonación de Plantillas (RBAC):** Se implementó una función exclusiva para Administradores que permite copiar una plantilla de una empresa a otra. El sistema realiza un "mapeo inteligente" buscando la equivalencia de cuentas por su Código (Ej: 1.1.01) en la empresa de destino.
+* **Procesador Matemático Seguro y Vista Previa:** Función que lee fórmulas y ejecuta las matemáticas. Se implementó un paso de "Previsualización" (Pop-up) obligatorio. El usuario debe ver el asiento cuadrado antes de que se grabe en la base de datos.
+* **Edición de Plantillas (Erase & Replace):** Para la edición de plantillas con filas dinámicas en JS, el backend elimina las líneas antiguas y re-inserta las enviadas por el formulario para asegurar coherencia absoluta.
+* **Estrategia de Centralización:** Se aconseja y permite la aplicación de múltiples plantillas separadas (Compras, Ventas, etc.) a un mismo F29 para mantener la granularidad y limpieza del Libro Diario, en lugar de "Mega Asientos".
+* **Auditoría de Prevención:** Se agregó en el Historial de F29 y en el motor de centralización un sistema de alertas que detecta e informa si un F29 ya posee Asientos Contables vinculados, evitando la duplicación de partidas.
+
+### Fecha: [Fase de Planificación]
+**Resumen:** Refactorización de Navegación (Enfoque "Contexto de Empresa")
+* **Problema:** La navegación actual es "Módulo -> Todas las Empresas". Esto es desordenado y poco escalable para un Administrador.
+* **Solución Propuesta:** Invertir la navegación a "Empresa -> Módulos". 
+* **Mecanismo:** Implementar un "Contexto de Empresa" usando `request.session`. El Admin selecciona una empresa en el Home, el sistema la guarda en sesión, y redirige a un "Dashboard de Empresa" con accesos rápidos. El cliente entra directo a su Dashboard. El Menú Lateral (`base.html`) y las vistas se adaptarán dinámicamente a la empresa en sesión.
+
+---
+
+## Próximos Pasos (Pendientes para la siguiente sesión)
+1. **Exportación a PDF del Comprobante Contable:** Implementar un botón en la vista de detalle del Asiento (Libro Diario) para generar un PDF descargable con el formato de la "Tabla T" y sus glosas, ideal para respaldos físicos o envíos al cliente.
+2. **Módulo de Libro Mayor:** Crear una vista interactiva donde el usuario pueda seleccionar una Cuenta Contable específica (Ej: "Caja" o "Mercaderías") y auditar todo su historial de movimientos (cargos y abonos), calculando su saldo final en tiempo real.
+3. **Centralización Masiva (Multi-período):** Desarrollar la funcionalidad para ejecutar varias plantillas sobre múltiples períodos (F29) en bloque, agilizando la carga de contabilidad atrasada.
+4. **Libro de Caja:** Crear un reporte de flujo (ingresos menos salidas) que permita contrastar de forma resumida las ventas versus las compras y el pago de honorarios.

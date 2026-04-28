@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-5 border-primary">
+        <div class="container-fluid py-3">
+            <h1 class="display-6 fw-bold">Dashboard: {{ empresa_activa.razon_social }}</h1>
+            <p class="col-md-8 fs-5 text-muted">Selecciona un módulo para gestionar la información de la empresa.</p>
+        </div>
+    </div>
+
+    <div class="row align-items-md-stretch g-4">
+        <!-- Módulo de Contabilidad -->
+        {% if empresa_activa.modulo_contabilidad %}
+        <div class="col-md-6">
+            <div class="h-100 p-5 text-white bg-primary rounded-3 shadow">
+                <h2><i class="fas fa-calculator me-2"></i> Contabilidad</h2>
+                <p>Gestiona declaraciones F29, planes de cuentas y centralizaciones.</p>
+                <a href="{% url 'contabilidad:f29_lista' %}" class="btn btn-outline-light" type="button">Ir a F29</a>
+                <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-light ms-2" type="button">Ir a Plan de Cuentas</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Módulo de RRHH -->
+        {% if empresa_activa.modulo_rrhh %}
+        <div class="col-md-6">
+            <div class="h-100 p-5 bg-light border rounded-3 shadow">
+                <h2><i class="fas fa-users me-2"></i> Recursos Humanos</h2>
+                <p>Administra trabajadores, contratos y liquidaciones de sueldo.</p>
+                <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-outline-secondary" type="button">Ir a Trabajadores</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

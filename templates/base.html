@@ -42,25 +42,57 @@
                 <!-- Menú Principal -->
                 <div class="navbar-nav ms-auto align-items-center">
                     {% if user.is_authenticated %}
-                        {% if user.perfil.rol == 'admin' or user.is_superuser %}
-                            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'core:dashboard_admin' %}"><i class="fas fa-tachometer-alt me-1"></i>Dashboard</a>
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-center">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'core:home' %}"><i class="fas fa-home me-1"></i>Inicio</a>
+                            </li>
+                            
+                            {% if empresa_activa %}
+                                <li class="nav-item d-none d-lg-block mx-2">
+                                    <span class="badge bg-light text-dark py-2 px-3 border border-secondary shadow-sm">
+                                        <i class="fas fa-building text-primary me-1"></i> Trabajando en: <strong>{{ empresa_activa.razon_social }}</strong>
+                                    </span>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'rrhh:empresa_list' %}"><i class="fas fa-building me-1"></i>Empresas</a>
+                                
+                                <!-- Menú Desplegable de Contabilidad -->
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="navbarContabilidad" role="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-calculator me-1"></i>Contabilidad
+                                    </a>
+                                    <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarContabilidad">
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Impuestos</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:f29_lista' %}"><i class="fas fa-file-invoice me-2"></i>Historial F29</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:f29_subir' %}"><i class="fas fa-upload me-2"></i>Subir F29</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Libros Contables</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:libro_diario' %}"><i class="fas fa-book-open me-2"></i>Libro Diario</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Configuración</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:plan_cuentas_lista' %}"><i class="fas fa-book me-2"></i>Plan de Cuentas</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:plantilla_lista' %}"><i class="fas fa-cogs me-2"></i>Plantillas Centralización</a></li>
+                                    </ul>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'rrhh:trabajador_list' %}"><i class="fas fa-users me-1"></i>Trabajadores</a>
                                 </li>
+                                {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+                                    <a class="btn btn-sm btn-danger rounded-pill shadow-sm px-3" href="{% url 'core:salir_empresa' %}">
+                                        <i class="fas fa-arrow-left me-1"></i> Cambiar Empresa
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'rrhh:empresa_list' %}"><i class="fas fa-building me-1"></i>Empresas</a>
+                                </li>
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'rrhh:planilla_cobranza' %}"><i class="fas fa-file-invoice-dollar me-1"></i>Cobranza</a>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'contabilidad:f29_lista' %}"><i class="fas fa-calculator me-1"></i>Contabilidad</a>
-                                </li>
-                            </ul>
-                        {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        </ul>
                         
                         <!-- Menú de Usuario -->
                         <ul class="navbar-nav ms-auto align-items-center">
@@ -114,6 +146,19 @@
     </div>
 
     <main class="container mt-5 pt-4">
+        <!-- ZONA DE ALERTAS Y MENSAJES DEL SISTEMA -->
+        {% if messages %}
+            <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm border-0" role="alert">
+                    <i class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% elif message.tags == 'success' %}check-circle{% elif message.tags == 'warning' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
 

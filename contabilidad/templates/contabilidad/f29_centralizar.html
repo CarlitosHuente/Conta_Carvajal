@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+                <div class="card-header bg-success text-white py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                    <h3 class="mb-0 fw-bold"><i class="fas fa-magic me-2"></i> Centralización Automática</h3>
+                    <p class="mb-0 mt-2">Vas a procesar el F29 (Folio: {{ f29.folio|default:"Sin Folio" }}) del período <strong>{{ f29.mes }}/{{ f29.ano }}</strong>.</p>
+                </div>
+                
+                <div class="card-body p-4 bg-light">
+                    {% if f29.asientos_generados.all %}
+                    <div class="alert alert-warning border-warning shadow-sm mb-4">
+                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> Este F29 ya cuenta con asientos vinculados:
+                        {% for asiento in f29.asientos_generados.all %}
+                            <a href="{% url 'contabilidad:asiento_detalle' asiento.id %}" class="alert-link" target="_blank">#{{ asiento.id }}</a>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}.
+                        <br>Asegúrate de aplicar una plantilla <strong>diferente</strong> (Ej: Si ya aplicaste Compras, aplica Ventas) para no duplicar la contabilidad.
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" id="formCentralizar">
+                        {% csrf_token %}
+                        <input type="hidden" name="confirmado" id="inputConfirmado" value="false">
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">1. ¿Qué Plantilla Matemática deseas aplicar?</label>
+                            <select name="plantilla_id" id="selectPlantilla" class="form-select form-select-lg border-success" required onchange="actualizarGlosa()">
+                                <option value="">-- Selecciona una plantilla --</option>
+                                {% for p in plantillas %}
+                                    <option value="{{ p.id }}" data-nombre="{{ p.nombre }}" {% if p.id == plantilla_id_sel %}selected{% endif %}>{{ p.nombre }}</option>
+                                {% empty %}
+                                    <option value="" disabled>No tienes plantillas creadas. Ve a Configuración > Plantillas.</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-secondary">2. Fecha del Asiento</label>
+                                <input type="date" name="fecha" class="form-control border-success" value="{{ fecha_sel|default:fecha_sugerida }}" required>
+                                <small class="text-muted">Por defecto: Fin de mes.</small>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold text-secondary">3. Glosa / Descripción</label>
+                                <input type="text" name="glosa" id="inputGlosa" class="form-control border-success" value="{{ glosa_sel|default:glosa_sugerida }}" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-5">
+                            <button type="submit" class="btn btn-info text-white btn-lg fw-bold shadow-sm" {% if not plantillas %}disabled{% endif %}>
+                                <i class="fas fa-eye me-2"></i> Procesar y Previsualizar Asiento
+                            </button>
+                            <a href="{% url 'contabilidad:f29_lista' %}" class="btn btn-outline-secondary mt-3">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POP-UP MODAL DE VISTA PREVIA -->
+{% if mostrar_modal %}
+<div class="modal fade" id="modalPreview" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-check-circle me-2"></i> Vista Previa del Asiento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light p-4">
+                <div class="alert alert-success border-success small mb-4">
+                    <i class="fas fa-balance-scale"></i> ¡Las fórmulas están correctas y el asiento cuadra perfectamente! Revisa los montos antes de guardarlo definitivamente.
+                </div>
+                
+                <div class="table-responsive shadow-sm rounded border bg-white">
+                    <table class="table table-borderless table-sm mb-0">
+                        <thead class="table-light border-bottom">
+                            <tr>
+                                <th class="ps-3">Cuenta Contable</th>
+                                <th class="text-end text-success">Debe</th>
+                                <th class="text-end text-danger pe-3">Haber</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for linea in lineas_calculadas %}
+                            <tr class="border-bottom">
+                                <td class="ps-3 fw-bold"><span class="text-muted fw-normal me-1">{{ linea.cuenta_codigo }}</span> {{ linea.cuenta_nombre }}</td>
+                                <td class="text-end">{% if linea.debe > 0 %}${{ linea.debe|intcomma }}{% endif %}</td>
+                                <td class="text-end pe-3">{% if linea.haber > 0 %}${{ linea.haber|intcomma }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light border-top border-2 border-success">
+                            <tr>
+                                <td class="text-end fw-bold py-2">TOTALES:</td>
+                                <td class="text-end fw-bold text-success fs-6 py-2">${{ total_debe|intcomma }}</td>
+                                <td class="text-end fw-bold text-danger pe-3 fs-6 py-2">${{ total_haber|intcomma }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="cerrarModalPreview()">Corregir Datos</button>
+                <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="confirmarGuardado()">
+                    <i class="fas fa-save me-2"></i> Confirmar y Guardar en Libro Diario
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let modalInstance;
+
+    {% if mostrar_modal %}
+    document.addEventListener("DOMContentLoaded", function() {
+        const modalEl = document.getElementById('modalPreview');
+        if (modalEl) {
+            modalInstance = new bootstrap.Modal(modalEl);
+            modalInstance.show();
+        }
+    });
+    {% endif %}
+
+    function cerrarModalPreview() { if (modalInstance) { modalInstance.hide(); } }
+
+    function confirmarGuardado() {
+        document.getElementById('inputConfirmado').value = 'true';
+        document.getElementById('formCentralizar').submit(); // Re-enviamos el formulario con la bandera True
+    }
+
+    function actualizarGlosa() {
+        const select = document.getElementById('selectPlantilla');
+        const inputGlosa = document.getElementById('inputGlosa');
+        if (select.selectedIndex > 0) {
+            const nombrePlantilla = select.options[select.selectedIndex].getAttribute('data-nombre');
+            inputGlosa.value = `${nombrePlantilla} - F29 - Período {{ f29.mes|stringformat:"02d" }}/{{ f29.ano }}`;
+        }
+    }
+</script>
+{% endblock %}

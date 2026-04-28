@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Contenedor que centra la tarjeta vertical y horizontalmente -->
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card shadow-lg border-0" style="width: 100%; max-width: 450px; border-radius: 1rem;">
+        
+        <!-- Cabecera de la Tarjeta -->
+        <div class="card-header bg-primary text-white text-center py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+            <h3 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2"></i> ContaCarvajal</h3>
+            <p class="mb-0 text-white-50 small mt-1">Sistema ERP Integrado</p>
+        </div>
+        
+        <!-- Cuerpo del Formulario -->
+        <div class="card-body p-5 bg-white">
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="id_username" class="form-label fw-bold text-secondary"><i class="fas fa-user text-primary me-2"></i> Usuario</label>
+                    <input type="text" name="username" class="form-control form-control-lg bg-light border-0" id="id_username" placeholder="Ingresa tu usuario" required autofocus>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_password" class="form-label fw-bold text-secondary"><i class="fas fa-lock text-primary me-2"></i> Contraseña</label>
+                    <input type="password" name="password" class="form-control form-control-lg bg-light border-0" id="id_password" placeholder="Ingresa tu contraseña" required>
+                </div>
+                
+                {% if form.errors %}
+                <div class="alert alert-danger small py-2 fw-bold text-center">
+                    <i class="fas fa-exclamation-circle me-1"></i> Usuario o contraseña incorrectos.
+                </div>
+                {% endif %}
+                
+                <div class="d-grid mt-5">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold"><i class="fas fa-sign-in-alt me-2"></i> Iniciar Sesión</button>
+                </div>
+                
+                <input type="hidden" name="next" value="{{ next|default:'' }}">
+            </form>
+        </div>
+        
+        <div class="card-footer text-center py-3 bg-light text-muted small" style="border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;">
+            &copy; {% now "Y" %} ContaCarvajal ERP. Todos los derechos reservados.
+        </div>
+    </div>
+</div>
+{% endblock %}

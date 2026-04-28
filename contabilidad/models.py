@@ -124,3 +124,95 @@ class DeclaracionF29(models.Model):
                 
         self.detalles_cuadratura = detalles
         self.estado = 'verificado' if todas_cumplen else 'error'
+
+# =====================================================================
+# MÓDULO DE PLAN DE CUENTAS Y CENTRALIZACIÓN (CONTABILIDAD SIMPLIFICADA)
+# =====================================================================
+
+class CuentaContable(models.Model):
+    TIPO_CHOICES = (
+        ('activo', 'Activo'),
+        ('pasivo', 'Pasivo'),
+        ('patrimonio', 'Patrimonio'),
+        ('perdida', 'Resultado Pérdida'),
+        ('ganancia', 'Resultado Ganancia'),
+    )
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='cuentas_contables')
+    codigo = models.CharField(max_length=20, verbose_name="Código de Cuenta", help_text="Ej: 1.1.01.01")
+    nombre = models.CharField(max_length=150, verbose_name="Nombre de la Cuenta", help_text="Ej: IVA Crédito Fiscal")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+
+    class Meta:
+        verbose_name = "Cuenta Contable"
+        verbose_name_plural = "Planes de Cuentas"
+        unique_together = ('empresa', 'codigo')
+        ordering = ['codigo']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+class PlantillaCentralizacion(models.Model):
+    TIPO_ORIGEN_CHOICES = (
+        ('f29', 'Formulario 29 (Simplificada)'),
+        ('rcv', 'Registro de Compra y Ventas (Completa - Próximamente)'),
+    )
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='plantillas_centralizacion')
+    nombre = models.CharField(max_length=100, verbose_name="Nombre de la Plantilla", help_text="Ej: Centralización Compras F29")
+    tipo_origen = models.CharField(max_length=10, choices=TIPO_ORIGEN_CHOICES, default='f29')
+
+    class Meta:
+        verbose_name = "Plantilla de Centralización"
+        verbose_name_plural = "Plantillas de Centralización"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.empresa.razon_social})"
+
+class LineaPlantilla(models.Model):
+    MOVIMIENTO_CHOICES = (
+        ('debe', 'Debe'),
+        ('haber', 'Haber'),
+    )
+    plantilla = models.ForeignKey(PlantillaCentralizacion, on_delete=models.CASCADE, related_name='lineas')
+    cuenta = models.ForeignKey(CuentaContable, on_delete=models.CASCADE)
+    tipo_movimiento = models.CharField(max_length=10, choices=MOVIMIENTO_CHOICES)
+    formula = models.CharField(max_length=255, verbose_name="Fórmula de Cálculo", help_text="Usa códigos entre corchetes. Ej: ([520] / 19) * 100")
+
+    class Meta:
+        verbose_name = "Línea de Plantilla"
+        verbose_name_plural = "Líneas de Plantilla"
+
+    def __str__(self):
+        return f"{self.cuenta.nombre} - {self.tipo_movimiento} - {self.formula}"
+
+class AsientoContable(models.Model):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='asientos')
+    fecha = models.DateField(verbose_name="Fecha del Asiento")
+    glosa = models.CharField(max_length=255, verbose_name="Glosa o Descripción")
+    
+    # Relaciones de origen (Polimorfismo básico). 
+    # Si el asiento viene de un F29, se llena este campo. Si viene de RCV (futuro), usaremos el otro.
+    origen_f29 = models.ForeignKey('DeclaracionF29', on_delete=models.SET_NULL, null=True, blank=True, related_name='asientos_generados', verbose_name="Origen F29")
+    # origen_rcv = models.ForeignKey('RegistroCompraVenta', on_delete=models.SET_NULL, null=True, blank=True) # <-- Se activará en el futuro
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Asiento Contable"
+        verbose_name_plural = "Libro Diario (Asientos)"
+        ordering = ['-fecha', '-id']
+
+    def __str__(self):
+        return f"Asiento {self.id} - {self.empresa.rut} - {self.fecha}"
+
+class LineaAsiento(models.Model):
+    asiento = models.ForeignKey(AsientoContable, on_delete=models.CASCADE, related_name='lineas')
+    cuenta = models.ForeignKey(CuentaContable, on_delete=models.PROTECT) # PROTECT: Evita borrar la cuenta si ya tiene asientos
+    debe = models.BigIntegerField(default=0, verbose_name="Debe")
+    haber = models.BigIntegerField(default=0, verbose_name="Haber")
+
+    class Meta:
+        verbose_name = "Línea de Asiento"
+        verbose_name_plural = "Líneas de Asiento"
+
+    def __str__(self):
+        return f"{self.cuenta.nombre}: D={self.debe} H={self.haber}"

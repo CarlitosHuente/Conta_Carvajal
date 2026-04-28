@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'core:home' %}" class="btn btn-sm btn-outline-secondary mb-2 rounded-pill px-3 shadow-sm"><i class="fas fa-arrow-left me-1"></i> Volver al Panel</a>
+            <h2 class="text-primary mb-0"><i class="fas fa-cogs"></i> Plantillas de Centralización</h2>
+            <p class="text-muted mb-0">Configura reglas automáticas para transformar los F29 en Asientos Contables.</p>
+        </div>
+        <div>
+            <a href="{% url 'contabilidad:plantilla_crear' %}" class="btn btn-success shadow-sm btn-lg">
+                <i class="fas fa-plus"></i> Nueva Plantilla
+            </a>
+            {% if user.perfil.rol == 'admin' or user.is_superuser %}
+            <a href="{% url 'contabilidad:plantilla_copiar' %}" class="btn btn-warning shadow-sm btn-lg ms-2" title="Función exclusiva de Administrador">
+                <i class="fas fa-copy"></i> Importar de otra Empresa
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            {% if plantillas %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-primary text-white">
+                        <tr>
+                            <th class="ps-4">Nombre de la Plantilla</th>
+                            <th>Origen de Datos</th>
+                            <th>Cantidad de Líneas</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in plantillas %}
+                        <tr>
+                            <td class="fw-bold text-primary ps-4"><i class="fas fa-file-code text-secondary me-2"></i> {{ p.nombre }}</td>
+                            <td><span class="badge bg-info text-dark">{{ p.get_tipo_origen_display }}</span></td>
+                            <td><span class="badge bg-secondary rounded-pill">{{ p.lineas.count }} movimientos</span></td>
+                            <td class="text-center">
+                                <a href="{% url 'contabilidad:plantilla_editar' p.id %}" class="btn btn-sm btn-outline-primary shadow-sm">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center m-4">
+                <i class="fas fa-info-circle fa-2x mb-3 d-block text-info"></i> No hay plantillas configuradas. ¡Crea tu primera plantilla de compras o ventas F29!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

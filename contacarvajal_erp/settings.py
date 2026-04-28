@@ -42,8 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.humanize',
-    'core',
+    'django.contrib.humanize', # Para formatos de números
+    'core.apps.CoreConfig', # Apuntamos a la configuración para que cargue las señales
     'rrhh',
     'contabilidad',
 ]
@@ -73,6 +73,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'rrhh.context_processors.indicadores_globales',
+                'core.context_processors.empresa_context', # <-- AÑADIDO
             ],
         },
     },

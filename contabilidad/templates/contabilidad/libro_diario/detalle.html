@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+                <div class="card-header bg-primary text-white py-4 d-flex justify-content-between align-items-center" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                    <div>
+                        <h3 class="mb-0 fw-bold"><i class="fas fa-file-alt me-2"></i> Comprobante Contable #{{ asiento.id }}</h3>
+                        <p class="mb-0 mt-1 opacity-75">Empresa: {{ asiento.empresa.razon_social }}</p>
+                    </div>
+                    <div class="text-end">
+                        <h5 class="mb-0">{{ asiento.fecha|date:"d \d\e F, Y" }}</h5>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4 bg-light">
+                    <div class="mb-4 p-3 bg-white border rounded shadow-sm">
+                        <h6 class="text-secondary fw-bold text-uppercase mb-1" style="font-size: 0.8rem;">Glosa / Concepto</h6>
+                        <p class="mb-0 fs-5">{{ asiento.glosa }}</p>
+                        
+                        {% if asiento.origen_f29 %}
+                        <hr class="my-2">
+                        <small class="text-muted"><i class="fas fa-link me-1"></i> Documento Origen: <strong>F29 Período {{ asiento.origen_f29.mes }}/{{ asiento.origen_f29.ano }}</strong> (Folio: {{ asiento.origen_f29.folio|default:"S/N" }})</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="table-responsive shadow-sm rounded border bg-white">
+                        <table class="table table-borderless table-hover mb-0">
+                            <thead class="table-light border-bottom">
+                                <tr>
+                                    <th class="ps-4">Código</th>
+                                    <th>Cuenta Contable</th>
+                                    <th class="text-end text-success">Debe</th>
+                                    <th class="text-end text-danger pe-4">Haber</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for linea in asiento.lineas.all %}
+                                <tr class="border-bottom">
+                                    <td class="ps-4 text-muted">{{ linea.cuenta.codigo }}</td>
+                                    <td class="fw-bold">{{ linea.cuenta.nombre }}</td>
+                                    <td class="text-end">{% if linea.debe > 0 %}${{ linea.debe|intcomma }}{% endif %}</td>
+                                    <td class="text-end pe-4">{% if linea.haber > 0 %}${{ linea.haber|intcomma }}{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="bg-light border-top border-2 border-primary">
+                                <tr>
+                                    <td colspan="2" class="text-end fw-bold py-3">TOTALES:</td>
+                                    <td class="text-end fw-bold text-success fs-5 py-3">${{ total_debe|intcomma }}</td>
+                                    <td class="text-end fw-bold text-danger pe-4 fs-5 py-3">${{ total_haber|intcomma }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    {% if total_debe == total_haber %}
+                    <div class="alert alert-success mt-4 border-success text-center">
+                        <i class="fas fa-check-circle fa-lg me-2"></i> <strong>¡Asiento Cuadrado!</strong> El Debe y el Haber suman exactamente lo mismo.
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mt-4">
+                        <a href="{% url 'contabilidad:libro_diario' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-left me-2"></i> Volver al Libro Diario
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

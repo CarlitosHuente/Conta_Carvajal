@@ -20,6 +20,7 @@
                             <th>Período</th>
                             <th>Folio</th>
                             <th>Total a Pagar</th>
+                            <th>Libro Diario</th>
                             <th>Estado</th>
                             <th>Fecha de Carga</th>
                             <th>Acción</th>
@@ -32,6 +33,15 @@
                             <td>{{ f29.mes }}/{{ f29.ano }}</td>
                             <td>{{ f29.folio|default:"N/A" }}</td>
                             <td class="text-success fw-bold">${{ f29.total_a_pagar|intcomma }}</td>
+                            <td>
+                                {% if f29.asientos_generados.all %}
+                                    {% for asiento in f29.asientos_generados.all %}
+                                        <a href="{% url 'contabilidad:asiento_detalle' asiento.id %}" class="badge bg-success text-decoration-none mb-1 shadow-sm"><i class="fas fa-book"></i> Asiento #{{ asiento.id }}</a><br>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="badge bg-secondary fw-normal">Sin centralizar</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if f29.estado == 'pendiente' %}
                                     <span class="badge bg-warning text-dark">Pendiente</span>
@@ -47,6 +57,7 @@
                                 <div class="btn-group shadow-sm" role="group">
                                     <a href="{% url 'contabilidad:f29_detalle' f29.pk %}" class="btn btn-sm btn-outline-info" title="Ver Detalles"><i class="fas fa-eye"></i></a>
                                     <a href="{% url 'contabilidad:f29_editar' f29.pk %}" class="btn btn-sm btn-outline-primary" title="Editar Datos"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'contabilidad:f29_centralizar' f29.pk %}" class="btn btn-sm btn-outline-success" title="Centralizar en Asiento Contable"><i class="fas fa-magic"></i></a>
                                     <form action="{% url 'contabilidad:f29_recalcular' f29.pk %}" method="POST" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-sm btn-outline-warning" title="Reaplicar Reglas"><i class="fas fa-sync-alt"></i></button>
@@ -60,7 +71,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">No hay declaraciones F29 cargadas en el sistema.</td>
+                            <td colspan="8" class="text-center py-4 text-muted">No hay declaraciones F29 cargadas en el sistema.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

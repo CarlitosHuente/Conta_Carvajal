@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="card shadow border-0" style="border-radius: 1rem;">
+        <div class="card-header bg-primary text-white py-3" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+            <h4 class="mb-0 fw-bold"><i class="fas fa-{% if plantilla %}edit{% else %}plus-circle{% endif %} me-2"></i> {% if plantilla %}Editar{% else %}Diseñar{% endif %} Plantilla de Centralización</h4>
+        </div>
+        
+        <div class="card-body p-4 bg-light">
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- Cabecera de la Plantilla -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Nombre de la Plantilla</label>
+                        <input type="text" name="nombre" class="form-control border-primary" placeholder="Ej: Centralización F29 - Compras" value="{{ plantilla.nombre }}" required autofocus>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Origen de los Datos</label>
+                        <select name="tipo_origen" class="form-select border-primary" required>
+                            <option value="f29" {% if plantilla.tipo_origen == 'f29' %}selected{% endif %}>Formulario 29 (Simplificada)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Motor JS de Partida Doble -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-secondary mb-0"><i class="fas fa-balance-scale"></i> Asiento Contable (Partida Doble)</h5>
+                    <div>
+                        <button class="btn btn-info btn-sm shadow-sm me-2 text-white" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasVariables">
+                            <i class="fas fa-book-open me-1"></i> Diccionario de Variables
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success shadow-sm" onclick="agregarLinea()"><i class="fas fa-plus"></i> Agregar Línea</button>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning border-warning small">
+                    <i class="fas fa-lightbulb me-1"></i> <strong>Instrucciones de Fórmula:</strong> Abre el "Diccionario de Variables" para insertar códigos del SII (Ej: <code>[520]</code>) o el resultado de otras cuentas ya calculadas arriba (Ej: <code>[CTA:1.1.05]</code>).
+                </div>
+
+                <div class="table-responsive bg-white shadow-sm rounded border">
+                    <table class="table table-borderless table-hover mb-0 align-middle">
+                        <thead class="table-light border-bottom">
+                            <tr>
+                                <th style="width: 35%;">Cuenta Contable</th>
+                                <th style="width: 15%;">Movimiento</th>
+                                <th style="width: 45%;">Fórmula (Matemática)</th>
+                                <th style="width: 5%;" class="text-center">Quitar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody_lineas">
+                            {% if plantilla %}
+                                {% for linea in plantilla.lineas.all %}
+                                <tr class="border-bottom">
+                                    <td>
+                                        <select name="cuenta_id[]" class="form-select border-secondary" required>
+                                            {% for cuenta in cuentas %}
+                                                <option value="{{ cuenta.id }}" {% if cuenta.id == linea.cuenta.id %}selected{% endif %}>{{ cuenta.codigo }} - {{ cuenta.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="movimiento[]" class="form-select border-secondary" required>
+                                            <option value="debe" {% if linea.tipo_movimiento == 'debe' %}selected{% endif %}>Al Debe</option>
+                                            <option value="haber" {% if linea.tipo_movimiento == 'haber' %}selected{% endif %}>Al Haber</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-secondary"><i class="fas fa-subscript text-muted"></i></span>
+                                            <input type="text" name="formula[]" class="form-control border-secondary text-monospace font-monospace" value="{{ linea.formula }}" onfocus="ultimoInputEnfocado = this" required>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()" title="Quitar Línea"><i class="fas fa-times"></i></button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-grid mt-5">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold"><i class="fas fa-save me-2"></i> Guardar Plantilla Definitiva</button>
+                    <a href="{% url 'contabilidad:plantilla_lista' %}" class="btn btn-outline-secondary mt-3">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Plantilla Oculta para el Select de Cuentas (Para clonar eficientemente) -->
+<select id="cuenta_template" class="d-none">
+    <option value="">-- Selecciona una Cuenta --</option>
+    {% for cuenta in cuentas %}
+        <option value="{{ cuenta.id }}">{{ cuenta.codigo }} - {{ cuenta.nombre }}</option>
+    {% endfor %}
+</select>
+
+<!-- Offcanvas: Diccionario de Variables -->
+<div class="offcanvas offcanvas-end shadow" tabindex="-1" id="offcanvasVariables" aria-labelledby="offcanvasVariablesLabel">
+    <div class="offcanvas-header bg-primary text-white">
+        <h5 class="offcanvas-title fw-bold" id="offcanvasVariablesLabel"><i class="fas fa-superscript me-2"></i> Variables</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body bg-light">
+        <ul class="nav nav-pills nav-fill mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pills-f29-tab" data-bs-toggle="pill" data-bs-target="#pills-f29" type="button" role="tab">Códigos F29</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-cuentas-tab" data-bs-toggle="pill" data-bs-target="#pills-cuentas" type="button" role="tab" onclick="actualizarVariablesCuentas()">Cuentas (Locales)</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="pills-tabContent">
+            <div class="tab-pane fade show active" id="pills-f29" role="tabpanel">
+                <input type="text" id="buscadorF29" class="form-control form-control-sm mb-3 border-primary" placeholder="Buscar código o descripción..." onkeyup="filtrarF29()">
+                <div class="list-group list-group-flush" id="listaF29" style="max-height: 60vh; overflow-y: auto;">
+                    {% for cod in codigos_sii %}
+                    <button type="button" class="list-group-item list-group-item-action py-2 border-bottom" onclick="insertarVariable('[{{ cod.codigo }}]')">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 fw-bold text-primary">[{{ cod.codigo }}]</h6>
+                        </div>
+                        <small class="text-muted">{{ cod.descripcion }}</small>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pills-cuentas" role="tabpanel">
+                <div class="alert alert-info small border-info"><i class="fas fa-info-circle"></i> Usa los resultados de las cuentas que calculaste en las líneas superiores.</div>
+                <div class="list-group list-group-flush" id="listaCuentasVariables" style="max-height: 60vh; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    let ultimoInputEnfocado = null;
+
+    function agregarLinea() {
+        const tbody = document.getElementById('tbody_lineas');
+        const templateCuentas = document.getElementById('cuenta_template').innerHTML;
+        
+        const tr = document.createElement('tr');
+        tr.classList.add('border-bottom');
+        tr.innerHTML = `
+            <td>
+                <select name="cuenta_id[]" class="form-select border-secondary" required>
+                    ${templateCuentas}
+                </select>
+            </td>
+            <td>
+                <select name="movimiento[]" class="form-select border-secondary" required>
+                    <option value="debe">Al Debe</option>
+                    <option value="haber">Al Haber</option>
+                </select>
+            </td>
+            <td>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-secondary"><i class="fas fa-subscript text-muted"></i></span>
+                    <input type="text" name="formula[]" class="form-control border-secondary text-monospace font-monospace" placeholder="Ej: ([520]/19)*100" onfocus="ultimoInputEnfocado = this" required>
+                </div>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('tr').remove()" title="Quitar Línea"><i class="fas fa-times"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // Si es una plantilla nueva (vacía), agregamos 2 líneas por defecto
+    document.addEventListener("DOMContentLoaded", function() {
+        const tbody = document.getElementById('tbody_lineas');
+        if (tbody.children.length === 0) {
+            agregarLinea();
+            agregarLinea();
+        }
+    });
+
+    // Funciones del Diccionario de Variables
+    function insertarVariable(variable) {
+        if (!ultimoInputEnfocado) {
+            alert("Primero haz clic en la casilla de 'Fórmula' donde deseas insertar la variable.");
+            return;
+        }
+        
+        const start = ultimoInputEnfocado.selectionStart;
+        const end = ultimoInputEnfocado.selectionEnd;
+        const text = ultimoInputEnfocado.value;
+        
+        ultimoInputEnfocado.value = text.substring(0, start) + variable + text.substring(end);
+        ultimoInputEnfocado.focus();
+        ultimoInputEnfocado.selectionStart = ultimoInputEnfocado.selectionEnd = start + variable.length;
+    }
+
+    function filtrarF29() {
+        const filtro = document.getElementById("buscadorF29").value.toLowerCase();
+        const items = document.getElementById("listaF29").getElementsByTagName("button");
+        
+        for (let i = 0; i < items.length; i++) {
+            let texto = items[i].textContent || items[i].innerText;
+            items[i].style.display = texto.toLowerCase().indexOf(filtro) > -1 ? "" : "none";
+        }
+    }
+
+    function actualizarVariablesCuentas() {
+        const lista = document.getElementById('listaCuentasVariables');
+        lista.innerHTML = '';
+        const selects = document.querySelectorAll('select[name="cuenta_id[]"]');
+        let encontradas = 0;
+
+        selects.forEach((select, index) => {
+            if(select.value) {
+                encontradas++;
+                const texto = select.options[select.selectedIndex].text;
+                const codigoCuenta = texto.split(' - ')[0]; // Ej: 1.1.05
+                const variable = `[CTA:${codigoCuenta}]`;
+                
+                lista.innerHTML += `
+                    <button type="button" class="list-group-item list-group-item-action py-2 border-bottom" onclick="insertarVariable('${variable}')">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 fw-bold text-success">${variable}</h6>
+                            <span class="badge bg-secondary rounded-pill">Línea ${index + 1}</span>
+                        </div>
+                        <small class="text-muted">Calculado en: ${texto}</small>
+                    </button>
+                `;
+            }
+        });
+
+        if (encontradas === 0) {
+            lista.innerHTML = '<div class="alert alert-secondary small m-3">Selecciona una cuenta en las líneas de la plantilla primero.</div>';
+        }
+    }
+</script>
+{% endblock %}
+{% endblock %}
