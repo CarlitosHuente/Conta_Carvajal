@@ -1,27 +1,59 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Detalle de {{ trabajador.nombre_completo }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>{{ trabajador.nombre_completo }}</h2>
-    <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-secondary">Volver al Listado</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+        <h2 class="mb-0">{{ trabajador.nombre_completo }}</h2>
+        <small class="text-muted">RUT {{ trabajador.rut }} · {{ trabajador.empresa.razon_social }}</small>
+    </div>
+    <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-outline-secondary">Volver al Listado</a>
 </div>
 
-<hr>
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>Contratos Asociados</h4>
-    <a href="{% url 'rrhh:contrato_create' trabajador_pk=trabajador.id %}" class="btn btn-primary">Añadir Nuevo Contrato</a>
-</div>
-
-<div class="card">
+<div class="card shadow-sm mb-4">
     <div class="card-body">
-        <table class="table">
-            <thead>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <small class="text-muted d-block">Email</small>
+                    <strong>{{ trabajador.email_personal }}</strong>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <small class="text-muted d-block">Telefono</small>
+                    <strong>{{ trabajador.telefono }}</strong>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <small class="text-muted d-block">Estado</small>
+                    <strong>{% if trabajador.activo %}Activo{% else %}Inactivo{% endif %}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h4>Contratos Asociados</h4>
+    <a href="{% url 'rrhh:contrato_create' trabajador_pk=trabajador.id %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Añadir Nuevo Contrato
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
                 <tr>
                     <th>Fecha Inicio</th>
+                    <th>Fecha Término</th>
                     <th>Sueldo Base</th>
+                    <th>Previsión</th>
                     <th>Jornada</th>
                     <th>Vigente</th>
                     <th>Acciones</th>
@@ -31,12 +63,20 @@
                 {% for contrato in contratos %}
                 <tr>
                     <td>{{ contrato.fecha_inicio|date:"d/m/Y" }}</td>
-                    <td>${{ contrato.sueldo_base }}</td>
+                    <td>{% if contrato.fecha_fin %}{{ contrato.fecha_fin|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                    <td>${{ contrato.sueldo_base|intcomma }}</td>
+                    <td>{{ contrato.afp.nombre }} / {{ contrato.sistema_salud.nombre }}</td>
                     <td>{{ contrato.get_tipo_jornada_display }}</td>
-                    <td>{% if contrato.vigente %}Sí{% else %}No{% endif %}</td>
                     <td>
-                        <a href="{% url 'rrhh:contrato_edit' contrato.pk %}" class="btn btn-sm btn-secondary" title="Editar datos del contrato"><i class="fas fa-edit"></i> Editar</a>
-                        <a href="{% url 'rrhh:gestionar_items_contrato' contrato.id %}" class="btn btn-sm btn-info" title="Gestionar Bonos/Descuentos Fijos"><i class="fas fa-plus"></i> Bonos Fijos</a>
+                        {% if contrato.vigente %}
+                            <span class="badge text-bg-success">Vigente</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">No vigente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'rrhh:contrato_edit' contrato.pk %}" class="btn btn-sm btn-outline-primary" title="Editar datos del contrato"><i class="fas fa-edit me-1"></i>Editar</a>
+                        <a href="{% url 'rrhh:gestionar_items_contrato' contrato.id %}" class="btn btn-sm btn-outline-info" title="Gestionar Bonos/Descuentos Fijos"><i class="fas fa-sliders-h me-1"></i>Ítems</a>
                     </td>
                 </tr>
                 {% empty %}
@@ -46,6 +86,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 {% endblock %}

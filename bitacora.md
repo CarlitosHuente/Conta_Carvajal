@@ -116,3 +116,57 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 2. **Módulo de Libro Mayor:** Vista interactiva para auditar cuentas contables.
 3. **Centralización Masiva:** Ejecutar plantillas sobre múltiples F29 en bloque.
 4. **Libro de Caja:** Reporte de flujo (Ingresos vs Egresos).
+
+---
+
+### Fecha: 30 de Abril de 2026 (Definición de Negocio RR.HH)
+**Resumen:** Emisión Masiva de Liquidaciones para Clientes Migrados desde otros Estudios Contables
+
+* **Contexto de Negocio:** Al captar clientes de la competencia, frecuentemente existen trabajadores activos sin historial formal de liquidaciones emitidas en sistema. Se requiere un flujo de regularización rápida y segura para emitir liquidaciones en bloque.
+* **Objetivo Principal:** Permitir al contador generar liquidaciones masivas de forma práctica, guiada y con mínima fricción operativa, priorizando velocidad de carga para casos estándar.
+* **Criterio Funcional:** Si falta información crítica para el cálculo, el sistema debe detectarlo y solicitarla de forma asistida (paso a paso), en lugar de bloquear con errores técnicos.
+* **Modo Asistido (Wizard/Prompt):** Flujo interactivo por período (ej: Enero 2026) que pregunte solo variables faltantes por trabajador o por lote (días trabajados, bono especial, etc.), permitiendo responder rápido (Sí/No, monto, Enter para continuar).
+* **Estrategia Operativa:** 
+  * Caso estándar: emisión masiva directa con valores por defecto/plantilla.
+  * Caso no estándar: activación de asistente para completar datos faltantes y continuar el proceso sin salir del flujo.
+* **Validaciones Obligatorias Previas a Emisión:**
+  * Contrato vigente por trabajador.
+  * Indicadores económicos del período disponibles.
+  * Datos mínimos completos para cálculo (o captura asistida antes de continuar).
+* **Salida Esperada:** Generación completa de liquidaciones del período para todos los trabajadores seleccionados, con trazabilidad de qué datos fueron inferidos, heredados o ingresados manualmente.
+* **Meta UX:** "Menos clics, más productividad contable": foco en teclado, preguntas contextuales y confirmación final antes de emitir en bloque.
+
+---
+
+### Fecha: 30 de Abril de 2026 (Definición Estratégica de Accesos, Planes y Clientes)
+**Resumen:** Control granular por módulo/submódulo para clientes, según plan contratado, administrado por Superusuario
+
+* **Visión del Negocio:** Como contador y superusuario, se requiere administrar múltiples empresas clientes con distintos niveles de acceso al ERP, según el plan contratado y servicios activos.
+* **Objetivo Principal:** Entregar a cada cliente acceso exclusivo a su empresa, con permisos de solo visualización o uso operativo según corresponda (balances, liquidaciones, reportes y submódulos específicos).
+* **Principio de Seguridad:** Ningún usuario cliente debe poder acceder a empresas ajenas ni a funcionalidades no contratadas/permitidas.
+* **Modelo de Control Requerido:** 
+  * Nivel 1: Acceso por empresa (aislamiento de datos por tenant).
+  * Nivel 2: Acceso por módulo (RR.HH, Contabilidad, etc.).
+  * Nivel 3: Acceso por submódulo/función puntual (ej: ver liquidaciones, ver balances, centralizar, editar, exportar).
+  * Nivel 4: Tipo de permiso (Ver, Crear, Editar, Eliminar, Exportar, Administrar).
+* **Componente Comercial (Planes):** Definir planes por empresa que habiliten/deshabiliten automáticamente módulos y submódulos disponibles para sus usuarios.
+* **Componente de Administración:** El Superusuario debe poder:
+  * Crear y administrar planes.
+  * Asignar plan a cada empresa.
+  * Asignar permisos adicionales/excepciones por usuario.
+  * Ver trazabilidad de accesos y cambios de permisos.
+* **Roadmap Comercial Futuro:** Preparar arquitectura para correo corporativo por dominio y módulos especiales a medida por requerimiento de clientes.
+* **Meta Operativa:** Pasar de un RBAC básico a un sistema de autorizaciones multiempresa y monetizable por plan, manteniendo simplicidad de administración para el contador.
+
+### Fecha: 30 de Abril de 2026 (Implementación Fase 1 de Permisos)
+**Resumen:** Base funcional de control de acceso por módulo/submódulo en empresa activa.
+
+* **Modelo Nuevo (`core.PermisoAccesoUsuario`):** Se implementa tabla de permisos por `usuario + empresa + modulo + submodulo + accion`, con bandera `permitido`.
+* **Acciones Soportadas:** `ver`, `crear`, `editar`, `eliminar`, `exportar`, `administrar`.
+* **Decorador de Seguridad:** Se crea `require_access(...)` en `core/permissions.py`, que valida empresa activa en sesión y permiso del usuario antes de entrar a la vista.
+* **Regla de Jerarquía:** Superusuario/Admin mantiene acceso total. Usuarios cliente quedan sujetos a permisos explícitos por empresa.
+* **Primeras Vistas Protegidas (MVP):**
+  * RR.HH: `trabajadores` (ver), `liquidaciones` (crear/ver), `novedades` (editar).
+  * Contabilidad: `f29` (ver/crear).
+* **Backoffice de Administración:** Permisos visibles y administrables desde Django Admin (`core/admin.py`).
+* **Próximo Paso Técnico:** Agregar permisos en menú (`base.html`) para ocultar opciones no autorizadas y completar cobertura en el resto de vistas críticas.

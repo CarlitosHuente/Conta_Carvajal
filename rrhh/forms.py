@@ -15,6 +15,39 @@ class EmpresaForm(forms.ModelForm):
         }
         
 class TrabajadorForm(forms.ModelForm):
+    BANCOS_CHILE_CHOICES = [
+        ('', 'Selecciona banco...'),
+        ('BancoEstado', 'BancoEstado'),
+        ('Banco de Chile', 'Banco de Chile'),
+        ('Banco Santander', 'Banco Santander'),
+        ('BCI', 'BCI'),
+        ('Scotiabank', 'Scotiabank'),
+        ('Itaú', 'Itaú'),
+        ('Banco Security', 'Banco Security'),
+        ('Banco Falabella', 'Banco Falabella'),
+        ('Banco Ripley', 'Banco Ripley'),
+        ('Banco Consorcio', 'Banco Consorcio'),
+        ('Banco Internacional', 'Banco Internacional'),
+    ]
+    TIPO_CUENTA_CHOICES = [
+        ('', 'Selecciona tipo de cuenta...'),
+        ('Cuenta Corriente', 'Cuenta Corriente'),
+        ('Cuenta Vista', 'Cuenta Vista'),
+        ('Cuenta de Ahorro', 'Cuenta de Ahorro'),
+        ('Cuenta RUT', 'Cuenta RUT'),
+    ]
+
+    banco = forms.ChoiceField(
+        choices=BANCOS_CHILE_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    tipo_cuenta = forms.ChoiceField(
+        choices=TIPO_CUENTA_CHOICES,
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     class Meta:
         model = Trabajador
         # Seleccionamos los campos que queremos en el formulario de creación
@@ -36,12 +69,50 @@ class TrabajadorForm(forms.ModelForm):
             'estado_civil': forms.Select(attrs={'class': 'form-select'}),
             'direccion': forms.TextInput(attrs={'class': 'form-control'}),
             'comuna': forms.TextInput(attrs={'class': 'form-control'}),
-            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+56912345678'}),
             'email_personal': forms.EmailInput(attrs={'class': 'form-control'}),
-            'banco': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo_cuenta': forms.TextInput(attrs={'class': 'form-control'}),
-            'numero_cuenta': forms.TextInput(attrs={'class': 'form-control'}),
+            'numero_cuenta': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 1234567890'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.empresa_fija_id = kwargs.pop('empresa_fija_id', None)
+        super().__init__(*args, **kwargs)
+        self.fields['nacionalidad'].initial = self.initial.get('nacionalidad') or 'Chilena'
+        self.fields['tipo_cuenta'].initial = self.initial.get('tipo_cuenta') or 'Cuenta RUT'
+        if self.empresa_fija_id:
+            self.fields['empresa'].widget = forms.HiddenInput()
+            self.fields['empresa'].required = False
+
+    def clean_rut(self):
+        rut = (self.cleaned_data.get('rut') or '').strip().upper().replace('.', '')
+        if '-' not in rut:
+            raise forms.ValidationError("Formato de RUT inválido. Usa formato 12345678-9.")
+
+        cuerpo, dv = rut.split('-', 1)
+        if not cuerpo.isdigit() or not dv:
+            raise forms.ValidationError("Formato de RUT inválido. Usa formato 12345678-9.")
+        if len(cuerpo) < 7:
+            raise forms.ValidationError("RUT inválido: largo insuficiente.")
+
+        dv_esperado = self._calcular_dv_rut(cuerpo)
+        if dv != dv_esperado:
+            raise forms.ValidationError("RUT inválido: dígito verificador no coincide.")
+
+        return f"{int(cuerpo)}-{dv}"
+
+    @staticmethod
+    def _calcular_dv_rut(cuerpo):
+        suma = 0
+        multiplicador = 2
+        for digito in reversed(cuerpo):
+            suma += int(digito) * multiplicador
+            multiplicador = 2 if multiplicador == 7 else multiplicador + 1
+        resto = 11 - (suma % 11)
+        if resto == 11:
+            return '0'
+        if resto == 10:
+            return 'K'
+        return str(resto)
         
 class ContratoForm(forms.ModelForm):
     class Meta:

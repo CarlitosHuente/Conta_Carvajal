@@ -39,6 +39,38 @@ class PerfilUsuario(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.get_rol_display()})"
 
+
+class PermisoAccesoUsuario(models.Model):
+    MODULO_CHOICES = [
+        ('rrhh', 'Recursos Humanos'),
+        ('contabilidad', 'Contabilidad'),
+        ('cobranza', 'Cobranza'),
+    ]
+    ACCION_CHOICES = [
+        ('ver', 'Ver'),
+        ('crear', 'Crear'),
+        ('editar', 'Editar'),
+        ('eliminar', 'Eliminar'),
+        ('exportar', 'Exportar'),
+        ('administrar', 'Administrar'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='permisos_acceso')
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='permisos_acceso')
+    modulo = models.CharField(max_length=30, choices=MODULO_CHOICES)
+    submodulo = models.CharField(max_length=60, blank=True, default='', help_text="Ej: liquidaciones, trabajadores, f29, libro_diario")
+    accion = models.CharField(max_length=20, choices=ACCION_CHOICES, default='ver')
+    permitido = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user', 'empresa', 'modulo', 'submodulo', 'accion')
+        verbose_name = "Permiso de acceso de usuario"
+        verbose_name_plural = "Permisos de acceso de usuarios"
+
+    def __str__(self):
+        scope = f"{self.modulo}/{self.submodulo or '*'}:{self.accion}"
+        return f"{self.user.username} - {self.empresa.razon_social} - {scope}"
+
 @receiver(post_save, sender=Empresa)
 def crear_usuario_cliente(sender, instance, created, **kwargs):
     if created:

@@ -10,79 +10,85 @@
 
 {% block content %}
 <div class="container">
-    <div class="card shadow">
-        <div class="card-header">
-            <h5 class="m-0 font-weight-bold text-primary">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom">
+            <h5 class="m-0 fw-bold text-primary">
                 {% if contrato %}
                     Editando Contrato (Inicio: {{ contrato.fecha_inicio|date:"d/m/Y" }})
                 {% else %}
                     Añadir Nuevo Contrato
                 {% endif %}
             </h5>
+            <small class="text-muted">Trabajador: {{ trabajador.nombre_completo }}</small>
         </div>
         <div class="card-body">
-            <p>Trabajador: <strong>{{ trabajador.nombre_completo }}</strong></p>
-            <hr>
             <form method="post">
                 {% csrf_token %}
-                
+                <div class="alert alert-light border small mb-4">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Completa los datos por secciones. Los campos monetarios se ingresan en pesos, excepto plan salud cuando se seleccione UF.
+                </div>
+
+                <h6 class="text-primary mb-3">1) Vigencia y base contractual</h6>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.fecha_inicio.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.fecha_inicio.label }}</label>
                         {{ form.fecha_inicio }}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.fecha_fin.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.fecha_fin.label }}</label>
                         {{ form.fecha_fin }}
                         <small class="text-muted d-block">Dejar en blanco si es indefinido.</small>
                     </div>
                 </div>
-                
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.sueldo_base.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.sueldo_base.label }}</label>
                         {{ form.sueldo_base }}
                     </div>
                 </div>
-                <hr>
-                <h6 class="text-primary">Previsión y Salud</h6>
+                <hr class="my-4">
+
+                <h6 class="text-primary mb-3">2) Previsión y salud</h6>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.afp.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.afp.label }}</label>
                         {{ form.afp }}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.sistema_salud.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.sistema_salud.label }}</label>
                         {{ form.sistema_salud }}
                     </div>
                 </div>
                  <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.plan_salud_pactado.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.plan_salud_pactado.label }}</label>
                         {{ form.plan_salud_pactado }}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">{{ form.moneda_plan_salud.label }}</label>
+                        <label class="form-label fw-semibold">{{ form.moneda_plan_salud.label }}</label>
                         {{ form.moneda_plan_salud }}
                     </div>
                 </div>
-                <hr>
-                <h6 class="text-primary">Haberes y Jornada</h6>
+                <hr class="my-4">
+
+                <h6 class="text-primary mb-3">3) Haberes y jornada</h6>
                  <div class="row">
-                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.colacion.label }}</label>{{ form.colacion }}</div>
-                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.movilizacion.label }}</label>{{ form.movilizacion }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label fw-semibold">{{ form.colacion.label }}</label>{{ form.colacion }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label fw-semibold">{{ form.movilizacion.label }}</label>{{ form.movilizacion }}</div>
                 </div>
                  <div class="row">
-                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.tipo_gratificacion.label }}</label>{{ form.tipo_gratificacion }}</div>
-                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.monto_gratificacion_fija.label }}</label>{{ form.monto_gratificacion_fija }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label fw-semibold">{{ form.tipo_gratificacion.label }}</label>{{ form.tipo_gratificacion }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label fw-semibold">{{ form.monto_gratificacion_fija.label }}</label>{{ form.monto_gratificacion_fija }}</div>
                 </div>
                  <div class="row">
-                    <div class="col-md-4 mb-3"><label class="form-label">{{ form.tipo_jornada.label }}</label>{{ form.tipo_jornada }}</div>
-                    <div class="col-md-4 mb-3"><label class="form-label">{{ form.horas_semanales.label }}</label>{{ form.horas_semanales }}</div>
-                     <div class="col-md-4 mb-3"><label class="form-label">{{ form.dias_semana.label }}</label>{{ form.dias_semana }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label fw-semibold">{{ form.tipo_jornada.label }}</label>{{ form.tipo_jornada }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label fw-semibold">{{ form.horas_semanales.label }}</label>{{ form.horas_semanales }}</div>
+                     <div class="col-md-4 mb-3"><label class="form-label fw-semibold">{{ form.dias_semana.label }}</label>{{ form.dias_semana }}</div>
                 </div>
-                <hr>
-                <h6 class="text-primary">Conceptos Variables (Comisiones, Bonos por Meta, etc.)</h6>
+                <hr class="my-4">
+
+                <h6 class="text-primary mb-3">4) Conceptos variables</h6>
                 <div class="mb-3 p-3 border rounded bg-light">
                     <p class="small text-muted">Marca los conceptos de pago variable que aplican a este contrato. Estos aparecerán como nuevas columnas en la pantalla de "Novedades del Mes".</p>
                     {% for checkbox in form.conceptos_variables %}
@@ -95,12 +101,51 @@
                     {% endfor %}
                 </div>
                 
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-success">Guardar Contrato</button>
-                    <a href="{% url 'rrhh:trabajador_detail' trabajador.id %}" class="btn btn-secondary">Cancelar</a>
+                <div class="d-flex gap-2 mt-4 pt-2 border-top">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-1"></i>Guardar Contrato
+                    </button>
+                    <a href="{% url 'rrhh:trabajador_detail' trabajador.id %}" class="btn btn-outline-secondary">Cancelar</a>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        const tipoGratificacion = document.getElementById('id_tipo_gratificacion');
+        const montoGratificacion = document.getElementById('id_monto_gratificacion_fija');
+        const sistemaSalud = document.getElementById('id_sistema_salud');
+        const planSalud = document.getElementById('id_plan_salud_pactado');
+        const monedaSalud = document.getElementById('id_moneda_plan_salud');
+
+        function toggleGratificacionFija() {
+            if (!tipoGratificacion || !montoGratificacion) return;
+            const isFija = tipoGratificacion.value === 'FIJA';
+            montoGratificacion.disabled = !isFija;
+            if (!isFija) montoGratificacion.value = 0;
+        }
+
+        function togglePlanSalud() {
+            if (!sistemaSalud || !planSalud || !monedaSalud) return;
+            const isFonasa = sistemaSalud.options[sistemaSalud.selectedIndex].text.toUpperCase().includes('FONASA');
+            planSalud.disabled = isFonasa;
+            monedaSalud.disabled = isFonasa;
+            if (isFonasa) {
+                planSalud.value = 0;
+                monedaSalud.value = 'CLP';
+            }
+        }
+
+        if (tipoGratificacion) {
+            tipoGratificacion.addEventListener('change', toggleGratificacionFija);
+            toggleGratificacionFija();
+        }
+        if (sistemaSalud) {
+            sistemaSalud.addEventListener('change', togglePlanSalud);
+            togglePlanSalud();
+        }
+    })();
+</script>
 {% endblock %}

@@ -16,6 +16,7 @@ from django.db.models import Prefetch
 import calendar
 from .models import RegistroCobro
 from django.db import models
+from core.permissions import require_access
 
 
 
@@ -59,6 +60,7 @@ def empresa_create_view(request):
     return render(request, 'rrhh/empresa_form.html', context)
 
 @login_required
+@require_access('rrhh', 'liquidaciones', 'crear')
 def crear_liquidacion_view(request):
     """
     VISTA DE PROCESAMIENTO MASIVO
@@ -71,13 +73,65 @@ def crear_liquidacion_view(request):
         return redirect('core:home')
 
     empresa = get_object_or_404(Empresa, id=empresa_id)
+    pendientes_novedades = []
 
     # --- Lógica de Procesamiento (POST) ---
     if request.method == 'POST':
         mes = int(request.POST.get('mes'))
         ano = int(request.POST.get('ano'))
+        accion = request.POST.get('accion', 'procesar')
 
         contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
+
+        # Detectamos trabajadores sin novedad mensual para guiar el proceso en vez de fallar.
+        for contrato in contratos_activos:
+            novedad = NovedadMensual.objects.filter(
+                trabajador=contrato.trabajador,
+                mes=mes,
+                ano=ano
+            ).first()
+            if not novedad:
+                pendientes_novedades.append(contrato.trabajador)
+
+        if pendientes_novedades and accion != 'autocompletar':
+            messages.warning(
+                request,
+                "Faltan datos minimos de novedades para algunos trabajadores. "
+                "Completa en el asistente rapido y vuelve a procesar."
+            )
+            context = {
+                'mes_seleccionado': mes,
+                'ano_seleccionado': ano,
+                'anos_opciones': range(2024, datetime.now().year + 2),
+                'meses_opciones': range(1, 13),
+                'liquidaciones_generadas': Liquidacion.objects.filter(
+                    contrato__trabajador__empresa=empresa, mes=mes, ano=ano
+                ).select_related('contrato__trabajador').order_by('contrato__trabajador__apellido_paterno'),
+                'pendientes_novedades': pendientes_novedades,
+            }
+            return render(request, 'rrhh/crear_liquidacion.html', context)
+
+        if accion == 'autocompletar' and pendientes_novedades:
+            for trabajador in pendientes_novedades:
+                NovedadMensual.objects.get_or_create(
+                    trabajador=trabajador,
+                    mes=mes,
+                    ano=ano,
+                    defaults={
+                        'dias_ausencia': 0,
+                        'dias_licencia': 0,
+                        'bono_esporadico': 0,
+                        'descuento_esporadico': 0,
+                        'datos_variables': {}
+                    }
+                )
+            messages.info(
+                request,
+                f"Asistente rapido aplicado: {len(pendientes_novedades)} trabajador(es) con datos minimos creados."
+            )
+            # Recalcular lista de contratos (sin pendientes) antes de procesar
+            contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
+
         exitos = 0
         fallos = 0
         nombres_fallidos = []
@@ -112,6 +166,7 @@ def crear_liquidacion_view(request):
         'anos_opciones': range(2024, today.year + 2),
         'meses_opciones': range(1, 13),
         'liquidaciones_generadas': liquidaciones_generadas,
+        'pendientes_novedades': pendientes_novedades,
     }
     return render(request, 'rrhh/crear_liquidacion.html', context)
     
@@ -120,6 +175,7 @@ def crear_liquidacion_view(request):
 
 
 @login_required
+@require_access('rrhh', 'trabajadores', 'ver')
 def trabajador_list_view(request):
     """
     Muestra la lista de todos los trabajadores.
@@ -149,17 +205,23 @@ def trabajador_create_view(request):
     if request.user.perfil.rol != 'admin':
         return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
 
+    empresa_activa_id = request.session.get('empresa_activa_id')
+
     if request.method == 'POST':
-        form = TrabajadorForm(request.POST)
+        form = TrabajadorForm(request.POST, empresa_fija_id=empresa_activa_id)
         if form.is_valid():
-            form.save()
+            trabajador = form.save(commit=False)
+            if empresa_activa_id:
+                trabajador.empresa_id = empresa_activa_id
+            trabajador.save()
             return redirect('rrhh:trabajador_list')
     else:
-        form = TrabajadorForm()
+        form = TrabajadorForm(empresa_fija_id=empresa_activa_id)
     
     context = {
         'form': form,
-        'titulo': 'Añadir Nuevo Trabajador' # Un título para reutilizar la plantilla
+        'titulo': 'Añadir Nuevo Trabajador', # Un título para reutilizar la plantilla
+        'empresa_asignada': Empresa.objects.filter(id=empresa_activa_id).first() if empresa_activa_id else None,
     }
     return render(request, 'rrhh/trabajador_form.html', context)
 @login_required
@@ -454,6 +516,7 @@ def liquidacion_pdf_view(request, pk):
     return render(request, 'rrhh/liquidacion_pdf.html', context)
 
 @login_required
+@require_access('rrhh', 'liquidaciones', 'ver')
 def libro_remuneraciones_view(request):
     """
     Muestra el reporte consolidado de todos los trabajadores de la empresa en un mes.
@@ -532,6 +595,7 @@ def planilla_cobranza_view(request):
     return render(request, 'rrhh/planilla_cobranza.html', context)
 
 @login_required
+@require_access('rrhh', 'novedades', 'editar')
 def ingresar_novedades_view(request):
     """
     Permite ingresar las novedades (ausencias, horas extras, etc.) para todos

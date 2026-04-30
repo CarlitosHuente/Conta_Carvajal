@@ -15,6 +15,7 @@
         <div class="card-body">
             <form method="post" class="row align-items-end">
                 {% csrf_token %}
+                <input type="hidden" name="accion" value="procesar">
                 <div class="col-md-4">
                     <label for="mes" class="form-label">Mes:</label>
                     <select name="mes" id="mes" class="form-select">
@@ -42,6 +43,40 @@
             </p>
         </div>
     </div>
+
+    {% if pendientes_novedades %}
+    <div class="card border-warning shadow-sm mb-4">
+        <div class="card-header bg-warning-subtle">
+            <h6 class="mb-0 fw-bold text-warning-emphasis">
+                <i class="fas fa-exclamation-triangle me-2"></i>Asistente de datos minimos
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">
+                Se detectaron <strong>{{ pendientes_novedades|length }}</strong> trabajador(es) sin novedad mensual para
+                <strong>{{ mes_seleccionado }}/{{ ano_seleccionado }}</strong>.
+                Puedes autocompletar datos minimos y continuar el proceso masivo.
+            </p>
+            <ul class="mb-3">
+                {% for trabajador in pendientes_novedades %}
+                    <li>{{ trabajador.nombre_completo }} ({{ trabajador.rut }})</li>
+                {% endfor %}
+            </ul>
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="autocompletar">
+                <input type="hidden" name="mes" value="{{ mes_seleccionado }}">
+                <input type="hidden" name="ano" value="{{ ano_seleccionado }}">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-magic me-2"></i>Autocompletar datos minimos y procesar
+                </button>
+            </form>
+            <a href="{% url 'rrhh:ingresar_novedades' %}?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}" class="btn btn-outline-secondary ms-2">
+                Completar manualmente en Novedades
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Resultados: Liquidaciones Generadas -->
     <div class="card shadow mb-4">

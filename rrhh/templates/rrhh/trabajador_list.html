@@ -3,41 +3,120 @@
 {% block title %}Gestión de Trabajadores{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Listado de Trabajadores</h2>
-    <a href="{% url 'rrhh:trabajador_create' %}" class="btn btn-primary">Añadir Nuevo Trabajador</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+        <h2 class="mb-0">Listado de Trabajadores</h2>
+        <small class="text-muted">Mesa de trabajo RR.HH por empresa y estado contractual</small>
+    </div>
+    <a href="{% url 'rrhh:trabajador_create' %}" class="btn btn-primary">
+        <i class="fas fa-user-plus me-1"></i>Añadir Nuevo Trabajador
+    </a>
 </div>
 
-<div class="card">
+<div class="card shadow-sm mb-3">
     <div class="card-body">
-        <table class="table table-hover">
-            <thead>
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label for="filtro-busqueda" class="form-label mb-1">Buscar</label>
+                <input id="filtro-busqueda" type="text" class="form-control" placeholder="RUT, nombre o empresa...">
+            </div>
+            <div class="col-md-3">
+                <label for="filtro-estado" class="form-label mb-1">Estado contrato</label>
+                <select id="filtro-estado" class="form-select">
+                    <option value="todos" selected>Todos</option>
+                    <option value="vigente">Con contrato vigente</option>
+                    <option value="sin_vigente">Sin contrato vigente</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <span class="badge text-bg-light border" id="contador-resultados">0 trabajadores</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
                 <tr>
                     <th>RUT</th>
                     <th>Nombre Completo</th>
                     <th>Empresa</th>
+                    <th>Estado Contrato</th>
                     <th>Email</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="tabla-trabajadores">
                 {% for trabajador in trabajadores %}
-                <tr>
+                <tr
+                    data-rut="{{ trabajador.rut|lower }}"
+                    data-nombre="{{ trabajador.nombre_completo|lower }}"
+                    data-empresa="{{ trabajador.empresa.razon_social|lower }}"
+                    data-estado="{% if trabajador.contratos.first and trabajador.contratos.first.vigente %}vigente{% else %}sin_vigente{% endif %}"
+                >
                     <td>{{ trabajador.rut }}</td>
-                    <td>{{ trabajador.nombre_completo }}</td>
+                    <td>
+                        <strong>{{ trabajador.nombre_completo }}</strong>
+                    </td>
                     <td>{{ trabajador.empresa.razon_social }}</td>
+                    <td>
+                        {% if trabajador.contratos.first and trabajador.contratos.first.vigente %}
+                            <span class="badge text-bg-success">Vigente</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Sin contrato vigente</span>
+                        {% endif %}
+                    </td>
                     <td>{{ trabajador.email_personal }}</td>
                     <td>
-                        <a href="{% url 'rrhh:trabajador_detail' pk=trabajador.id %}" class="btn btn-sm btn-secondary">Ver/Editar</a>
+                        <a href="{% url 'rrhh:trabajador_detail' pk=trabajador.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>Ver
+                        </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center">No hay trabajadores registrados.</td>
+                    <td colspan="6" class="text-center py-4">No hay trabajadores registrados.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        const searchInput = document.getElementById('filtro-busqueda');
+        const statusFilter = document.getElementById('filtro-estado');
+        const rows = Array.from(document.querySelectorAll('#tabla-trabajadores tr[data-rut]'));
+        const counter = document.getElementById('contador-resultados');
+
+        function applyFilters() {
+            const q = (searchInput.value || '').toLowerCase().trim();
+            const status = statusFilter.value;
+            let visible = 0;
+
+            rows.forEach((row) => {
+                const hayTexto = [row.dataset.rut, row.dataset.nombre, row.dataset.empresa]
+                    .join(' ')
+                    .includes(q);
+                const hayEstado = status === 'todos' || row.dataset.estado === status;
+                const show = hayTexto && hayEstado;
+                row.style.display = show ? '' : 'none';
+                if (show) visible += 1;
+            });
+
+            counter.textContent = visible + (visible === 1 ? ' trabajador' : ' trabajadores');
+        }
+
+        if (searchInput && statusFilter) {
+            searchInput.addEventListener('input', applyFilters);
+            statusFilter.addEventListener('change', applyFilters);
+            applyFilters();
+        }
+    })();
+</script>
 {% endblock %}

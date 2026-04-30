@@ -57,34 +57,61 @@
                                 </li>
                                 
                                 <!-- Menú Desplegable de Contabilidad -->
+                                {% if empresa_activa.tiene_contabilidad and permisos_ui.contabilidad_menu_visible %}
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="navbarContabilidad" role="button" data-bs-toggle="dropdown">
                                         <i class="fas fa-calculator me-1"></i>Contabilidad
                                     </a>
                                     <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarContabilidad">
+                                        {% if permisos_ui.contabilidad_f29_ver or permisos_ui.contabilidad_f29_crear %}
                                         <li><h6 class="dropdown-header text-primary fw-bold">Impuestos</h6></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_f29_ver %}
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:f29_lista' %}"><i class="fas fa-file-invoice me-2"></i>Historial F29</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_f29_crear %}
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:f29_subir' %}"><i class="fas fa-upload me-2"></i>Subir F29</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_libro_diario_ver %}
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header text-primary fw-bold">Libros Contables</h6></li>
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:libro_diario' %}"><i class="fas fa-book-open me-2"></i>Libro Diario</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_plan_cuentas_ver or permisos_ui.contabilidad_plantillas_ver %}
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header text-primary fw-bold">Configuración</h6></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_plan_cuentas_ver %}
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:plan_cuentas_lista' %}"><i class="fas fa-book me-2"></i>Plan de Cuentas</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.contabilidad_plantillas_ver %}
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:plantilla_lista' %}"><i class="fas fa-cogs me-2"></i>Plantillas Centralización</a></li>
+                                        {% endif %}
                                     </ul>
                                 </li>
+                                {% endif %}
                                 <!-- Menú Desplegable de Recursos Humanos -->
+                                {% if empresa_activa.tiene_rrhh and permisos_ui.rrhh_menu_visible %}
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="navbarRRHH" role="button" data-bs-toggle="dropdown">
                                         <i class="fas fa-users me-1"></i>Recursos Humanos
                                     </a>
                                     <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarRRHH">
+                                        {% if permisos_ui.rrhh_trabajadores_ver or permisos_ui.rrhh_novedades_editar or permisos_ui.rrhh_liquidaciones_crear or permisos_ui.rrhh_liquidaciones_ver %}
                                         <li><h6 class="dropdown-header text-primary fw-bold">Gestión Principal</h6></li>
+                                        {% endif %}
+                                        {% if permisos_ui.rrhh_trabajadores_ver %}
                                         <li><a class="dropdown-item" href="{% url 'rrhh:trabajador_list' %}"><i class="fas fa-id-badge me-2"></i>Fichas de Trabajadores</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.rrhh_novedades_editar %}
                                         <li><a class="dropdown-item" href="{% url 'rrhh:ingresar_novedades' %}"><i class="fas fa-calendar-check me-2"></i>Novedades Mensuales</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.rrhh_liquidaciones_crear %}
                                         <li><a class="dropdown-item" href="{% url 'rrhh:crear_liquidacion' %}"><i class="fas fa-file-invoice me-2"></i>Liquidaciones</a></li>
+                                        {% endif %}
+                                        {% if permisos_ui.rrhh_liquidaciones_ver %}
                                         <li><a class="dropdown-item" href="{% url 'rrhh:libro_remuneraciones' %}"><i class="fas fa-book-open me-2"></i>Libro de Remuneraciones</a></li>
+                                        {% endif %}
                                         {% if user.perfil.rol == 'admin' %}
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header text-primary fw-bold">Admin RR.HH</h6></li>
@@ -94,6 +121,7 @@
                                         {% endif %}
                                     </ul>
                                 </li>
+                                {% endif %}
                                 {% if user.perfil.rol == 'admin' or user.is_superuser %}
                                 <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
                                     <a class="btn btn-sm btn-danger rounded-pill shadow-sm px-3" href="{% url 'core:salir_empresa' %}">

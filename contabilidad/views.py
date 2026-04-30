@@ -12,9 +12,11 @@ from .extractor import extraer_datos_f29
 from .models import CodigoF29, DeclaracionF29, CuentaContable, PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento
 from .forms import CuentaContableForm
 from core.models import Empresa
+from core.permissions import require_access
 from .plan_base import PLAN_CUENTAS_BASE
 
 @login_required
+@require_access('contabilidad', 'f29', 'ver')
 def f29_lista_view(request):
     """Muestra el historial de F29 cargados según el rol del usuario."""
     empresa_id = request.session.get('empresa_activa_id')
@@ -26,6 +28,7 @@ def f29_lista_view(request):
     return render(request, 'contabilidad/f29_lista.html', {'declaraciones': declaraciones})
 
 @login_required
+@require_access('contabilidad', 'f29', 'crear')
 def f29_subir_view(request):
     """Recibe el PDF, extrae los datos y renderiza la pantalla dividida de revisión."""
     if request.method == 'GET':
