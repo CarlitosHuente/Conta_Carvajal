@@ -1,48 +1,100 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- Contenedor que centra la tarjeta vertical y horizontalmente -->
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="card shadow-lg border-0" style="width: 100%; max-width: 450px; border-radius: 1rem;">
-        
-        <!-- Cabecera de la Tarjeta -->
-        <div class="card-header bg-primary text-white text-center py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
-            <h3 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2"></i> ContaCarvajal</h3>
-            <p class="mb-0 text-white-50 small mt-1">Sistema ERP Integrado</p>
+<div class="container py-5">
+    <div class="row justify-content-center align-items-stretch g-0 shadow rounded-4 overflow-hidden" style="min-height: 520px;">
+        <div class="col-lg-6 bg-dark text-white p-5 d-flex flex-column justify-content-between">
+            <div>
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-white text-dark mb-4" style="width: 56px; height: 56px;">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h1 class="h3 fw-bold mb-2">ContaCarvajal ERP</h1>
+                <p class="text-white-50 mb-4">Control contable y de RR.HH en una sola plataforma.</p>
+                <ul class="list-unstyled small text-white-50 mb-0">
+                    <li class="mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Centralizacion y auditoria de formularios F29</li>
+                    <li class="mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Gestion de liquidaciones y libro de remuneraciones</li>
+                    <li><i class="fas fa-check-circle me-2 text-success"></i>Acceso por roles y contexto por empresa</li>
+                </ul>
+            </div>
+            <div class="small text-white-50 mt-4">
+                <div><i class="fas fa-shield-alt me-2"></i>Acceso interno y seguro</div>
+                <div class="mt-1">v0.9 · Desarrollo</div>
+            </div>
         </div>
-        
-        <!-- Cuerpo del Formulario -->
-        <div class="card-body p-5 bg-white">
-            <form method="post" action="{% url 'login' %}">
+
+        <div class="col-lg-6 bg-white p-4 p-md-5 d-flex flex-column justify-content-center">
+            <div class="mx-auto w-100" style="max-width: 420px;">
+                <h2 class="h4 fw-bold mb-1">Iniciar sesion</h2>
+                <p class="text-muted mb-4">Ingresa tus credenciales para continuar.</p>
+
+                <form method="post" action="{% url 'login' %}" id="login-form">
                 {% csrf_token %}
-                
-                <div class="mb-4">
-                    <label for="id_username" class="form-label fw-bold text-secondary"><i class="fas fa-user text-primary me-2"></i> Usuario</label>
-                    <input type="text" name="username" class="form-control form-control-lg bg-light border-0" id="id_username" placeholder="Ingresa tu usuario" required autofocus>
-                </div>
-                
-                <div class="mb-4">
-                    <label for="id_password" class="form-label fw-bold text-secondary"><i class="fas fa-lock text-primary me-2"></i> Contraseña</label>
-                    <input type="password" name="password" class="form-control form-control-lg bg-light border-0" id="id_password" placeholder="Ingresa tu contraseña" required>
-                </div>
-                
-                {% if form.errors %}
-                <div class="alert alert-danger small py-2 fw-bold text-center">
-                    <i class="fas fa-exclamation-circle me-1"></i> Usuario o contraseña incorrectos.
-                </div>
-                {% endif %}
-                
-                <div class="d-grid mt-5">
-                    <button type="submit" class="btn btn-primary btn-lg fw-bold"><i class="fas fa-sign-in-alt me-2"></i> Iniciar Sesión</button>
-                </div>
-                
-                <input type="hidden" name="next" value="{{ next|default:'' }}">
-            </form>
-        </div>
-        
-        <div class="card-footer text-center py-3 bg-light text-muted small" style="border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;">
-            &copy; {% now "Y" %} ContaCarvajal ERP. Todos los derechos reservados.
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label fw-semibold">Usuario</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                            <input type="text" name="username" class="form-control border-start-0" id="id_username" placeholder="Ingresa tu usuario" required autofocus>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label fw-semibold">Contrasena</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-lock text-muted"></i></span>
+                            <input type="password" name="password" class="form-control border-start-0 border-end-0" id="id_password" placeholder="Ingresa tu contrasena" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggle-password" aria-label="Mostrar u ocultar contrasena">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger d-flex align-items-center small py-2 mt-3" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span>Usuario o contrasena incorrectos. Intenta nuevamente.</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg fw-semibold" id="submit-login">
+                            <i class="fas fa-sign-in-alt me-2"></i>Ingresar al sistema
+                        </button>
+                    </div>
+
+                    <input type="hidden" name="next" value="{{ next|default:'' }}">
+                </form>
+
+                <p class="text-muted small text-center mt-4 mb-0">
+                    &copy; {% now "Y" %} ContaCarvajal ERP. Todos los derechos reservados.
+                </p>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        const passwordInput = document.getElementById('id_password');
+        const toggleButton = document.getElementById('toggle-password');
+        const loginForm = document.getElementById('login-form');
+        const submitButton = document.getElementById('submit-login');
+
+        if (toggleButton && passwordInput) {
+            toggleButton.addEventListener('click', function () {
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                this.innerHTML = isPassword
+                    ? '<i class="fas fa-eye-slash"></i>'
+                    : '<i class="fas fa-eye"></i>';
+            });
+        }
+
+        if (loginForm && submitButton) {
+            loginForm.addEventListener('submit', function () {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Ingresando...';
+            });
+        }
+    })();
+</script>
 {% endblock %}

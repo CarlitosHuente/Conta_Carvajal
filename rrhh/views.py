@@ -513,7 +513,7 @@ def api_get_indicadores_economicos(request, ano, mes):
 @login_required
 def planilla_cobranza_view(request):
     if request.user.perfil.rol != 'admin':
-        return redirect('core:home_cliente')
+        return redirect('core:home')
 
     # Si no hay año en la URL, usamos el actual
     anio_sel = int(request.GET.get('anio', datetime.now().year))

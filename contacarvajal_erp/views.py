@@ -7,8 +7,5 @@ def home_redirect_view(request):
     if not hasattr(request.user, 'perfil'):
         return redirect('/admin/')
     
-    # Redirigir según rol
-    if request.user.perfil.rol == 'admin':
-        return redirect('rrhh:dashboard_admin') # <-- ¡NUEVO! Redirigimos al Dashboard de Admin
-    else:
-        return redirect('rrhh:home_cliente') # Crearemos esta ruta después
+    # Redirección centralizada al home de core para ambos roles.
+    return redirect('core:home')
