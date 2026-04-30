@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Indicadores{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow mb-4 border-left-danger">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-danger">Confirmar Eliminación</h6>
+        </div>
+        <div class="card-body">
+            <p>¿Estás seguro que deseas eliminar los indicadores económicos del período <strong>{{ indicador.mes }}/{{ indicador.ano }}</strong>?</p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Sí, Eliminar</button>
+                <a href="{% url 'rrhh:indicador_list' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

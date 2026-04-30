@@ -35,7 +35,8 @@
                     <td>{{ contrato.get_tipo_jornada_display }}</td>
                     <td>{% if contrato.vigente %}Sí{% else %}No{% endif %}</td>
                     <td>
-                        <a href="#" class="btn btn-sm btn-secondary">Ver/Editar</a>
+                        <a href="{% url 'rrhh:contrato_edit' contrato.pk %}" class="btn btn-sm btn-secondary" title="Editar datos del contrato"><i class="fas fa-edit"></i> Editar</a>
+                        <a href="{% url 'rrhh:gestionar_items_contrato' contrato.id %}" class="btn btn-sm btn-info" title="Gestionar Bonos/Descuentos Fijos"><i class="fas fa-plus"></i> Bonos Fijos</a>
                     </td>
                 </tr>
                 {% empty %}

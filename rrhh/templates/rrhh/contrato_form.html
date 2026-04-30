@@ -1,22 +1,106 @@
 {% extends 'base.html' %}
 
-{% block title %}Añadir Contrato para {{ trabajador.nombre_completo }}{% endblock %}
+{% block title %}
+    {% if contrato %}
+        Editar Contrato de {{ trabajador.nombre_completo }}
+    {% else %}
+        Nuevo Contrato para {{ trabajador.nombre_completo }}
+    {% endif %}
+{% endblock %}
 
 {% block content %}
-<h2>Añadir Contrato para <strong>{{ trabajador.nombre_completo }}</strong></h2>
-
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-
-            {{ form.as_p }}
-
-            <div class="mt-4">
-                <a href="{% url 'rrhh:trabajador_detail' pk=trabajador.id %}" class="btn btn-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary">Guardar Contrato</button>
-            </div>
-        </form>
+<div class="container">
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="m-0 font-weight-bold text-primary">
+                {% if contrato %}
+                    Editando Contrato (Inicio: {{ contrato.fecha_inicio|date:"d/m/Y" }})
+                {% else %}
+                    Añadir Nuevo Contrato
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <p>Trabajador: <strong>{{ trabajador.nombre_completo }}</strong></p>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.fecha_inicio.label }}</label>
+                        {{ form.fecha_inicio }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.fecha_fin.label }}</label>
+                        {{ form.fecha_fin }}
+                        <small class="text-muted d-block">Dejar en blanco si es indefinido.</small>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.sueldo_base.label }}</label>
+                        {{ form.sueldo_base }}
+                    </div>
+                </div>
+                <hr>
+                <h6 class="text-primary">Previsión y Salud</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.afp.label }}</label>
+                        {{ form.afp }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.sistema_salud.label }}</label>
+                        {{ form.sistema_salud }}
+                    </div>
+                </div>
+                 <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.plan_salud_pactado.label }}</label>
+                        {{ form.plan_salud_pactado }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.moneda_plan_salud.label }}</label>
+                        {{ form.moneda_plan_salud }}
+                    </div>
+                </div>
+                <hr>
+                <h6 class="text-primary">Haberes y Jornada</h6>
+                 <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.colacion.label }}</label>{{ form.colacion }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.movilizacion.label }}</label>{{ form.movilizacion }}</div>
+                </div>
+                 <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.tipo_gratificacion.label }}</label>{{ form.tipo_gratificacion }}</div>
+                    <div class="col-md-6 mb-3"><label class="form-label">{{ form.monto_gratificacion_fija.label }}</label>{{ form.monto_gratificacion_fija }}</div>
+                </div>
+                 <div class="row">
+                    <div class="col-md-4 mb-3"><label class="form-label">{{ form.tipo_jornada.label }}</label>{{ form.tipo_jornada }}</div>
+                    <div class="col-md-4 mb-3"><label class="form-label">{{ form.horas_semanales.label }}</label>{{ form.horas_semanales }}</div>
+                     <div class="col-md-4 mb-3"><label class="form-label">{{ form.dias_semana.label }}</label>{{ form.dias_semana }}</div>
+                </div>
+                <hr>
+                <h6 class="text-primary">Conceptos Variables (Comisiones, Bonos por Meta, etc.)</h6>
+                <div class="mb-3 p-3 border rounded bg-light">
+                    <p class="small text-muted">Marca los conceptos de pago variable que aplican a este contrato. Estos aparecerán como nuevas columnas en la pantalla de "Novedades del Mes".</p>
+                    {% for checkbox in form.conceptos_variables %}
+                        <div class="form-check">
+                            {{ checkbox.tag }}
+                            <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                {{ checkbox.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-success">Guardar Contrato</button>
+                    <a href="{% url 'rrhh:trabajador_detail' trabajador.id %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

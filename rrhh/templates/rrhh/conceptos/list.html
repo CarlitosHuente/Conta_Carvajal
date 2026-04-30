@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Administrar Conceptos de Pago Variables{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 text-gray-800">Conceptos de Pago Variables</h1>
+        <a href="{% url 'rrhh:concepto_variable_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Crear Nuevo Concepto</a>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <p class="text-muted">Aquí puedes definir haberes calculados, como comisiones por ventas. Estos aparecerán como nuevas columnas en la pantalla de "Ingreso de Novedades".</p>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nombre del Concepto</th>
+                        <th>Tipo de Cálculo</th>
+                        <th>Porcentaje (%)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for concepto in conceptos %}
+                    <tr>
+                        <td><strong>{{ concepto.nombre }}</strong></td>
+                        <td>{{ concepto.get_tipo_calculo_display }}</td>
+                        <td>
+                            {% if concepto.tipo_calculo == 'PORCENTAJE' %}
+                                {{ concepto.porcentaje_calculo }}%
+                            {% else %}
+                                <span class="badge bg-info text-white"><i class="fas fa-list-ol"></i> {{ concepto.tramos.count }} Tramos configurados</span>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'rrhh:concepto_variable_edit' concepto.pk %}" class="btn btn-sm btn-secondary">Editar</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No has creado conceptos variables para esta empresa.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Liquidación de {{ liquidacion.contrato.trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 text-gray-800">Liquidación de Sueldo</h1>
+        <div>
+            <a href="{% url 'rrhh:crear_liquidacion' %}?mes={{ liquidacion.mes }}&ano={{ liquidacion.ano }}" class="btn btn-secondary">Volver al Listado</a>
+            <a href="{% url 'rrhh:liquidacion_pdf' liquidacion.pk %}" target="_blank" class="btn btn-danger"><i class="fas fa-file-pdf"></i> Imprimir / Guardar PDF</a>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body p-5">
+            <!-- Cabecera -->
+            <div class="row mb-4">
+                <div class="col-6">
+                    <h5 class="text-primary">{{ liquidacion.contrato.trabajador.empresa.razon_social }}</h5>
+                    <p class="mb-0">RUT: {{ liquidacion.contrato.trabajador.empresa.rut }}</p>
+                </div>
+                <div class="col-6 text-end">
+                    <h4>LIQUIDACIÓN DE SUELDO</h4>
+                    <p class="mb-0">Período: <strong>{{ liquidacion.mes }}/{{ liquidacion.ano }}</strong></p>
+                    <p>Fecha Emisión: {{ liquidacion.fecha_emision|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+
+            <!-- Datos del Trabajador -->
+            <div class="border p-3 mb-4">
+                <div class="row">
+                    <div class="col-md-8"><p class="mb-1"><strong>Nombre:</strong> {{ liquidacion.contrato.trabajador.nombre_completo }}</p></div>
+                    <div class="col-md-4"><p class="mb-1"><strong>RUT:</strong> {{ liquidacion.contrato.trabajador.rut }}</p></div>
+                    <div class="col-md-8"><p class="mb-1"><strong>Cargo:</strong> (No implementado)</p></div>
+                    <div class="col-md-4"><p class="mb-1"><strong>Días Trabajados:</strong> {{ liquidacion.dias_trabajados }}</p></div>
+                </div>
+            </div>
+
+            <!-- Cuerpo de la Liquidación -->
+            <div class="row">
+                <!-- Columna de Haberes -->
+                <div class="col-md-6">
+                    <h6 class="text-center bg-light p-2 border">HABERES</h6>
+                    <table class="table table-sm">
+                        {% for item in haberes_imponibles %}
+                        <tr>
+                            <td>{{ item.nombre }}</td>
+                            <td class="text-end">${{ item.monto|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-secondary">
+                            <td class="fw-bold">TOTAL IMPONIBLE</td>
+                            <td class="text-end fw-bold">${{ liquidacion.total_haberes_imponibles|intcomma }}</td>
+                        </tr>
+                        {% for item in haberes_no_imponibles %}
+                        <tr>
+                            <td>{{ item.nombre }}</td>
+                            <td class="text-end">${{ item.monto|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                <!-- Columna de Descuentos -->
+                <div class="col-md-6">
+                    <h6 class="text-center bg-light p-2 border">DESCUENTOS</h6>
+                    <table class="table table-sm">
+                        {% for item in descuentos %}
+                        <tr>
+                            <td>{{ item.nombre }}</td>
+                            <td class="text-end">${{ item.monto|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Totales Finales -->
+            <div class="row mt-4">
+                <div class="col-md-6 offset-md-6">
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Total Haberes Imponibles</td>
+                            <td class="text-end">${{ liquidacion.total_haberes_imponibles|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Haberes No Imponibles</td>
+                            <td class="text-end">${{ liquidacion.total_haberes_no_imponibles|intcomma }}</td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td>TOTAL HABERES</td>
+                            <td class="text-end">${{ liquidacion.total_haberes_imponibles|add:liquidacion.total_haberes_no_imponibles|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td>Descuentos Legales</td>
+                            <td class="text-end">-${{ liquidacion.total_descuentos_legales|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td>Otros Descuentos</td>
+                            <td class="text-end">-${{ liquidacion.total_descuentos_varios|intcomma }}</td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td>TOTAL DESCUENTOS</td>
+                            <td class="text-end">-${{ liquidacion.total_descuentos_legales|add:liquidacion.total_descuentos_varios|intcomma }}</td>
+                        </tr>
+                        <tr class="table-success fs-5">
+                            <td class="fw-bold">ALCANCE LÍQUIDO</td>
+                            <td class="text-end fw-bold">${{ liquidacion.sueldo_liquido|intcomma }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Firma -->
+            <div class="row mt-5 pt-5">
+                <div class="col-6 text-center">
+                    <hr class="mx-auto" style="width: 70%;">
+                    <p>Firma del Empleador</p>
+                </div>
+                <div class="col-6 text-center">
+                    <hr class="mx-auto" style="width: 70%;">
+                    <p>Firma del Trabajador</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

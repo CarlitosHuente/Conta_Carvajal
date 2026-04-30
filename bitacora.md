@@ -6,6 +6,7 @@
 3. **Delegación de Carpetas:** Si se requiere una nueva carpeta, indicar la ruta exacta al desarrollador para que él la cree. Solo continuar cuando el directorio exista.
 4. **Preservar Formatos:** Respetar los formatos existentes de UI/UX, plantillas HTML, clases de Bootstrap y convenciones de nombres.
 5. **Restricción por Roles (RBAC):** Más adelante, cada "submódulo" o funcionalidad específica deberá estar restringida o adaptada dependiendo de los roles del usuario (Admin vs Cliente vs Staff). Nunca asumir que un usuario tiene acceso a todo sin validarlo.
+6. **Estructura Estricta de Templates (Django):** Todos los archivos HTML deben ir obligatoriamente dentro de la ruta `app_name/templates/app_name/` (o en subcarpetas dentro de esta). NUNCA dejar archivos HTML en la raíz de la aplicación.
 
 ---
 
@@ -96,8 +97,22 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 
 ---
 
+### Fecha: 30 de Abril de 2026
+**Resumen:** Avances Core en RR.HH (Novedades, Ítems Fijos e Indicadores Económicos)
+* **Novedades Mensuales:** Creación de vista tipo "Excel" para carga rápida de inasistencias, licencias y bonos/descuentos esporádicos. Los bonos esporádicos se tratan como montos "Líquidos" que el motor deberá inflar (Grossing Up).
+* **Ítems Fijos de Contrato:** Implementación de `ItemContrato` para administrar bonos o descuentos recurrentes mes a mes por trabajador.
+* **Indicadores Económicos e Históricos:** 
+  * Integración de script de carga histórica de datos base Previred (Topes, Sueldo Mínimo, SIS).
+  * Lógica de "Herencia": Bucle inteligente que propaga topes conocidos hacia meses futuros.
+  * Integración de API `mindicador.cl`: Botón en el formulario que consume la API para autocompletar UF y UTM, disparando un cálculo en JS en tiempo real para obtener los topes en pesos chilenos.
+* **Conceptos Variables y Tramos:** Arquitectura avanzada para bonos y comisiones. Se permiten reglas de "Porcentaje Fijo" o "Tramos Escalonados". Los conceptos se habilitan desde el `Contrato` del trabajador, lo que genera dinámicamente columnas de ingreso de bases en la pantalla de Novedades.
+* **Motor de Remuneraciones:** Desarrollo del núcleo matemático. Aplica topes imponibles, calcula Impuesto Único de 2da Categoría, determina valores históricos de tasas AFP (fotografía inmutable) y consolida el Sueldo Líquido. Se conectó a una vista de procesamiento masivo.
+* **Reportes y Comprobantes (Cierre RR.HH):** Se implementó la vista optimizada para impresión nativa del PDF de la liquidación de sueldo y la pantalla del Libro de Remuneraciones, consolidando todos los montos imponibles, descuentos y el líquido a pagar por período.
+
+---
+
 ## Próximos Pasos (Pendientes para la siguiente sesión)
-1. **Exportación a PDF del Comprobante Contable:** Implementar un botón en la vista de detalle del Asiento (Libro Diario) para generar un PDF descargable con el formato de la "Tabla T" y sus glosas, ideal para respaldos físicos o envíos al cliente.
-2. **Módulo de Libro Mayor:** Crear una vista interactiva donde el usuario pueda seleccionar una Cuenta Contable específica (Ej: "Caja" o "Mercaderías") y auditar todo su historial de movimientos (cargos y abonos), calculando su saldo final en tiempo real.
-3. **Centralización Masiva (Multi-período):** Desarrollar la funcionalidad para ejecutar varias plantillas sobre múltiples períodos (F29) en bloque, agilizando la carga de contabilidad atrasada.
-4. **Libro de Caja:** Crear un reporte de flujo (ingresos menos salidas) que permita contrastar de forma resumida las ventas versus las compras y el pago de honorarios.
+1. **Exportación a PDF del Comprobante Contable:** Implementar la vista imprimible del Asiento en el Libro Diario.
+2. **Módulo de Libro Mayor:** Vista interactiva para auditar cuentas contables.
+3. **Centralización Masiva:** Ejecutar plantillas sobre múltiples F29 en bloque.
+4. **Libro de Caja:** Reporte de flujo (Ingresos vs Egresos).

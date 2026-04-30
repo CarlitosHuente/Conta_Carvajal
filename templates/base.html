@@ -49,9 +49,11 @@
                             
                             {% if empresa_activa %}
                                 <li class="nav-item d-none d-lg-block mx-2">
-                                    <span class="badge bg-light text-dark py-2 px-3 border border-secondary shadow-sm">
-                                        <i class="fas fa-building text-primary me-1"></i> Trabajando en: <strong>{{ empresa_activa.razon_social }}</strong>
-                                    </span>
+                                    <a href="{% url 'core:empresa_dashboard' %}" class="text-decoration-none" title="Volver al Panel de Control de la Empresa">
+                                        <span class="badge bg-light text-dark py-2 px-3 border border-secondary shadow-sm">
+                                            <i class="fas fa-building text-primary me-1"></i> Trabajando en: <strong>{{ empresa_activa.razon_social }}</strong>
+                                        </span>
+                                    </a>
                                 </li>
                                 
                                 <!-- Menú Desplegable de Contabilidad -->
@@ -72,8 +74,25 @@
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:plantilla_lista' %}"><i class="fas fa-cogs me-2"></i>Plantillas Centralización</a></li>
                                     </ul>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'rrhh:trabajador_list' %}"><i class="fas fa-users me-1"></i>Trabajadores</a>
+                                <!-- Menú Desplegable de Recursos Humanos -->
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="navbarRRHH" role="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-users me-1"></i>Recursos Humanos
+                                    </a>
+                                    <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarRRHH">
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Gestión Principal</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:trabajador_list' %}"><i class="fas fa-id-badge me-2"></i>Fichas de Trabajadores</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:ingresar_novedades' %}"><i class="fas fa-calendar-check me-2"></i>Novedades Mensuales</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:crear_liquidacion' %}"><i class="fas fa-file-invoice me-2"></i>Liquidaciones</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:libro_remuneraciones' %}"><i class="fas fa-book-open me-2"></i>Libro de Remuneraciones</a></li>
+                                        {% if user.perfil.rol == 'admin' %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Admin RR.HH</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:indicador_list' %}"><i class="fas fa-chart-line me-2 text-secondary"></i>Indicadores Económicos</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:afp_list' %}"><i class="fas fa-percent me-2 text-secondary"></i>Tasas de AFP</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:concepto_variable_list' %}"><i class="fas fa-cogs me-2 text-secondary"></i>Conceptos Variables</a></li>
+                                        {% endif %}
+                                    </ul>
                                 </li>
                                 {% if user.perfil.rol == 'admin' or user.is_superuser %}
                                 <li class="nav-item ms-lg-2 mt-2 mt-lg-0">

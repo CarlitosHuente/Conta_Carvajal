@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Tasas de AFP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="h3 mb-4 text-gray-800">Tasas de AFP Vigentes</h1>
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <table class="table table-bordered table-striped">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Nombre de la AFP</th>
+                        <th>Tasa Trabajador Dependiente (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for afp in afps %}
+                    <tr>
+                        <td><strong>{{ afp.nombre }}</strong></td>
+                        <td>{{ afp.tasa_dependiente }} %</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="text-center">No hay AFPs registradas. Usa el botón amarillo en el Dashboard.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="text-muted small"><i class="fas fa-info-circle"></i> Estas tasas son utilizadas automáticamente por el Motor de Remuneraciones.</p>
+            <a href="{% url 'core:empresa_dashboard' %}" class="btn btn-secondary">Volver al Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

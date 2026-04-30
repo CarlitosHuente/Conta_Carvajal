@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Libro de Remuneraciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Libro de Remuneraciones</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Filtro de Período</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <div class="row">
+                    <div class="col-auto">
+                        <select name="mes" class="form-select">
+                            {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>Mes {{ m }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <select name="ano" class="form-select">
+                            {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cargar Libro</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>RUT</th>
+                            <th>Trabajador</th>
+                            <th>Días Trab.</th>
+                            <th class="text-end">T. Imponible</th>
+                            <th class="text-end">T. No Imponible</th>
+                            <th class="text-end">Leyes Sociales</th>
+                            <th class="text-end">Otros Dctos.</th>
+                            <th class="text-end bg-success text-white">Líquido a Pagar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for liq in liquidaciones %}
+                        <tr>
+                            <td>{{ liq.contrato.trabajador.rut }}</td>
+                            <td>{{ liq.contrato.trabajador.nombre_completo }}</td>
+                            <td class="text-center">{{ liq.dias_trabajados }}</td>
+                            <td class="text-end">${{ liq.total_haberes_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ liq.total_haberes_no_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ liq.total_descuentos_legales|intcomma }}</td>
+                            <td class="text-end">${{ liq.total_descuentos_varios|intcomma }}</td>
+                            <td class="text-end fw-bold">${{ liq.sueldo_liquido|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center py-4">No hay liquidaciones emitidas en este período.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

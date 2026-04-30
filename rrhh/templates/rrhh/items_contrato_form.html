@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Bonos y Descuentos Fijos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Bonos y Descuentos Fijos</h6>
+            <a href="{% url 'rrhh:trabajador_detail' contrato.trabajador.id %}" class="btn btn-secondary btn-sm">Volver al Perfil</a>
+        </div>
+        <div class="card-body">
+            <p>Trabajador: <strong>{{ contrato.trabajador.nombre_completo }}</strong></p>
+            <p class="text-muted small">Agrega aquí cualquier haber (Ej: Bono de Producción) o descuento (Ej: Cuota Sindical) que deba aparecer en TODAS las liquidaciones de este contrato.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                {{ formset.management_form }}
+                
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Nombre del Ítem</th>
+                            <th>Monto ($)</th>
+                            <th>Tipo</th>
+                            <th>¿Imponible?</th>
+                            <th>Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for form in formset %}
+                        <tr>
+                            <td>
+                                {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                                {{ form.nombre }}
+                            </td>
+                            <td>{{ form.monto }}</td>
+                            <td>{{ form.tipo }}</td>
+                            <td class="text-center align-middle">{{ form.es_imponible }}</td>
+                            <td class="text-center align-middle">
+                                {% if form.instance.pk %}
+                                    {{ form.DELETE }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <div class="text-right">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar Todos los Ítems</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
