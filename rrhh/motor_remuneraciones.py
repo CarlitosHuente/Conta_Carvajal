@@ -1,4 +1,6 @@
+import calendar
 import math
+from datetime import date
 from decimal import Decimal
 from django.db import transaction
 from .models import Liquidacion, ItemLiquidacion, IndicadorEconomico, NovedadMensual, ConceptoVariable
@@ -84,7 +86,10 @@ def procesar_liquidacion(contrato, mes, ano):
         else:
             total_no_imponible += item.monto
 
-    # D. Gratificación Legal (Tope 4.75 Ingresos Mínimos / 12)
+    # D. Gratificación Legal (Art. 47 / 50 — simplificación mensual en sistema)
+    # Base del 25%: total_imponible acumulado hasta aquí (sueldo prop., bono brutif., ítems imponibles).
+    # Tope mensual: (4,75 × sueldo_mínimo del indicador económico usado) / 12. Ese sueldo_mínimo es el
+    # valor cargado en IndicadorEconomico para la fila seleccionada (misma que UF/UTM del cálculo).
     if contrato.tipo_gratificacion == 'LEGAL':
         tope_gratificacion = round((indicador.sueldo_minimo * 4.75) / 12)
         gratificacion = round(total_imponible * 0.25)
@@ -184,7 +189,10 @@ def procesar_liquidacion(contrato, mes, ano):
         total_descuentos_legales += monto_cesantia
 
     # D. Impuesto Único de Segunda Categoría
-    base_tributable = total_imponible - total_descuentos_legales
+    # Base tributable (art. 43 LIR criterio habitual): se rebajan AFP, cesantía y solo el 7% de salud
+    # sobre el imponible tope, aunque el descuento de caja por Isapre/plan pactado sea mayor.
+    descuentos_para_base_iu = monto_afp + salud_7_pct + monto_cesantia
+    base_tributable = max(0, total_imponible - descuentos_para_base_iu)
     monto_impuesto = calcular_impuesto_unico(base_tributable, utm)
     if monto_impuesto > 0:
         items_a_guardar.append(('Impuesto Único 2da Cat.', monto_impuesto, 'DESCUENTO', False))
@@ -209,9 +217,13 @@ def procesar_liquidacion(contrato, mes, ano):
     # 4. GUARDAR EN BASE DE DATOS (Fotografía inmutable)
     # Eliminamos si ya existía una generada en este mes para reemplazarla
     Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano).delete()
-    
+
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    fecha_emision = date(ano, mes, ultimo_dia)
+
     liq = Liquidacion.objects.create(
-        contrato=contrato, mes=mes, ano=ano, dias_trabajados=dias_trabajados,
+        contrato=contrato, mes=mes, ano=ano, fecha_emision=fecha_emision,
+        dias_trabajados=dias_trabajados,
         uf_valor=uf, utm_valor=utm, afp_nombre=contrato.afp.nombre, afp_tasa=tasa_afp_historica,
         salud_nombre=contrato.sistema_salud.nombre, total_haberes_imponibles=total_imponible,
         total_haberes_no_imponibles=total_no_imponible, total_descuentos_legales=total_descuentos_legales,
