@@ -151,6 +151,7 @@ class ContratoForm(forms.ModelForm):
         # Damos estilo a los campos
         widgets = {
             'fecha_inicio': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'cargo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Auxiliar contable'}),
             'fecha_fin': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
             'afp': forms.Select(attrs={'class': 'form-select'}),
             'sistema_salud': forms.Select(attrs={'class': 'form-select'}),

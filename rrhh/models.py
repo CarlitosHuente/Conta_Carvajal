@@ -60,6 +60,7 @@ class Contrato(models.Model):
     MONEDA_CHOICES = [('CLP', '$'), ('UF', 'UF')]
     trabajador = models.ForeignKey(Trabajador, on_delete=models.CASCADE, related_name="contratos")
     fecha_inicio = models.DateField()
+    cargo = models.CharField(max_length=120, blank=True, default='', verbose_name='Cargo')
     fecha_fin = models.DateField(null=True, blank=True, help_text="Dejar en blanco si es indefinido")
     vigente = models.BooleanField(default=True)
     afp = models.ForeignKey(AFP, on_delete=models.PROTECT)
@@ -140,6 +141,15 @@ class Liquidacion(models.Model):
     afp_nombre = models.CharField(max_length=50, default="")
     afp_tasa = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     salud_nombre = models.CharField(max_length=50, default="")
+    fecha_ingreso_contrato = models.DateField(
+        null=True, blank=True,
+        verbose_name='Fecha ingreso contrato (snapshot)',
+        help_text='Fecha de inicio del contrato al momento de generar la liquidación.',
+    )
+    cargo_contrato = models.CharField(
+        max_length=120, blank=True, default='',
+        verbose_name='Cargo (snapshot)',
+    )
     
     # TOTALES AGRUPADOS
     total_haberes_imponibles = models.IntegerField(default=0)

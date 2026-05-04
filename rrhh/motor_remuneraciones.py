@@ -5,6 +5,25 @@ from decimal import Decimal
 from django.db import transaction
 from .models import Liquidacion, ItemLiquidacion, IndicadorEconomico, NovedadMensual, ConceptoVariable
 
+
+def etiqueta_descuento_salud(contrato):
+    """Texto del ítem de liquidación, tipo AFP (nombre + dato entre paréntesis)."""
+    nombre_sys = (contrato.sistema_salud.nombre or '').strip()
+    base = f'Salud {nombre_sys}'
+    if nombre_sys.upper() == 'FONASA':
+        return f'{base} (7%)'
+    plan = contrato.plan_salud_pactado
+    if plan is not None and Decimal(str(plan)) > 0:
+        if contrato.moneda_plan_salud == 'UF':
+            d = Decimal(str(plan)).quantize(Decimal('0.001'))
+            frac = format(d, 'f').rstrip('0').rstrip('.')
+            return f'{base} ({frac} UF)'
+        clp = int(round(float(plan)))
+        miles = f'{clp:,}'.replace(',', '.')
+        return f'{base} (plan ${miles})'
+    return f'{base} (7%)'
+
+
 def calcular_impuesto_unico(base_tributable, utm):
     """
     Calcula el Impuesto Único de Segunda Categoría según la tabla del SII.
@@ -178,7 +197,7 @@ def procesar_liquidacion(contrato, mes, ano):
         # La ley exige que la Isapre cobre mínimo el 7%. Si el plan es mayor, se cobra la diferencia como "Adicional Isapre".
         monto_salud_final = max(salud_7_pct, costo_plan_pesos)
         
-    items_a_guardar.append((f'Salud {contrato.sistema_salud.nombre}', monto_salud_final, 'DESCUENTO', False))
+    items_a_guardar.append((etiqueta_descuento_salud(contrato), monto_salud_final, 'DESCUENTO', False))
     total_descuentos_legales += monto_salud_final
 
     # C. Seguro de Cesantía (0.6% si es indefinido)
@@ -224,6 +243,8 @@ def procesar_liquidacion(contrato, mes, ano):
     liq = Liquidacion.objects.create(
         contrato=contrato, mes=mes, ano=ano, fecha_emision=fecha_emision,
         dias_trabajados=dias_trabajados,
+        fecha_ingreso_contrato=contrato.fecha_inicio,
+        cargo_contrato=(contrato.cargo or '')[:120],
         uf_valor=uf, utm_valor=utm, afp_nombre=contrato.afp.nombre, afp_tasa=tasa_afp_historica,
         salud_nombre=contrato.sistema_salud.nombre, total_haberes_imponibles=total_imponible,
         total_haberes_no_imponibles=total_no_imponible, total_descuentos_legales=total_descuentos_legales,

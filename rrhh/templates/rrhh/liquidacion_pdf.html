@@ -45,6 +45,10 @@
                 <div class="col-5"><strong>RUT:</strong> {{ liquidacion.contrato.trabajador.rut }}</div>
             </div>
             <div class="row">
+                <div class="col-7"><strong>CARGO:</strong> {% firstof liquidacion.cargo_contrato liquidacion.contrato.cargo "—" %}</div>
+                <div class="col-5"><strong>FECHA INGRESO:</strong> {% if liquidacion.fecha_ingreso_contrato %}{{ liquidacion.fecha_ingreso_contrato|date:"d/m/Y" }}{% else %}{{ liquidacion.contrato.fecha_inicio|date:"d/m/Y" }}{% endif %}</div>
+            </div>
+            <div class="row">
                 <div class="col-7"><strong>TIPO CONTRATO:</strong> {{ liquidacion.contrato.get_tipo_jornada_display }}</div>
                 <div class="col-5"><strong>DÍAS TRABAJADOS:</strong> {{ liquidacion.dias_trabajados }}</div>
             </div>

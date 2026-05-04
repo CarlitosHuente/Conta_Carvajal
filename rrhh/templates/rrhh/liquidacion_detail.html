@@ -33,8 +33,9 @@
                 <div class="row">
                     <div class="col-md-8"><p class="mb-1"><strong>Nombre:</strong> {{ liquidacion.contrato.trabajador.nombre_completo }}</p></div>
                     <div class="col-md-4"><p class="mb-1"><strong>RUT:</strong> {{ liquidacion.contrato.trabajador.rut }}</p></div>
-                    <div class="col-md-8"><p class="mb-1"><strong>Cargo:</strong> (No implementado)</p></div>
-                    <div class="col-md-4"><p class="mb-1"><strong>Días Trabajados:</strong> {{ liquidacion.dias_trabajados }}</p></div>
+                    <div class="col-md-8"><p class="mb-1"><strong>Cargo:</strong> {% firstof liquidacion.cargo_contrato liquidacion.contrato.cargo "—" %}</p></div>
+                    <div class="col-md-4"><p class="mb-1"><strong>Fecha ingreso:</strong> {% if liquidacion.fecha_ingreso_contrato %}{{ liquidacion.fecha_ingreso_contrato|date:"d/m/Y" }}{% else %}{{ liquidacion.contrato.fecha_inicio|date:"d/m/Y" }}{% endif %}</p></div>
+                    <div class="col-md-4"><p class="mb-1"><strong>Días trabajados:</strong> {{ liquidacion.dias_trabajados }}</p></div>
                 </div>
             </div>
 

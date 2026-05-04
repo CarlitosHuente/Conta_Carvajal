@@ -48,7 +48,7 @@ class TrabajadorAdmin(admin.ModelAdmin):
 # ¡MODIFICADO! El ContratoAdmin ahora muestra sus ítems recurrentes
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
-    list_display = ('trabajador', 'fecha_inicio', 'sueldo_base', 'vigente')
+    list_display = ('trabajador', 'cargo', 'fecha_inicio', 'sueldo_base', 'vigente')
     list_filter = ('vigente', 'trabajador__empresa')
     search_fields = ('trabajador__rut', 'trabajador__nombres')
     
