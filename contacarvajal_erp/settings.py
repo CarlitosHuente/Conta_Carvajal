@@ -127,6 +127,15 @@ USE_TZ = True
 USE_L10N = True
 
 
+# --- CONCEPTOS VARIABLES (solo cálculo tipo TRAMOS) ---
+# En novedades el monto capturado es BRUTO (neto + IVA). La clasificación en tramos usa ese bruto.
+# El % del tramo elegido se aplica sobre el NETO entero: round(bruto / (1 + IVA/100)).
+# Para cambiar el alícuota sin tocar código: variable de entorno CONCEPTO_VARIABLE_TRAMOS_IVA_PORCIENTO (entero, ej. 19).
+CONCEPTO_VARIABLE_TRAMOS_IVA_PORCIENTO = int(
+    os.environ.get('CONCEPTO_VARIABLE_TRAMOS_IVA_PORCIENTO', '19')
+)
+
+
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, IMAGES) ---
 # --- INICIO SECTOR ESTÁTICOS ---
 STATIC_URL = '/static/'

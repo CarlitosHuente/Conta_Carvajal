@@ -2,6 +2,7 @@ import calendar
 import math
 from datetime import date
 from decimal import Decimal
+from django.conf import settings
 from django.db import transaction
 from .models import Liquidacion, ItemLiquidacion, IndicadorEconomico, NovedadMensual, ConceptoVariable
 
@@ -140,20 +141,31 @@ def procesar_liquidacion(contrato, mes, ano):
                 if concepto.tipo_calculo == 'PORCENTAJE':
                     valor_calculado = round(int(base_calculo) * (float(concepto.porcentaje_calculo) / 100))
                 elif concepto.tipo_calculo == 'TRAMOS':
-                    # Inteligencia: Buscar en qué tramo cae la venta
-                    base_int = int(base_calculo)
+                    # Monto ingresado = BRUTO (misma moneda que límites de tramo). Clasificación por bruto.
+                    # Tasa del tramo × NETO entero, con IVA global (settings / env).
+                    bruto_int = int(base_calculo)
+                    iva_pct = float(
+                        getattr(
+                            settings,
+                            'CONCEPTO_VARIABLE_TRAMOS_IVA_PORCIENTO',
+                            19,
+                        )
+                    )
+                    iva_pct = max(0.0, iva_pct)
+                    factor_iva = 1 + (iva_pct / 100.0)
+                    neto_int = max(0, round(bruto_int / factor_iva)) if factor_iva > 0 else bruto_int
+
                     tramo_encontrado = None
-                    
                     for tramo in concepto.tramos.all():
-                        # Si es mayor o igual al inicio del tramo
-                        if base_int >= tramo.tramo_desde:
-                            # Y es menor o igual al tope del tramo (O el tope está en blanco/infinito)
-                            if tramo.tramo_hasta is None or base_int <= tramo.tramo_hasta:
+                        if bruto_int >= tramo.tramo_desde:
+                            if tramo.tramo_hasta is None or bruto_int <= tramo.tramo_hasta:
                                 tramo_encontrado = tramo
-                                break # Encontramos el tramo correcto, dejamos de buscar
-                                
+                                break
+
                     if tramo_encontrado:
-                        valor_calculado = round(base_int * (float(tramo_encontrado.porcentaje) / 100))
+                        valor_calculado = round(
+                            neto_int * (float(tramo_encontrado.porcentaje) / 100)
+                        )
                 
                 if valor_calculado > 0:
                     items_a_guardar.append((concepto.nombre, valor_calculado, 'HABER', concepto.es_imponible))
