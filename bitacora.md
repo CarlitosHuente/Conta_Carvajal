@@ -170,3 +170,30 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
   * Contabilidad: `f29` (ver/crear).
 * **Backoffice de Administración:** Permisos visibles y administrables desde Django Admin (`core/admin.py`).
 * **Próximo Paso Técnico:** Agregar permisos en menú (`base.html`) para ocultar opciones no autorizadas y completar cobertura en el resto de vistas críticas.
+
+### Fecha: 3 de Mayo de 2026
+**Resumen:** Estabilidad en producción (HostingChile), contratos, motor de liquidaciones y datos de liquidación para comprobantes.
+
+#### 1. Producción y despliegue (cPanel / SSH)
+* **`CSRF_TRUSTED_ORIGINS`:** Dominios HTTPS públicos en `settings.py` para evitar 403 al guardar formularios POST en producción.
+* **Contrato:** `form.save_m2m()` tras crear contrato (conceptos variables). Plantilla: re-habilitar campos `disabled` en `submit` para que el POST sea válido; modal Bootstrap con errores si el formulario no valida; redirección a ficha del trabajador con ancla `#lista-contratos` y mensaje de éxito.
+* **`core/apps.py` y `core/signals.py`:** Corrección `PerfilUsuario.objects.get_or_create(user=user)` (antes usaba `usuario`, inválido).
+* **Operación en servidor:** Proyecto bajo `/home/contaca3/repositories/erp_sistema`; usar el Python del virtualenv (`.../virtualenv/.../bin/python`) para `migrate` y comandos Django, no el `python3` del sistema sin dependencias.
+
+#### 2. Plan de salud y contrato (UF / Isapre)
+* **Modelo:** `plan_salud_pactado` ampliado a **3 decimales** y mayor `max_digits` (migración `0006`).
+* **Formulario:** Normalización de coma/punto y miles; widget de texto para el plan (evita bloqueo del navegador con `type="number"`).
+
+#### 3. Motor de remuneraciones (`motor_remuneraciones.py`)
+* **`fecha_emision`:** Al generar la liquidación, se fija el **último día del mes** del período liquidado (no la fecha de ejecución del proceso).
+* **Gratificación legal (tipo LEGAL):** Documentado en código: base del **25%** sobre imponible acumulado hasta ese paso (sueldo proporcional, bono brutificado, ítems imponibles); **tope** `(sueldo_mínimo del indicador × 4,75) / 12`. Los haberes por conceptos variables se calculan **después** de la gratificación (no entran hoy en esa base).
+* **Impuesto único (base tributable):** Se rebajan AFP, cesantía y solo el **7% legal** de salud sobre el imponible tope; el descuento de caja por Isapre mayor al 7% **no** reduce adicionalmente la base del IU (criterio habitual art. 43 LIR; líquido sigue descontando el plan real).
+
+#### 4. Contrato y liquidación (comprobante)
+* **Contrato:** Campo **`cargo`** (texto, opcional). Listado de contratos en ficha del trabajador y admin.
+* **Liquidación (snapshot):** `fecha_ingreso_contrato` y `cargo_contrato` copiados al emitir; migración `0007` con **RunPython** que rellena liquidaciones antiguas desde el contrato vinculado (sin borrar datos).
+* **Ítem “Salud” en liquidación:** Etiqueta tipo AFP con valor del plan, p. ej. `Salud Consalud (3.357 UF)` o plan en CLP / `(7%)` en Fonasa.
+* **Plantillas:** Detalle y PDF de liquidación muestran cargo y fecha de ingreso; contrato formulario incluye cargo.
+
+#### 5. Control de versiones
+* Cambios subidos a repositorio remoto `main` en GitHub (`Conta_Carvajal`); en producción: `git pull` + `migrate` + reinicio de aplicación (p. ej. `tmp/restart.txt`).
