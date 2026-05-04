@@ -64,7 +64,10 @@ class Contrato(models.Model):
     vigente = models.BooleanField(default=True)
     afp = models.ForeignKey(AFP, on_delete=models.PROTECT)
     sistema_salud = models.ForeignKey(SistemaSalud, on_delete=models.PROTECT)
-    plan_salud_pactado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    plan_salud_pactado = models.DecimalField(
+        max_digits=12, decimal_places=3, default=0,
+        help_text="Monto del plan (CLP o UF); hasta 3 decimales en UF (ej. 3,357)",
+    )
     moneda_plan_salud = models.CharField(max_length=3, choices=MONEDA_CHOICES, default='CLP')
     sueldo_base = models.PositiveIntegerField()
     colacion = models.PositiveIntegerField(default=0, help_text="Haber no imponible")

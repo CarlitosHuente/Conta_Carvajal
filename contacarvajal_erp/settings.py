@@ -21,6 +21,11 @@ DEBUG = not IN_PRODUCTION
 # IMPORTANTE: En producción, Django es muy estricto con los nombres de dominio.
 if IN_PRODUCTION:
     ALLOWED_HOSTS = ['contacarvajal.cl', 'www.contacarvajal.cl']
+    # Django 4+: obligatorio para POST/HTTPS detrás del dominio público (evita 403 CSRF).
+    CSRF_TRUSTED_ORIGINS = [
+        'https://contacarvajal.cl',
+        'https://www.contacarvajal.cl',
+    ]
 else:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 

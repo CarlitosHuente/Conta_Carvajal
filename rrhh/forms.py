@@ -115,6 +115,34 @@ class TrabajadorForm(forms.ModelForm):
         return str(resto)
         
 class ContratoForm(forms.ModelForm):
+    @staticmethod
+    def _normalizar_decimal_plan_salud(raw):
+        """Acepta 3.357, 3,357 o 1.234,567 (miles CL + decimal coma) para el plan en UF/CLP."""
+        if raw is None:
+            return ''
+        s = str(raw).strip().replace(' ', '')
+        if not s:
+            return s
+        if ',' in s and '.' in s:
+            if s.rfind(',') > s.rfind('.'):
+                s = s.replace('.', '').replace(',', '.')
+            else:
+                s = s.replace(',', '')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        return s
+
+    def __init__(self, *args, **kwargs):
+        if args:
+            data = args[0]
+            if data is not None and hasattr(data, 'copy') and 'plan_salud_pactado' in data:
+                data = data.copy()
+                raw = data.get('plan_salud_pactado')
+                if raw not in (None, ''):
+                    data['plan_salud_pactado'] = self._normalizar_decimal_plan_salud(raw)
+                args = (data,) + tuple(args[1:])
+        super().__init__(*args, **kwargs)
+
     class Meta:
         model = Contrato
         # Excluimos el trabajador porque lo asignaremos automáticamente
@@ -126,7 +154,12 @@ class ContratoForm(forms.ModelForm):
             'fecha_fin': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
             'afp': forms.Select(attrs={'class': 'form-select'}),
             'sistema_salud': forms.Select(attrs={'class': 'form-select'}),
-            'plan_salud_pactado': forms.NumberInput(attrs={'class': 'form-control'}),
+            'plan_salud_pactado': forms.TextInput(attrs={
+                'class': 'form-control',
+                'inputmode': 'decimal',
+                'placeholder': 'Ej: 3,357 o 3.357 UF',
+                'autocomplete': 'off',
+            }),
             'moneda_plan_salud': forms.Select(attrs={'class': 'form-select'}),
             'sueldo_base': forms.NumberInput(attrs={'class': 'form-control'}),
             'colacion': forms.NumberInput(attrs={'class': 'form-control'}),

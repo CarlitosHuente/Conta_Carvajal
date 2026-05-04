@@ -258,7 +258,9 @@ def contrato_create_view(request, trabajador_pk):
             contrato = form.save(commit=False) # No lo guardes en la BD todavía
             contrato.trabajador = trabajador   # Asigna el trabajador
             contrato.save()                    # Ahora sí, guárdalo
-            return redirect('rrhh:trabajador_detail', pk=trabajador.id)
+            form.save_m2m()                    # conceptos_variables (M2M) requiere instancia con pk
+            messages.success(request, 'Contrato guardado correctamente.')
+            return redirect(f"{reverse('rrhh:trabajador_detail', kwargs={'pk': trabajador.id})}#lista-contratos")
     else:
         form = ContratoForm()
 
@@ -282,7 +284,7 @@ def contrato_edit_view(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, f"Contrato de {trabajador.nombre_completo} actualizado correctamente.")
-            return redirect('rrhh:trabajador_detail', pk=trabajador.id)
+            return redirect(f"{reverse('rrhh:trabajador_detail', kwargs={'pk': trabajador.id})}#lista-contratos")
     else:
         form = ContratoForm(instance=contrato)
 

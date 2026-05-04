@@ -69,3 +69,8 @@ python manage.py migrate
 # Correr servidor
 
 python manage.py runserver
+
+En produccion se usa:
+cd /home/contaca3/repositories/erp_sistema
+
+

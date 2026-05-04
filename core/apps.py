@@ -21,7 +21,7 @@ def create_default_superuser(sender, **kwargs):
             # Intentamos asignar el rol de admin al PerfilUsuario
             try:
                 from core.models import PerfilUsuario
-                perfil, created = PerfilUsuario.objects.get_or_create(usuario=user)
+                perfil, created = PerfilUsuario.objects.get_or_create(user=user)
                 perfil.rol = 'admin'
                 perfil.save()
                 print(f"[+] Perfil de 'admin' asignado a {username} correctamente.\n")

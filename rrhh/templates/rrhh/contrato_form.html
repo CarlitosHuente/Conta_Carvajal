@@ -22,11 +22,11 @@
             <small class="text-muted">Trabajador: {{ trabajador.nombre_completo }}</small>
         </div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" id="contrato-form" novalidate>
                 {% csrf_token %}
                 <div class="alert alert-light border small mb-4">
                     <i class="fas fa-info-circle me-1"></i>
-                    Completa los datos por secciones. Los campos monetarios se ingresan en pesos, excepto plan salud cuando se seleccione UF.
+                    Completa los datos por secciones. El plan de salud (Isapre, etc.) puede ir en <strong>UF con hasta 3 decimales</strong> (ej. 3,357 o 3.357). Usa punto o coma según prefieras.
                 </div>
 
                 <h6 class="text-primary mb-3">1) Vigencia y base contractual</h6>
@@ -64,6 +64,9 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">{{ form.plan_salud_pactado.label }}</label>
                         {{ form.plan_salud_pactado }}
+                        {% if form.plan_salud_pactado.errors %}
+                            <div class="invalid-feedback d-block">{{ form.plan_salud_pactado.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">{{ form.moneda_plan_salud.label }}</label>
@@ -112,6 +115,47 @@
     </div>
 </div>
 
+{% if form.errors %}
+<div class="modal fade" id="modalErroresContrato" tabindex="-1" aria-labelledby="modalErroresContratoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="modalErroresContratoLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>No se pudo guardar el contrato
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Corrige lo siguiente y vuelve a pulsar <strong>Guardar contrato</strong>.</p>
+                <ul class="list-group list-group-flush small">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li class="list-group-item">
+                                <strong>{{ field.label }}:</strong> {{ error }}
+                            </li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for err in form.non_field_errors %}
+                        <li class="list-group-item">{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('modalErroresContrato');
+    if (el && typeof bootstrap !== 'undefined') {
+        new bootstrap.Modal(el).show();
+    }
+});
+</script>
+{% endif %}
+
 <script>
     (function () {
         const tipoGratificacion = document.getElementById('id_tipo_gratificacion');
@@ -145,6 +189,16 @@
         if (sistemaSalud) {
             sistemaSalud.addEventListener('change', togglePlanSalud);
             togglePlanSalud();
+        }
+
+        // Los inputs HTML `disabled` no se envían en el POST y Django puede rechazar el formulario.
+        const formEl = document.getElementById('contrato-form');
+        if (formEl) {
+            formEl.addEventListener('submit', function () {
+                if (montoGratificacion) montoGratificacion.disabled = false;
+                if (planSalud) planSalud.disabled = false;
+                if (monedaSalud) monedaSalud.disabled = false;
+            });
         }
     })();
 </script>
