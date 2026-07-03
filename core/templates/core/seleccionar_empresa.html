@@ -30,5 +30,42 @@
         <p class="text-center">No hay empresas registradas.</p>
         {% endfor %}
     </div>
+
+    {% if user.perfil.rol == 'admin' or user.is_superuser %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card border-secondary shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-secondary">
+                        <i class="fas fa-globe-americas me-2"></i>Parámetros nacionales (todas las empresas)
+                    </h5>
+                    <small class="text-muted">UF, UTM, topes y catálogos compartidos por todo el sistema. No dependen de la empresa seleccionada.</small>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'rrhh:indicador_list' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-line text-primary me-2"></i> Indicadores económicos (UF / UTM / topes)
+                        </a>
+                        <a href="{% url 'rrhh:afp_list' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-percent text-primary me-2"></i> Tasas de AFP
+                        </a>
+                        <a href="{% url 'rrhh:cargar_base_rrhh' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-database text-warning me-2"></i> Cargar datos base (AFPs e Isapres)
+                        </a>
+                        <a href="{% url 'rrhh:cargar_indicadores_base' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-history text-warning me-2"></i> Cargar histórico Previred (indicadores)
+                        </a>
+                        <a href="{% url 'rrhh:planilla_cobranza' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-file-invoice-dollar text-info me-2"></i> Planilla de cobranza (todas las empresas)
+                        </a>
+                        <a href="{% url 'rrhh:empresa_list' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-building text-info me-2"></i> Administrar empresas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

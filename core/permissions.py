@@ -6,6 +6,30 @@ from django.shortcuts import redirect
 from .models import PermisoAccesoUsuario
 
 
+def get_empresa_operativa_id(request):
+    """
+    Empresa cuyos datos operativos (trabajadores, contratos, etc.) debe ver el usuario.
+    Admin: empresa activa en sesión. Cliente: empresa del perfil.
+    """
+    user = request.user
+    if not hasattr(user, 'perfil'):
+        return None
+    if user.perfil.rol == 'cliente':
+        return user.perfil.empresa_id
+    return request.session.get('empresa_activa_id')
+
+
+def ensure_empresa_operativa(request):
+    """
+    Devuelve (empresa_id, None) si hay contexto válido, o (None, redirect_response).
+    """
+    empresa_id = get_empresa_operativa_id(request)
+    if not empresa_id:
+        messages.warning(request, "Selecciona una empresa para continuar.")
+        return None, redirect('core:home')
+    return empresa_id, None
+
+
 def _usuario_tiene_permiso(user, empresa_id, modulo, submodulo, accion):
     if not hasattr(user, 'perfil'):
         return False
@@ -31,7 +55,7 @@ def require_access(modulo, submodulo='', accion='ver'):
     def decorator(view_func):
         @wraps(view_func)
         def wrapped(request, *args, **kwargs):
-            empresa_id = request.session.get('empresa_activa_id')
+            empresa_id = get_empresa_operativa_id(request)
             if not empresa_id:
                 messages.warning(request, "Debes seleccionar una empresa para continuar.")
                 return redirect('core:home')

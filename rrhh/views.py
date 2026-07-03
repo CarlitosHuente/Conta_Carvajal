@@ -16,7 +16,7 @@ from django.db.models import Prefetch
 import calendar
 from .models import RegistroCobro
 from django.db import models
-from core.permissions import require_access
+from core.permissions import require_access, ensure_empresa_operativa
 
 
 
@@ -178,22 +178,18 @@ def crear_liquidacion_view(request):
 @require_access('rrhh', 'trabajadores', 'ver')
 def trabajador_list_view(request):
     """
-    Muestra la lista de todos los trabajadores.
+    Lista trabajadores de la empresa operativa (sesión admin o perfil cliente).
     """
-    # SECCION: Filtro por Rol
-    if request.user.perfil.rol == 'admin':
-        # El admin ve todos los trabajadores activos
-        trabajadores = Trabajador.objects.filter(activo=True).order_by('apellido_paterno')
-    else:
-        # El cliente SOLO ve los trabajadores de su propia empresa
-        empresa_id = request.user.perfil.empresa_id
-        if not empresa_id:
-            trabajadores = Trabajador.objects.none() # Devuelve una lista vacía si no tiene empresa
-        else:
-            trabajadores = Trabajador.objects.filter(empresa_id=empresa_id, activo=True).order_by('apellido_paterno')
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    trabajadores = Trabajador.objects.filter(
+        empresa_id=empresa_id, activo=True
+    ).order_by('apellido_paterno')
 
     context = {
-        'trabajadores': trabajadores
+        'trabajadores': trabajadores,
     }
     return render(request, 'rrhh/trabajador_list.html', context)
 @login_required
@@ -205,53 +201,54 @@ def trabajador_create_view(request):
     if request.user.perfil.rol != 'admin':
         return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
 
-    empresa_activa_id = request.session.get('empresa_activa_id')
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
 
     if request.method == 'POST':
-        form = TrabajadorForm(request.POST, empresa_fija_id=empresa_activa_id)
+        form = TrabajadorForm(request.POST, empresa_fija_id=empresa_id)
         if form.is_valid():
             trabajador = form.save(commit=False)
-            if empresa_activa_id:
-                trabajador.empresa_id = empresa_activa_id
+            trabajador.empresa_id = empresa_id
             trabajador.save()
             return redirect('rrhh:trabajador_list')
     else:
-        form = TrabajadorForm(empresa_fija_id=empresa_activa_id)
+        form = TrabajadorForm(empresa_fija_id=empresa_id)
     
     context = {
         'form': form,
-        'titulo': 'Añadir Nuevo Trabajador', # Un título para reutilizar la plantilla
-        'empresa_asignada': Empresa.objects.filter(id=empresa_activa_id).first() if empresa_activa_id else None,
+        'titulo': 'Añadir Nuevo Trabajador',
+        'empresa_asignada': Empresa.objects.filter(id=empresa_id).first(),
     }
     return render(request, 'rrhh/trabajador_form.html', context)
 @login_required
 def trabajador_detail_view(request, pk):
     """
     Muestra la información detallada de un trabajador y sus contratos.
-    'pk' es la "Primary Key" o ID del trabajador.
     """
-    trabajador = Trabajador.objects.get(id=pk)
-    # SECCION: Filtro por Rol
-    # Un cliente solo puede ver trabajadores de su propia empresa
-    if request.user.perfil.rol == 'cliente' and trabajador.empresa != request.user.perfil.empresa:
-        return HttpResponseForbidden("No tienes permiso para ver este trabajador.")
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
 
-    # Obtenemos todos los contratos asociados a este trabajador
+    trabajador = get_object_or_404(Trabajador, pk=pk, empresa_id=empresa_id)
     contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio')
 
     context = {
         'trabajador': trabajador,
-        'contratos': contratos
+        'contratos': contratos,
     }
     return render(request, 'rrhh/trabajador_detail.html', context)
 
 @login_required
 def contrato_create_view(request, trabajador_pk):
-    # SECCION: Solo admin puede crear contratos
     if request.user.perfil.rol != 'admin':
         return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
 
-    trabajador = Trabajador.objects.get(id=trabajador_pk)
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    trabajador = get_object_or_404(Trabajador, pk=trabajador_pk, empresa_id=empresa_id)
     if request.method == 'POST':
         form = ContratoForm(request.POST)
         if form.is_valid():
@@ -272,11 +269,14 @@ def contrato_create_view(request, trabajador_pk):
 
 @login_required
 def contrato_edit_view(request, pk):
-    # SECCION: Solo admin puede editar contratos
     if request.user.perfil.rol != 'admin':
         return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
 
-    contrato = get_object_or_404(Contrato, pk=pk)
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    contrato = get_object_or_404(Contrato, pk=pk, trabajador__empresa_id=empresa_id)
     trabajador = contrato.trabajador
 
     if request.method == 'POST':
@@ -296,11 +296,11 @@ def gestionar_items_contrato_view(request, contrato_id):
     """
     Permite agregar bonos fijos, asignaciones o descuentos recurrentes a un contrato.
     """
-    contrato = get_object_or_404(Contrato, id=contrato_id)
-    
-    # Verificación RBAC (El cliente solo ve contratos de su empresa)
-    if request.user.perfil.rol == 'cliente' and contrato.trabajador.empresa != request.user.perfil.empresa:
-        return HttpResponseForbidden("No tienes permiso para modificar este contrato.")
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    contrato = get_object_or_404(Contrato, id=contrato_id, trabajador__empresa_id=empresa_id)
 
     ItemFormSet = modelformset_factory(
         ItemContrato, form=ItemContratoForm, extra=1, can_delete=True
@@ -331,10 +331,9 @@ def gestionar_items_contrato_view(request, contrato_id):
 
 @login_required
 def concepto_variable_list_view(request):
-    empresa_id = request.session.get('empresa_activa_id')
-    if not empresa_id:
-        messages.warning(request, "Selecciona una empresa para gestionar sus conceptos de pago.")
-        return redirect('core:home')
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
     
     conceptos = ConceptoVariable.objects.filter(empresa_id=empresa_id)
     return render(request, 'rrhh/conceptos/list.html', {'conceptos': conceptos})
@@ -344,8 +343,9 @@ TramoFormSet = inlineformset_factory(ConceptoVariable, TramoConcepto, form=Tramo
 
 @login_required
 def concepto_variable_create_view(request):
-    empresa_id = request.session.get('empresa_activa_id')
-    if not empresa_id: return redirect('core:home')
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
 
     if request.method == 'POST':
         form = ConceptoVariableForm(request.POST)
@@ -368,7 +368,9 @@ def concepto_variable_create_view(request):
 
 @login_required
 def concepto_variable_edit_view(request, pk):
-    empresa_id = request.session.get('empresa_activa_id')
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
     concepto = get_object_or_404(ConceptoVariable, pk=pk, empresa_id=empresa_id)
 
     if request.method == 'POST':

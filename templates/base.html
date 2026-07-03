@@ -114,10 +114,8 @@
                                         {% endif %}
                                         {% if user.perfil.rol == 'admin' %}
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><h6 class="dropdown-header text-primary fw-bold">Admin RR.HH</h6></li>
-                                        <li><a class="dropdown-item" href="{% url 'rrhh:indicador_list' %}"><i class="fas fa-chart-line me-2 text-secondary"></i>Indicadores Económicos</a></li>
-                                        <li><a class="dropdown-item" href="{% url 'rrhh:afp_list' %}"><i class="fas fa-percent me-2 text-secondary"></i>Tasas de AFP</a></li>
-                                        <li><a class="dropdown-item" href="{% url 'rrhh:concepto_variable_list' %}"><i class="fas fa-cogs me-2 text-secondary"></i>Conceptos Variables</a></li>
+                                        <li><h6 class="dropdown-header text-primary fw-bold">Config. empresa</h6></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:concepto_variable_list' %}"><i class="fas fa-cogs me-2 text-secondary"></i>Conceptos variables</a></li>
                                         {% endif %}
                                     </ul>
                                 </li>
@@ -131,11 +129,19 @@
                                 {% endif %}
                             {% else %}
                                 {% if user.perfil.rol == 'admin' or user.is_superuser %}
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'rrhh:empresa_list' %}"><i class="fas fa-building me-1"></i>Empresas</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'rrhh:planilla_cobranza' %}"><i class="fas fa-file-invoice-dollar me-1"></i>Cobranza</a>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="navbarGlobalRRHH" role="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-globe-americas me-1"></i>Parámetros nacionales
+                                    </a>
+                                    <ul class="dropdown-menu shadow-sm border-0" aria-labelledby="navbarGlobalRRHH">
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:indicador_list' %}"><i class="fas fa-chart-line me-2"></i>Indicadores económicos</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:afp_list' %}"><i class="fas fa-percent me-2"></i>Tasas de AFP</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:cargar_base_rrhh' %}"><i class="fas fa-database me-2"></i>Cargar AFPs e Isapres</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:cargar_indicadores_base' %}"><i class="fas fa-history me-2"></i>Histórico Previred</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:empresa_list' %}"><i class="fas fa-building me-2"></i>Empresas</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'rrhh:planilla_cobranza' %}"><i class="fas fa-file-invoice-dollar me-2"></i>Cobranza</a></li>
+                                    </ul>
                                 </li>
                                 {% endif %}
                             {% endif %}
