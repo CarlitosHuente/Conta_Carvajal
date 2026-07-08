@@ -21,6 +21,7 @@
                     <div class="mb-4 p-3 bg-white border rounded shadow-sm">
                         <h6 class="text-secondary fw-bold text-uppercase mb-1" style="font-size: 0.8rem;">Glosa / Concepto</h6>
                         <p class="mb-0 fs-5">{{ asiento.glosa }}</p>
+                        <p class="mb-0 mt-2 small text-muted"><i class="fas fa-tag me-1"></i> {{ asiento.get_tipo_asiento_display }}</p>
                         
                         {% if asiento.origen_f29 %}
                         <hr class="my-2">
@@ -70,6 +71,47 @@
                     {% if total_debe == total_haber %}
                     <div class="alert alert-success mt-4 border-success text-center">
                         <i class="fas fa-check-circle fa-lg me-2"></i> <strong>¡Asiento Cuadrado!</strong> El Debe y el Haber suman exactamente lo mismo.
+                    </div>
+                    {% endif %}
+
+                    {% if aplicaciones %}
+                    <div class="card mt-4 border-0 shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-link me-2"></i> Movimientos {% if asiento.tipo_asiento == 'pago' %}pagados{% else %}cobrados{% endif %}
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            {% for app in aplicaciones %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    Asiento origen
+                                    <a href="{% url 'contabilidad:asiento_detalle' app.linea_origen.asiento_id %}">#{{ app.linea_origen.asiento_id }}</a>
+                                    · {{ app.linea_origen.cuenta.nombre }}
+                                </span>
+                                <span class="badge bg-success">${{ app.monto|intcomma }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if lineas_saldadas %}
+                    <div class="card mt-4 border-0 shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <i class="fas fa-check-double me-2"></i> Saldado con
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            {% for linea in lineas_saldadas %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    {% for app in linea.aplicaciones_salida.all %}
+                                    <a href="{% url 'contabilidad:asiento_detalle' app.asiento_pago_id %}">Comprobante #{{ app.asiento_pago_id }}</a>
+                                    ({{ app.get_tipo_display }}){% if not forloop.last %} · {% endif %}
+                                    {% endfor %}
+                                </span>
+                                <span class="badge bg-info text-dark">${{ linea.monto_aplicado|intcomma }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
                     {% endif %}
 

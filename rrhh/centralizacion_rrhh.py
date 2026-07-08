@@ -86,6 +86,7 @@ def generar_asiento_remuneraciones(empresa, mes, ano, cuentas_map=None):
         glosa=glosa,
         origen_rrhh_mes=mes,
         origen_rrhh_ano=ano,
+        tipo_asiento='rrhh',
     )
 
     gasto_total = resumen['total_gasto']

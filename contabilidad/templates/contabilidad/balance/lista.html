@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fas fa-balance-scale"></i> Balance de Comprobación</h2>
+            <p class="text-muted mb-0">{{ periodo.mes }}/{{ periodo.ano }}</p>
+        </div>
+        <form method="GET" class="d-flex gap-2 align-items-end">
+            <div><input type="number" name="mes" class="form-control form-control-sm" min="1" max="12" value="{{ periodo.mes }}"></div>
+            <div><input type="number" name="ano" class="form-control form-control-sm" value="{{ periodo.ano }}"></div>
+            <button type="submit" class="btn btn-primary btn-sm">Ver</button>
+        </form>
+    </div>
+
+    {% if cuadra %}
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i> El balance cuadra: saldos deudores = acreedores.</div>
+    {% else %}
+    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Los saldos deudores y acreedores no coinciden — revisa los comprobantes del período.</div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-primary text-white">
+                        <tr>
+                            <th class="ps-3">Código</th>
+                            <th>Cuenta</th>
+                            <th class="text-end">Sumas Debe</th>
+                            <th class="text-end">Sumas Haber</th>
+                            <th class="text-end">Saldo Deudor</th>
+                            <th class="text-end pe-3">Saldo Acreedor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grupo_nombre, filas in balance_grupos %}
+                        <tr class="table-secondary">
+                            <td colspan="6" class="fw-bold ps-3">{{ grupo_nombre|upper }}</td>
+                        </tr>
+                        {% for fila in filas %}
+                        <tr>
+                            <td class="ps-3 font-monospace">{{ fila.cuenta.codigo }}</td>
+                            <td>
+                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?mes={{ periodo.mes }}&ano={{ periodo.ano }}">{{ fila.cuenta.nombre }}</a>
+                            </td>
+                            <td class="text-end">${{ fila.debe|intcomma }}</td>
+                            <td class="text-end">${{ fila.haber|intcomma }}</td>
+                            <td class="text-end">{% if fila.saldo_deudor %}${{ fila.saldo_deudor|intcomma }}{% endif %}</td>
+                            <td class="text-end pe-3">{% if fila.saldo_acreedor %}${{ fila.saldo_acreedor|intcomma }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold border-top border-2">
+                        <tr>
+                            <td colspan="2" class="text-end ps-3">TOTALES</td>
+                            <td class="text-end">${{ totales.debe|intcomma }}</td>
+                            <td class="text-end">${{ totales.haber|intcomma }}</td>
+                            <td class="text-end">${{ totales.saldo_deudor|intcomma }}</td>
+                            <td class="text-end pe-3">${{ totales.saldo_acreedor|intcomma }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

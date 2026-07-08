@@ -137,10 +137,21 @@ class CuentaContable(models.Model):
         ('perdida', 'Resultado Pérdida'),
         ('ganancia', 'Resultado Ganancia'),
     )
+    SUBTIPO_CHOICES = (
+        ('general', 'General'),
+        ('caja', 'Caja / Efectivo'),
+        ('banco', 'Banco'),
+        ('clientes', 'Clientes'),
+        ('proveedores', 'Proveedores'),
+    )
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='cuentas_contables')
     codigo = models.CharField(max_length=20, verbose_name="Código de Cuenta", help_text="Ej: 1.01.05")
     nombre = models.CharField(max_length=150, verbose_name="Nombre de la Cuenta", help_text="Ej: IVA Crédito Fiscal")
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    subtipo_operacion = models.CharField(
+        max_length=20, choices=SUBTIPO_CHOICES, default='general', blank=True,
+        verbose_name='Subtipo operativo',
+    )
 
     class Meta:
         verbose_name = "Cuenta Contable"
@@ -153,6 +164,23 @@ class CuentaContable(models.Model):
 
     def tiene_movimientos(self):
         return self.lineaasiento_set.exists()
+
+    def subtipo_detectado(self):
+        if self.subtipo_operacion and self.subtipo_operacion != 'general':
+            return self.subtipo_operacion
+        mapa_prefijos = (
+            ('1.01.01', 'caja'),
+            ('1.01.02', 'banco'),
+            ('1.01.03', 'clientes'),
+            ('2.01.01', 'proveedores'),
+        )
+        for prefijo, subtipo in mapa_prefijos:
+            if self.codigo.startswith(prefijo):
+                return subtipo
+        return 'general'
+
+    def permite_saldar_operaciones(self):
+        return self.subtipo_detectado() in ('clientes', 'proveedores')
 
 class PlantillaCentralizacion(models.Model):
     TIPO_ORIGEN_CHOICES = (
@@ -188,9 +216,17 @@ class LineaPlantilla(models.Model):
         return f"{self.cuenta.nombre} - {self.tipo_movimiento} - {self.formula}"
 
 class AsientoContable(models.Model):
+    TIPO_ASIENTO_CHOICES = (
+        ('manual', 'Comprobante manual'),
+        ('f29', 'Centralización F29'),
+        ('rrhh', 'Remuneraciones'),
+        ('pago', 'Pago a proveedores'),
+        ('cobro', 'Cobro a clientes'),
+    )
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='asientos')
     fecha = models.DateField(verbose_name="Fecha del Asiento")
     glosa = models.CharField(max_length=255, verbose_name="Glosa o Descripción")
+    tipo_asiento = models.CharField(max_length=20, choices=TIPO_ASIENTO_CHOICES, default='manual')
     
     # Relaciones de origen (Polimorfismo básico). 
     # Si el asiento viene de un F29, se llena este campo. Si viene de RCV (futuro), usaremos el otro.
@@ -241,3 +277,37 @@ class LineaAsiento(models.Model):
 
     def __str__(self):
         return f"{self.cuenta.nombre}: D={self.debe} H={self.haber}"
+
+    @property
+    def importe(self):
+        return self.debe if self.debe else self.haber
+
+    @property
+    def monto_aplicado(self):
+        return sum(a.monto for a in self.aplicaciones_salida.all())
+
+    @property
+    def monto_pendiente(self):
+        return max(0, self.importe - self.monto_aplicado)
+
+    @property
+    def esta_saldada(self):
+        return self.monto_pendiente == 0
+
+
+class AplicacionCobroPago(models.Model):
+    TIPO_CHOICES = (
+        ('pago', 'Pago'),
+        ('cobro', 'Cobro'),
+    )
+    asiento_pago = models.ForeignKey(AsientoContable, on_delete=models.CASCADE, related_name='aplicaciones')
+    linea_origen = models.ForeignKey(LineaAsiento, on_delete=models.PROTECT, related_name='aplicaciones_salida')
+    monto = models.BigIntegerField(verbose_name='Monto aplicado')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+
+    class Meta:
+        verbose_name = 'Aplicación cobro/pago'
+        verbose_name_plural = 'Aplicaciones cobro/pago'
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} ${self.monto:,} → línea #{self.linea_origen_id}'

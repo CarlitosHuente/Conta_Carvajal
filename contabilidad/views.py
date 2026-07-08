@@ -306,6 +306,7 @@ def _guardar_asiento_f29(f29, plantilla, fecha, glosa, calculo):
         glosa=glosa,
         origen_f29=f29,
         origen_plantilla=plantilla,
+        tipo_asiento='f29',
     )
     for lc in calculo['lineas_calculadas']:
         cuenta = CuentaContable.objects.get(empresa=f29.empresa, codigo=lc['cuenta_codigo'])
@@ -600,6 +601,7 @@ def plan_cuentas_cargar_base_view(request):
                     codigo=cuenta_base['codigo'],
                     nombre=cuenta_base['nombre'],
                     tipo=cuenta_base['tipo'],
+                    subtipo_operacion=cuenta_base.get('subtipo', 'general'),
                 )
                 cuentas_creadas += 1
 
@@ -777,8 +779,25 @@ def asiento_detalle_view(request, pk):
     if not empresa_id:
         return redirect('core:home')
         
-    asiento = get_object_or_404(AsientoContable, pk=pk, empresa_id=empresa_id)
+    asiento = get_object_or_404(
+        AsientoContable.objects.prefetch_related(
+            'lineas__cuenta',
+            'lineas__aplicaciones_salida__asiento_pago',
+            'aplicaciones__linea_origen__asiento',
+            'aplicaciones__linea_origen__cuenta',
+        ),
+        pk=pk,
+        empresa_id=empresa_id,
+    )
     total_debe = sum(linea.debe for linea in asiento.lineas.all())
     total_haber = sum(linea.haber for linea in asiento.lineas.all())
+    aplicaciones = list(asiento.aplicaciones.all()) if asiento.tipo_asiento in ('pago', 'cobro') else []
+    lineas_saldadas = [l for l in asiento.lineas.all() if l.monto_aplicado > 0]
     
-    return render(request, 'contabilidad/libro_diario/detalle.html', {'asiento': asiento, 'total_debe': total_debe, 'total_haber': total_haber})
+    return render(request, 'contabilidad/libro_diario/detalle.html', {
+        'asiento': asiento,
+        'total_debe': total_debe,
+        'total_haber': total_haber,
+        'aplicaciones': aplicaciones,
+        'lineas_saldadas': lineas_saldadas,
+    })

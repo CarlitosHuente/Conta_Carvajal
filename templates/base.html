@@ -78,6 +78,9 @@
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header text-primary fw-bold">Libros Contables</h6></li>
                                         <li><a class="dropdown-item" href="{% url 'contabilidad:libro_diario' %}"><i class="fas fa-book-open me-2"></i>Libro Diario</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:asiento_crear' %}"><i class="fas fa-plus me-2"></i>Nuevo comprobante</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:libro_mayor' %}"><i class="fas fa-book me-2"></i>Libro Mayor</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'contabilidad:balance' %}"><i class="fas fa-balance-scale me-2"></i>Balance</a></li>
                                         {% endif %}
                                         {% if permisos_ui.contabilidad_plan_cuentas_ver or permisos_ui.contabilidad_plantillas_ver %}
                                         <li><hr class="dropdown-divider"></li>

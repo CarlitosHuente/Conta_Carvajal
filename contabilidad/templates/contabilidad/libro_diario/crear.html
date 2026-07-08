@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fas fa-file-invoice"></i> Nuevo comprobante contable</h2>
+            <p class="text-muted mb-0">Registro directo en libro diario, sin plantillas.</p>
+        </div>
+        <a href="{% url 'contabilidad:libro_diario' %}" class="btn btn-outline-secondary">Volver al diario</a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="POST" id="formAsiento">
+                {% csrf_token %}
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha</label>
+                        <input type="date" name="fecha" class="form-control" value="{{ fecha_hoy }}" required>
+                    </div>
+                    <div class="col-md-9">
+                        <label class="form-label fw-bold">Glosa</label>
+                        <input type="text" name="glosa" class="form-control" placeholder="Descripción del comprobante" required>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cuenta</th>
+                                <th style="width:18%">Debe</th>
+                                <th style="width:18%">Haber</th>
+                                <th style="width:5%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyLineas">
+                            <tr>
+                                <td>
+                                    <select name="cuenta_id[]" class="form-select" required>
+                                        <option value="">— Cuenta —</option>
+                                        {% for c in cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
+                                    </select>
+                                </td>
+                                <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
+                                <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar" disabled><i class="fas fa-times"></i></button></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <select name="cuenta_id[]" class="form-select" required>
+                                        <option value="">— Cuenta —</option>
+                                        {% for c in cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
+                                    </select>
+                                </td>
+                                <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
+                                <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light fw-bold">
+                                <td class="text-end">Totales:</td>
+                                <td class="text-end text-success" id="totalDebe">$0</td>
+                                <td class="text-end text-danger" id="totalHaber">$0</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-success mb-3" id="btnAgregarLinea"><i class="fas fa-plus"></i> Agregar línea</button>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg" id="btnGuardar" disabled>
+                        <i class="fas fa-save"></i> Guardar comprobante
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<select id="tplCuentas" class="d-none">
+    <option value="">— Cuenta —</option>
+    {% for c in cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
+</select>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const tplCuentas = document.getElementById('tplCuentas').innerHTML;
+
+function fmt(n) { return '$' + new Intl.NumberFormat('es-CL').format(n); }
+
+function recalcular() {
+    let d = 0, h = 0;
+    document.querySelectorAll('.campo-debe').forEach(i => d += parseInt(i.value || 0, 10));
+    document.querySelectorAll('.campo-haber').forEach(i => h += parseInt(i.value || 0, 10));
+    document.getElementById('totalDebe').textContent = fmt(d);
+    document.getElementById('totalHaber').textContent = fmt(h);
+    document.getElementById('btnGuardar').disabled = !(d > 0 && d === h);
+}
+
+function enlazarFila(tr) {
+    tr.querySelectorAll('.campo-debe, .campo-haber').forEach(i => i.addEventListener('input', recalcular));
+    const btn = tr.querySelector('.btn-quitar');
+    if (btn) btn.addEventListener('click', () => {
+        if (document.querySelectorAll('#tbodyLineas tr').length > 2) {
+            tr.remove();
+            recalcular();
+        }
+    });
+}
+
+document.getElementById('btnAgregarLinea').addEventListener('click', () => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><select name="cuenta_id[]" class="form-select" required>${tplCuentas}</select></td>
+        <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
+        <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></td>`;
+    document.getElementById('tbodyLineas').appendChild(tr);
+    enlazarFila(tr);
+});
+
+document.querySelectorAll('#tbodyLineas tr').forEach(enlazarFila);
+recalcular();
+</script>
+{% endblock %}

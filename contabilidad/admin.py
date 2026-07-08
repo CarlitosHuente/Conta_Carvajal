@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import CodigoF29, DeclaracionF29, ReglaValidacion, CuentaContable, PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento
+from .models import (
+    CodigoF29, DeclaracionF29, ReglaValidacion, CuentaContable,
+    PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento,
+    AplicacionCobroPago,
+)
 
 admin.site.register(CodigoF29)
 admin.site.register(DeclaracionF29)
@@ -12,8 +16,8 @@ class ReglaValidacionAdmin(admin.ModelAdmin):
 
 @admin.register(CuentaContable)
 class CuentaContableAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre', 'tipo', 'empresa')
-    list_filter = ('tipo', 'empresa')
+    list_display = ('codigo', 'nombre', 'tipo', 'subtipo_operacion', 'empresa')
+    list_filter = ('tipo', 'subtipo_operacion', 'empresa')
     search_fields = ('codigo', 'nombre')
 
 class LineaPlantillaInline(admin.TabularInline):
@@ -32,7 +36,13 @@ class LineaAsientoInline(admin.TabularInline):
 
 @admin.register(AsientoContable)
 class AsientoContableAdmin(admin.ModelAdmin):
-    list_display = ('id', 'empresa', 'fecha', 'glosa', 'origen_f29')
-    list_filter = ('empresa', 'fecha')
+    list_display = ('id', 'empresa', 'fecha', 'glosa', 'tipo_asiento', 'origen_f29')
+    list_filter = ('empresa', 'fecha', 'tipo_asiento')
     search_fields = ('glosa',)
     inlines = [LineaAsientoInline]
+
+
+@admin.register(AplicacionCobroPago)
+class AplicacionCobroPagoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'tipo', 'monto', 'asiento_pago', 'linea_origen')
+    list_filter = ('tipo',)

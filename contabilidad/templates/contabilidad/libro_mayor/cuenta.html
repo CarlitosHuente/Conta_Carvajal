@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fas fa-search-dollar"></i> Mayor: {{ cuenta.codigo }} — {{ cuenta.nombre }}</h2>
+            <p class="text-muted mb-0">Período {{ periodo.mes }}/{{ periodo.ano }} · Saldo final: <strong>${{ saldo_final|intcomma }}</strong></p>
+        </div>
+        <a href="{% url 'contabilidad:libro_mayor' %}?mes={{ periodo.mes }}&ano={{ periodo.ano }}" class="btn btn-outline-secondary btn-sm">Volver al Mayor</a>
+    </div>
+
+    {% if puede_saldar %}
+    <div class="alert alert-success border-0 shadow-sm">
+        <i class="fas fa-bolt me-2"></i>
+        {% if es_proveedor %}
+        Selecciona documentos pendientes (Haber) y paga con <strong>Banco</strong> o <strong>Caja</strong> en un clic.
+        {% else %}
+        Selecciona documentos pendientes (Debe) y cobra con <strong>Banco</strong> o <strong>Caja</strong> en un clic.
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="POST" id="formSaldar">
+        {% csrf_token %}
+        <input type="hidden" name="mes" value="{{ periodo.mes }}">
+        <input type="hidden" name="ano" value="{{ periodo.ano }}">
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                {% if puede_saldar %}<th class="ps-3" style="width:40px"></th>{% endif %}
+                                <th>Fecha</th>
+                                <th>Asiento</th>
+                                <th>Glosa</th>
+                                <th class="text-end text-success">Debe</th>
+                                <th class="text-end text-danger">Haber</th>
+                                <th class="text-end">Saldo acum.</th>
+                                {% if puede_saldar %}<th class="text-end pe-3">Pendiente</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mov in movimientos %}
+                            <tr class="{% if mov.seleccionable %}table-warning bg-opacity-25{% endif %}">
+                                {% if puede_saldar %}
+                                <td class="ps-3">
+                                    {% if mov.seleccionable %}
+                                    <input class="form-check-input chk-mov" type="checkbox" name="linea_ids" value="{{ mov.linea.id }}" data-monto="{{ mov.pendiente }}">
+                                    {% elif mov.esta_saldada %}
+                                    <i class="fas fa-check-circle text-success" title="Saldado"></i>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                                <td>{{ mov.fecha|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'contabilidad:asiento_detalle' mov.asiento.id %}">#{{ mov.asiento.id }}</a>
+                                </td>
+                                <td>{{ mov.glosa|truncatechars:50 }}</td>
+                                <td class="text-end">{% if mov.debe %}${{ mov.debe|intcomma }}{% endif %}</td>
+                                <td class="text-end">{% if mov.haber %}${{ mov.haber|intcomma }}{% endif %}</td>
+                                <td class="text-end fw-bold">${{ mov.saldo_acumulado|intcomma }}</td>
+                                {% if puede_saldar %}
+                                <td class="text-end pe-3">
+                                    {% if mov.pendiente > 0 %}${{ mov.pendiente|intcomma }}{% else %}—{% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos en el período.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if puede_saldar and cuentas_pago %}
+        <div class="card border-success shadow-sm position-sticky bottom-0" style="z-index:100">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha del {% if es_proveedor %}pago{% else %}cobro{% endif %}</label>
+                        <input type="date" name="fecha_pago" class="form-control" value="{{ periodo.fecha_hasta|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">{% if es_proveedor %}Pagar con{% else %}Cobrar en{% endif %}</label>
+                        <select name="cuenta_medio_id" class="form-select" required>
+                            {% for c in cuentas_pago %}
+                            <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Glosa (opcional)</label>
+                        <input type="text" name="glosa" class="form-control" placeholder="{% if es_proveedor %}Pago proveedores{% else %}Cobro clientes{% endif %}">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="small text-muted mb-1">Total seleccionado</div>
+                        <div class="fs-5 fw-bold text-success" id="totalSeleccionado">$0</div>
+                        <button type="submit" class="btn btn-success w-100 mt-2 fw-bold" id="btnSaldar" disabled>
+                            <i class="fas fa-check me-1"></i> {% if es_proveedor %}Pagar{% else %}Cobrar{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function actualizarTotal() {
+    let total = 0;
+    document.querySelectorAll('.chk-mov:checked').forEach(chk => {
+        total += parseInt(chk.dataset.monto || '0', 10);
+    });
+    const fmt = new Intl.NumberFormat('es-CL');
+    document.getElementById('totalSeleccionado').textContent = '$' + fmt.format(total);
+    const btn = document.getElementById('btnSaldar');
+    if (btn) btn.disabled = total <= 0;
+}
+document.querySelectorAll('.chk-mov').forEach(chk => chk.addEventListener('change', actualizarTotal));
+</script>
+{% endblock %}
