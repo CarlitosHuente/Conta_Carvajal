@@ -13,9 +13,7 @@ from .models import Liquidacion, ConfiguracionCentralizacionRRHH
 CUENTAS_DEFAULT = {
     'gasto_remuneraciones': ('4.02.01', 'Remuneraciones', 'perdida'),
     'sueldos_por_pagar': ('2.02.01', 'Remuneraciones por Pagar', 'pasivo'),
-    'previred_por_pagar': ('2.02.02', 'Cotizaciones Previred por Pagar', 'pasivo'),
-    'sis_por_pagar': ('2.02.03', 'SIS por Pagar', 'pasivo'),
-    'afc_empleador_por_pagar': ('2.02.04', 'AFC Empleador por Pagar', 'pasivo'),
+    'previred_por_pagar': ('2.02.02', 'Previred por Pagar', 'pasivo'),
     'impuesto_unico_por_pagar': ('2.02.05', 'Impuesto Único por Pagar (SII)', 'pasivo'),
     'otros_descuentos': ('2.02.06', 'Otros Descuentos al Personal', 'pasivo'),
 }
@@ -48,8 +46,6 @@ def obtener_o_crear_configuracion(empresa):
         cuenta_previred_por_pagar=cuentas['previred_por_pagar'],
         cuenta_impuesto_unico_por_pagar=cuentas['impuesto_unico_por_pagar'],
         cuenta_otros_descuentos=cuentas['otros_descuentos'],
-        cuenta_sis_por_pagar=cuentas['sis_por_pagar'],
-        cuenta_afc_empleador_por_pagar=cuentas['afc_empleador_por_pagar'],
     )
 
 
@@ -60,8 +56,6 @@ def cuentas_desde_config(config):
         'previred_por_pagar': config.cuenta_previred_por_pagar,
         'impuesto_unico_por_pagar': config.cuenta_impuesto_unico_por_pagar,
         'otros_descuentos': config.cuenta_otros_descuentos,
-        'sis_por_pagar': config.cuenta_sis_por_pagar,
-        'afc_empleador_por_pagar': config.cuenta_afc_empleador_por_pagar,
     }
 
 
@@ -78,7 +72,7 @@ def resumen_liquidaciones_periodo(empresa, mes, ano):
     total_liquido = 0
     total_sis = 0
     total_afc_emp = 0
-    total_previred = 0
+    total_previred_trab = 0
     total_impuesto_unico = 0
 
     for liq in liquidaciones:
@@ -88,15 +82,15 @@ def resumen_liquidaciones_periodo(empresa, mes, ano):
         total_liquido += liq.sueldo_liquido
         total_sis += liq.cotizacion_sis_empleador
         total_afc_emp += liq.cotizacion_afc_empleador
-        previred, iu = descuentos_trabajador_por_institucion(liq.items.all())
-        total_previred += previred
+        previred_trab, iu = descuentos_trabajador_por_institucion(liq.items.all())
+        total_previred_trab += previred_trab
         total_impuesto_unico += iu
 
-    total_debe = total_haberes + total_sis + total_afc_emp
-    total_haber = (
-        total_sis + total_afc_emp + total_previred + total_impuesto_unico
-        + total_varios + total_liquido
-    )
+    total_cotizaciones_empleador = total_sis + total_afc_emp
+    total_previred_pagar = total_previred_trab + total_cotizaciones_empleador
+    total_gasto = total_haberes + total_cotizaciones_empleador
+    total_debe = total_gasto
+    total_haber = total_previred_pagar + total_impuesto_unico + total_varios + total_liquido
 
     return {
         'cantidad': liquidaciones.count(),
@@ -104,12 +98,13 @@ def resumen_liquidaciones_periodo(empresa, mes, ano):
         'total_leyes': total_leyes,
         'total_varios': total_varios,
         'total_liquido': total_liquido,
-        'total_previred': total_previred,
+        'total_previred_trab': total_previred_trab,
+        'total_previred_pagar': total_previred_pagar,
         'total_impuesto_unico': total_impuesto_unico,
         'total_sis': total_sis,
         'total_afc_empleador': total_afc_emp,
-        'total_cotizaciones_empleador': total_sis + total_afc_emp,
-        'total_gasto': total_debe,
+        'total_cotizaciones_empleador': total_cotizaciones_empleador,
+        'total_gasto': total_gasto,
         'total_debe': total_debe,
         'total_haber': total_haber,
         'cuadra': total_debe == total_haber,
@@ -119,23 +114,13 @@ def resumen_liquidaciones_periodo(empresa, mes, ano):
 def lineas_haber_asiento(resumen, cuentas):
     """Líneas al haber del asiento con cuenta asignada."""
     lineas = []
-    if resumen['total_sis'] > 0:
-        lineas.append({
-            'cuenta': cuentas['sis_por_pagar'],
-            'concepto': 'SIS empleador por pagar (Previred)',
-            'monto': resumen['total_sis'],
-        })
-    if resumen['total_afc_empleador'] > 0:
-        lineas.append({
-            'cuenta': cuentas['afc_empleador_por_pagar'],
-            'concepto': 'AFC empleador por pagar (Previred)',
-            'monto': resumen['total_afc_empleador'],
-        })
-    if resumen['total_previred'] > 0:
+    if resumen['total_previred_pagar'] > 0:
         lineas.append({
             'cuenta': cuentas['previred_por_pagar'],
-            'concepto': 'Cotizaciones Previred (AFP, salud, cesantía trabajador)',
-            'monto': resumen['total_previred'],
+            'concepto': (
+                'Previred por pagar (cotiz. trabajador + SIS + AFC empleador)'
+            ),
+            'monto': resumen['total_previred_pagar'],
         })
     if resumen['total_impuesto_unico'] > 0:
         lineas.append({
@@ -162,7 +147,7 @@ def vista_previa_asiento(resumen, config=None):
     """Líneas del asiento que se generarán (para mostrar en pantalla)."""
     lineas = [{
         'lado': 'debe',
-        'concepto': 'Gasto remuneraciones (haberes + SIS + AFC empl.)',
+        'concepto': 'Gasto remuneraciones (haberes + costo empleador SIS/AFC)',
         'monto': resumen['total_gasto'],
         'cuenta': config.cuenta_gasto if config else None,
     }]
@@ -175,12 +160,12 @@ def vista_previa_asiento(resumen, config=None):
                 'cuenta': lh['cuenta'],
             })
     else:
-        if resumen['total_sis'] > 0:
-            lineas.append({'lado': 'haber', 'concepto': 'SIS empleador por pagar', 'monto': resumen['total_sis']})
-        if resumen['total_afc_empleador'] > 0:
-            lineas.append({'lado': 'haber', 'concepto': 'AFC empleador por pagar', 'monto': resumen['total_afc_empleador']})
-        if resumen['total_previred'] > 0:
-            lineas.append({'lado': 'haber', 'concepto': 'Cotizaciones Previred', 'monto': resumen['total_previred']})
+        if resumen['total_previred_pagar'] > 0:
+            lineas.append({
+                'lado': 'haber',
+                'concepto': 'Previred por pagar',
+                'monto': resumen['total_previred_pagar'],
+            })
         if resumen['total_impuesto_unico'] > 0:
             lineas.append({'lado': 'haber', 'concepto': 'Impuesto único (SII)', 'monto': resumen['total_impuesto_unico']})
         if resumen['total_varios'] > 0:
@@ -194,8 +179,8 @@ def vista_previa_asiento(resumen, config=None):
 def generar_asiento_remuneraciones(empresa, mes, ano, config=None):
     """
     Crea asiento contable del período de remuneraciones.
-    Debe: Gasto = haberes + SIS + AFC empleador
-    Haber: pasivos por institución (Previred, SII, otros) + sueldos líquidos
+    Debe: Gasto = haberes + SIS + AFC empleador (costo total del mes)
+    Haber: Previred (todo lo previsional), SII, otros descuentos, sueldos líquidos
     """
     if AsientoContable.objects.filter(
         empresa=empresa, origen_rrhh_mes=mes, origen_rrhh_ano=ano,

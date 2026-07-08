@@ -54,11 +54,9 @@
             <div class="row small">
                 <div class="col-md-6"><span class="text-muted">Gasto:</span> {{ config.cuenta_gasto.codigo }} — {{ config.cuenta_gasto.nombre }}</div>
                 <div class="col-md-6"><span class="text-muted">Sueldos por pagar:</span> {{ config.cuenta_sueldos_por_pagar.codigo }} — {{ config.cuenta_sueldos_por_pagar.nombre }}</div>
-                <div class="col-md-6"><span class="text-muted">Previred (trabajador):</span> {{ config.cuenta_previred_por_pagar.codigo }} — {{ config.cuenta_previred_por_pagar.nombre }}</div>
+                <div class="col-md-6"><span class="text-muted">Previred:</span> {{ config.cuenta_previred_por_pagar.codigo }} — {{ config.cuenta_previred_por_pagar.nombre }}</div>
                 <div class="col-md-6"><span class="text-muted">Impuesto único (SII):</span> {{ config.cuenta_impuesto_unico_por_pagar.codigo }} — {{ config.cuenta_impuesto_unico_por_pagar.nombre }}</div>
                 <div class="col-md-6"><span class="text-muted">Otros descuentos:</span> {{ config.cuenta_otros_descuentos.codigo }} — {{ config.cuenta_otros_descuentos.nombre }}</div>
-                <div class="col-md-6"><span class="text-muted">SIS empleador:</span> {{ config.cuenta_sis_por_pagar.codigo }} — {{ config.cuenta_sis_por_pagar.nombre }}</div>
-                <div class="col-md-6"><span class="text-muted">AFC empleador:</span> {{ config.cuenta_afc_empleador_por_pagar.codigo }} — {{ config.cuenta_afc_empleador_por_pagar.nombre }}</div>
             </div>
         </div>
     </div>
@@ -77,11 +75,11 @@
             <div class="row text-center mb-3">
                 <div class="col"><small class="text-muted">Liquidaciones</small><div class="fw-bold">{{ resumen.cantidad }}</div></div>
                 <div class="col"><small class="text-muted">Total haberes</small><div class="fw-bold">${{ resumen.total_haberes|intcomma }}</div></div>
-                <div class="col"><small class="text-muted">Previred trab.</small><div class="fw-bold">${{ resumen.total_previred|intcomma }}</div></div>
+                <div class="col"><small class="text-muted">Previred total</small><div class="fw-bold">${{ resumen.total_previred_pagar|intcomma }}</div></div>
                 <div class="col"><small class="text-muted">Imp. único SII</small><div class="fw-bold">${{ resumen.total_impuesto_unico|intcomma }}</div></div>
                 <div class="col"><small class="text-muted">Otros desc.</small><div class="fw-bold">${{ resumen.total_varios|intcomma }}</div></div>
                 <div class="col"><small class="text-muted">Líquido</small><div class="fw-bold">${{ resumen.total_liquido|intcomma }}</div></div>
-                <div class="col"><small class="text-muted">SIS + AFC empl.</small><div class="fw-bold">${{ resumen.total_cotizaciones_empleador|intcomma }}</div></div>
+                <div class="col"><small class="text-muted">Gasto (hab.+SIS+AFC)</small><div class="fw-bold">${{ resumen.total_gasto|intcomma }}</div></div>
             </div>
             {% if resumen.cuadra %}
             <div class="alert alert-success py-2 mb-0 small">
@@ -94,9 +92,10 @@
             </div>
             {% endif %}
             <p class="text-muted small mt-2 mb-0">
-                Los montos Previred (AFP + salud + cesantía) e impuesto único deben coincidir con las columnas del
-                <a href="{% url 'rrhh:export_previred' %}?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}">export CSV</a>
-                del mismo período.
+                Previred total = cotizaciones trabajador (${{ resumen.total_previred_trab|intcomma }})
+                + costo empleador SIS/AFC (${{ resumen.total_cotizaciones_empleador|intcomma }}).
+                Debe coincidir con la suma del
+                <a href="{% url 'rrhh:export_previred' %}?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}">export CSV</a>.
             </p>
             {% else %}
             <p class="text-muted mb-0">No hay liquidaciones en este período. Emite las liquidaciones de ese mes antes de centralizar.</p>

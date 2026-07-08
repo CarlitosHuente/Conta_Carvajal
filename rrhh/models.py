@@ -426,8 +426,8 @@ class ConfiguracionCentralizacionRRHH(models.Model):
     )
     cuenta_previred_por_pagar = models.ForeignKey(
         'contabilidad.CuentaContable', on_delete=models.PROTECT,
-        related_name='+', verbose_name='Cotizaciones Previred por pagar',
-        help_text='AFP, salud y seguro de cesantía del trabajador.',
+        related_name='+', verbose_name='Previred por pagar',
+        help_text='Todo lo que se declara y paga en Previred: AFP, salud, cesantía, SIS y AFC empleador.',
     )
     cuenta_impuesto_unico_por_pagar = models.ForeignKey(
         'contabilidad.CuentaContable', on_delete=models.PROTECT,
@@ -437,14 +437,6 @@ class ConfiguracionCentralizacionRRHH(models.Model):
         'contabilidad.CuentaContable', on_delete=models.PROTECT,
         related_name='+', verbose_name='Otros descuentos al personal',
         help_text='Préstamos, sindicato y descuentos varios descontados del líquido.',
-    )
-    cuenta_sis_por_pagar = models.ForeignKey(
-        'contabilidad.CuentaContable', on_delete=models.PROTECT,
-        related_name='+', verbose_name='SIS empleador por pagar',
-    )
-    cuenta_afc_empleador_por_pagar = models.ForeignKey(
-        'contabilidad.CuentaContable', on_delete=models.PROTECT,
-        related_name='+', verbose_name='AFC empleador por pagar',
     )
 
     class Meta:

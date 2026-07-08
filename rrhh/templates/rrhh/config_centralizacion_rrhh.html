@@ -14,8 +14,9 @@
 
     <div class="alert alert-light border shadow-sm small">
         Selecciona las cuentas del plan contable de la empresa. Esta configuración se guarda y se usa cada vez que centralices un período.
-        Las cotizaciones se separan por institución: <strong>Previred</strong> (AFP, salud, cesantía, SIS, AFC empleador),
+        Las cotizaciones se separan por institución de pago: <strong>Previred</strong> (todo lo previsional en una cuenta),
         <strong>SII</strong> (impuesto único) y <strong>otros descuentos</strong> (préstamos, sindicato, etc.).
+        El <strong>gasto</strong> incluye haberes más SIS y AFC empleador (costo total del mes).
     </div>
 
     <form method="post" class="card shadow-sm">
@@ -41,10 +42,10 @@
         <div class="card-header">Cómo se usa en el asiento</div>
         <div class="card-body small text-muted mb-0">
             <ul class="mb-0">
-                <li><strong>Debe:</strong> Gasto remuneraciones = haberes + SIS empleador + AFC empleador</li>
-                <li><strong>Haber Previred:</strong> SIS, AFC empleador y cotizaciones trabajador (AFP, salud, cesantía)</li>
-                <li><strong>Haber SII:</strong> Impuesto único retenido</li>
-                <li><strong>Haber otros:</strong> Descuentos varios al personal</li>
+                <li><strong>Debe — Gasto:</strong> Haberes + SIS empleador + AFC empleador (costo total remuneraciones del mes)</li>
+                <li><strong>Haber — Previred:</strong> Cotizaciones trabajador + SIS + AFC (todo lo que pagas en Previred)</li>
+                <li><strong>Haber — SII:</strong> Impuesto único retenido</li>
+                <li><strong>Haber — Otros:</strong> Descuentos varios al personal</li>
                 <li><strong>Haber:</strong> Sueldos por pagar (líquido)</li>
             </ul>
         </div>
