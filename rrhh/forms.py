@@ -358,13 +358,16 @@ class ConfiguracionCentralizacionRRHHForm(forms.ModelForm):
     class Meta:
         model = ConfiguracionCentralizacionRRHH
         fields = [
-            'cuenta_gasto', 'cuenta_sueldos_por_pagar', 'cuenta_cotizaciones_por_pagar',
+            'cuenta_gasto', 'cuenta_sueldos_por_pagar', 'cuenta_previred_por_pagar',
+            'cuenta_impuesto_unico_por_pagar', 'cuenta_otros_descuentos',
             'cuenta_sis_por_pagar', 'cuenta_afc_empleador_por_pagar',
         ]
         widgets = {
             'cuenta_gasto': forms.Select(attrs={'class': 'form-select'}),
             'cuenta_sueldos_por_pagar': forms.Select(attrs={'class': 'form-select'}),
-            'cuenta_cotizaciones_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_previred_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_impuesto_unico_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_otros_descuentos': forms.Select(attrs={'class': 'form-select'}),
             'cuenta_sis_por_pagar': forms.Select(attrs={'class': 'form-select'}),
             'cuenta_afc_empleador_por_pagar': forms.Select(attrs={'class': 'form-select'}),
         }
@@ -377,7 +380,8 @@ class ConfiguracionCentralizacionRRHHForm(forms.ModelForm):
         self.fields['cuenta_gasto'].queryset = qs.filter(tipo='perdida')
         pasivos = qs.filter(tipo='pasivo')
         for name in (
-            'cuenta_sueldos_por_pagar', 'cuenta_cotizaciones_por_pagar',
+            'cuenta_sueldos_por_pagar', 'cuenta_previred_por_pagar',
+            'cuenta_impuesto_unico_por_pagar', 'cuenta_otros_descuentos',
             'cuenta_sis_por_pagar', 'cuenta_afc_empleador_por_pagar',
         ):
             self.fields[name].queryset = pasivos

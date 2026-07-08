@@ -359,7 +359,7 @@ def centralizar_remuneraciones_view(request):
 
     config = obtener_o_crear_configuracion(empresa)
     resumen = resumen_liquidaciones_periodo(empresa, mes, ano)
-    preview_lineas = vista_previa_asiento(resumen) if resumen['cantidad'] else []
+    preview_lineas = vista_previa_asiento(resumen, config) if resumen['cantidad'] else []
     asiento_existente = AsientoContable.objects.filter(
         empresa=empresa, origen_rrhh_mes=mes, origen_rrhh_ano=ano,
     ).first()

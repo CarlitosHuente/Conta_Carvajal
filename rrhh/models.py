@@ -424,9 +424,19 @@ class ConfiguracionCentralizacionRRHH(models.Model):
         'contabilidad.CuentaContable', on_delete=models.PROTECT,
         related_name='+', verbose_name='Sueldos por pagar',
     )
-    cuenta_cotizaciones_por_pagar = models.ForeignKey(
+    cuenta_previred_por_pagar = models.ForeignKey(
         'contabilidad.CuentaContable', on_delete=models.PROTECT,
-        related_name='+', verbose_name='Cotizaciones previsionales por pagar',
+        related_name='+', verbose_name='Cotizaciones Previred por pagar',
+        help_text='AFP, salud y seguro de cesantía del trabajador.',
+    )
+    cuenta_impuesto_unico_por_pagar = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='Impuesto único por pagar (SII)',
+    )
+    cuenta_otros_descuentos = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='Otros descuentos al personal',
+        help_text='Préstamos, sindicato y descuentos varios descontados del líquido.',
     )
     cuenta_sis_por_pagar = models.ForeignKey(
         'contabilidad.CuentaContable', on_delete=models.PROTECT,

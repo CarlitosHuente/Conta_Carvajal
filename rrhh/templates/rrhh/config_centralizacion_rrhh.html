@@ -14,7 +14,8 @@
 
     <div class="alert alert-light border shadow-sm small">
         Selecciona las cuentas del plan contable de la empresa. Esta configuración se guarda y se usa cada vez que centralices un período.
-        Si cargaste el plan base, las cuentas <strong>4.02.01</strong> y <strong>2.02.01–2.02.04</strong> ya vienen preasignadas.
+        Las cotizaciones se separan por institución: <strong>Previred</strong> (AFP, salud, cesantía, SIS, AFC empleador),
+        <strong>SII</strong> (impuesto único) y <strong>otros descuentos</strong> (préstamos, sindicato, etc.).
     </div>
 
     <form method="post" class="card shadow-sm">
@@ -27,6 +28,7 @@
                 <div class="col-md-6">
                     <label class="form-label">{{ field.label }}</label>
                     {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
                     {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
                 </div>
                 {% endfor %}
@@ -40,7 +42,10 @@
         <div class="card-body small text-muted mb-0">
             <ul class="mb-0">
                 <li><strong>Debe:</strong> Gasto remuneraciones = haberes + SIS empleador + AFC empleador</li>
-                <li><strong>Haber:</strong> SIS por pagar, AFC empleador por pagar, cotizaciones trabajador (AFP, salud, cesantía, IU, otros), sueldos por pagar (líquido)</li>
+                <li><strong>Haber Previred:</strong> SIS, AFC empleador y cotizaciones trabajador (AFP, salud, cesantía)</li>
+                <li><strong>Haber SII:</strong> Impuesto único retenido</li>
+                <li><strong>Haber otros:</strong> Descuentos varios al personal</li>
+                <li><strong>Haber:</strong> Sueldos por pagar (líquido)</li>
             </ul>
         </div>
     </div>

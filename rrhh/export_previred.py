@@ -3,16 +3,8 @@
 import csv
 import io
 
+from .liquidacion_items import item_monto as _item_monto
 from .models import Liquidacion
-
-
-def _item_monto(items, prefijos):
-    for item in items:
-        nombre = (item.nombre or '').upper()
-        for prefijo in prefijos:
-            if nombre.startswith(prefijo.upper()):
-                return item.monto
-    return 0
 
 
 def generar_csv_previred(empresa, mes, ano):
@@ -53,8 +45,7 @@ def generar_csv_previred(empresa, mes, ano):
 
     for liq in liquidaciones:
         t = liq.contrato.trabajador
-        items = list(liq.items.all())
-        descuentos = [i for i in items if i.tipo == 'DESCUENTO']
+        descuentos = [i for i in liq.items.all() if i.tipo == 'DESCUENTO']
         monto_afp = _item_monto(descuentos, ['AFP '])
         monto_salud = _item_monto(descuentos, ['Salud '])
         monto_cesantia = _item_monto(descuentos, ['Seguro de Cesantía'])

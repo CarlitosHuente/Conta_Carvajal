@@ -35,9 +35,11 @@ PLAN_CUENTAS_BASE = [
     {'codigo': '2.01.03', 'nombre': 'IVA Débito Fiscal', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.01.04', 'nombre': 'Impuestos por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.02.01', 'nombre': 'Remuneraciones por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
-    {'codigo': '2.02.02', 'nombre': 'Cotizaciones Previsionales por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
+    {'codigo': '2.02.02', 'nombre': 'Cotizaciones Previred por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.02.03', 'nombre': 'SIS por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.02.04', 'nombre': 'AFC Empleador por Pagar', 'tipo': 'pasivo', 'obligatoria': True},
+    {'codigo': '2.02.05', 'nombre': 'Impuesto Único por Pagar (SII)', 'tipo': 'pasivo', 'obligatoria': True},
+    {'codigo': '2.02.06', 'nombre': 'Otros Descuentos al Personal', 'tipo': 'pasivo', 'obligatoria': False},
     {'codigo': '2.03.01', 'nombre': 'Préstamos Bancarios', 'tipo': 'pasivo', 'obligatoria': False},
 
     # --- PATRIMONIO ---
