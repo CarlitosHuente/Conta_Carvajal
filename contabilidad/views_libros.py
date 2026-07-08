@@ -10,7 +10,6 @@ from .libros import (
     balance_ocho_columnas,
     config_saldar_cuenta,
     cuentas_contrapartida_disponibles,
-    cuentas_medio_pago,
     movimientos_cuenta,
     resumen_cuentas_empresa,
 )
@@ -81,7 +80,7 @@ def libro_mayor_cuenta_view(request, pk):
     puede_saldar = bool(config)
     tipo_op = config['tipo'] if config else None
     cuentas_pago = cuentas_contrapartida_disponibles(empresa) if puede_saldar else []
-    cuentas_sugeridas = cuentas_medio_pago(empresa) if puede_saldar else []
+    acciones = _acciones_json(cuenta)
 
     if request.method == 'POST' and puede_saldar:
         linea_ids = request.POST.getlist('linea_ids')
@@ -89,6 +88,12 @@ def libro_mayor_cuenta_view(request, pk):
         glosa = request.POST.get('glosa', '').strip()
         cuenta_medio_ids = request.POST.getlist('cuenta_medio_id[]')
         montos_medio = request.POST.getlist('monto_medio[]')
+        accion_id = request.POST.get('accion_id')
+
+        accion_sel = None
+        if accion_id:
+            accion_sel = cuenta.acciones_rapidas.filter(pk=accion_id, activa=True).first()
+        config_post = config_saldar_cuenta(cuenta, accion_sel)
 
         medios = []
         for c_id, monto in zip(cuenta_medio_ids, montos_medio):
@@ -105,7 +110,13 @@ def libro_mayor_cuenta_view(request, pk):
 
         try:
             asiento, monto, tipo = registrar_pago_o_cobro(
-                empresa, cuenta, lineas, medios, fecha_pago, glosa or None,
+                empresa,
+                cuenta,
+                lineas,
+                medios,
+                fecha_pago,
+                glosa or None,
+                tipo=config_post['tipo'] if config_post else None,
             )
             accion = 'Pago' if tipo == 'pago' else 'Cobro'
             messages.success(request, f'{accion} registrado: asiento #{asiento.id} por ${monto:,}.')
@@ -121,11 +132,8 @@ def libro_mayor_cuenta_view(request, pk):
         'puede_saldar': puede_saldar,
         'tipo_op': tipo_op,
         'cuentas_pago': cuentas_pago,
-        'cuentas_sugeridas': cuentas_sugeridas,
-        'acciones_json': json.dumps(_acciones_json(cuenta)),
-        'sugeridas_json': json.dumps([
-            {'id': c.id, 'label': f'{c.codigo} — {c.nombre}'} for c in cuentas_sugeridas
-        ]),
+        'acciones_json': json.dumps(acciones),
+        'tiene_acciones': bool(acciones),
         'es_pago': tipo_op == 'pago',
         'es_cobro': tipo_op == 'cobro',
     })

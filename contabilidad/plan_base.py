@@ -22,7 +22,7 @@ PLAN_CUENTAS_BASE = [
     # --- ACTIVOS (1.01 Circulante / 1.02 No circulante) ---
     {'codigo': '1.01.01', 'nombre': 'Caja', 'tipo': 'activo', 'subtipo': 'caja', 'obligatoria': True},
     {'codigo': '1.01.02', 'nombre': 'Banco', 'tipo': 'activo', 'subtipo': 'banco', 'obligatoria': True},
-    {'codigo': '1.01.03', 'nombre': 'Clientes', 'tipo': 'activo', 'subtipo': 'clientes', 'obligatoria': True},
+    {'codigo': '1.01.03', 'nombre': 'Clientes', 'tipo': 'activo', 'obligatoria': True},
     {'codigo': '1.01.04', 'nombre': 'Mercaderías', 'tipo': 'activo', 'obligatoria': True},
     {'codigo': '1.01.05', 'nombre': 'IVA Crédito Fiscal', 'tipo': 'activo', 'obligatoria': True},
     {'codigo': '1.01.06', 'nombre': 'PPM', 'tipo': 'activo', 'obligatoria': True},
@@ -30,7 +30,7 @@ PLAN_CUENTAS_BASE = [
     {'codigo': '1.02.01', 'nombre': 'Activo Fijo (Maquinarias/Vehículos)', 'tipo': 'activo', 'obligatoria': False},
 
     # --- PASIVOS (2.01 Comerciales / 2.02 Remuneraciones / 2.03 Financieros) ---
-    {'codigo': '2.01.01', 'nombre': 'Proveedores', 'tipo': 'pasivo', 'subtipo': 'proveedores', 'obligatoria': True},
+    {'codigo': '2.01.01', 'nombre': 'Proveedores', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.01.02', 'nombre': 'Acreedores Varios', 'tipo': 'pasivo', 'obligatoria': False},
     {'codigo': '2.01.03', 'nombre': 'IVA Débito Fiscal', 'tipo': 'pasivo', 'obligatoria': True},
     {'codigo': '2.01.04', 'nombre': 'Impuestos por Pagar', 'tipo': 'pasivo', 'obligatoria': True},

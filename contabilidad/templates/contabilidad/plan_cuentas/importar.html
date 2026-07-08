@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-file-import me-2"></i> Importar acciones rápidas</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">
+                        Sube un JSON exportado desde otra empresa. Se enlazan las acciones por <strong>código de cuenta</strong>
+                        (las cuentas deben existir en esta empresa).
+                    </p>
+                    <div class="alert alert-info small">
+                        <strong>Nota:</strong> «Cargar plan base» solo importa cuentas (código, nombre, tipo).
+                        Las acciones rápidas van en el export/import JSON.
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Archivo JSON</label>
+                            <input type="file" name="archivo" class="form-control" accept=".json,application/json" required>
+                        </div>
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" name="reemplazar" id="reemplazar">
+                            <label class="form-check-label" for="reemplazar">
+                                Reemplazar todas las acciones rápidas existentes antes de importar
+                            </label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">Importar</button>
+                            <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

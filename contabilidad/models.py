@@ -180,8 +180,6 @@ class CuentaContable(models.Model):
         return 'general'
 
     def permite_saldar_operaciones(self):
-        if self.subtipo_detectado() in ('clientes', 'proveedores'):
-            return True
         return self.acciones_rapidas.filter(activa=True).exists()
 
 class AccionRapidaCuenta(models.Model):

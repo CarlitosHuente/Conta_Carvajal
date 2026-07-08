@@ -10,21 +10,17 @@ def _filtro_hasta(fecha_corte):
     return Q()
 
 
-def config_saldar_cuenta(cuenta):
-    """Devuelve tipo (pago/cobro), lado pendiente y acción rápida si aplica."""
-    subtipo = cuenta.subtipo_detectado()
-    if subtipo == 'proveedores':
-        return {'tipo': 'pago', 'lado_pendiente': 'haber', 'accion': None}
-    if subtipo == 'clientes':
-        return {'tipo': 'cobro', 'lado_pendiente': 'debe', 'accion': None}
-    accion = cuenta.acciones_rapidas.filter(activa=True).order_by('orden', 'id').first()
-    if accion:
-        return {
-            'tipo': accion.tipo,
-            'lado_pendiente': accion.lado_pendiente,
-            'accion': accion,
-        }
-    return None
+def config_saldar_cuenta(cuenta, accion=None):
+    """Solo cuentas con acción rápida activa configurada por el usuario."""
+    if accion is None:
+        accion = cuenta.acciones_rapidas.filter(activa=True).order_by('orden', 'id').first()
+    if not accion:
+        return None
+    return {
+        'tipo': accion.tipo,
+        'lado_pendiente': accion.lado_pendiente,
+        'accion': accion,
+    }
 
 
 def saldo_cuenta_natural(cuenta, total_debe, total_haber):

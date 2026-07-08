@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import calendar
 from django.core import signing
 from django.db import transaction
@@ -10,7 +11,7 @@ from django.core.files.storage import FileSystemStorage
 from django.contrib import messages
 from django.conf import settings
 from django.urls import reverse
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 
 from .extractor import extraer_datos_f29
 from .centralizacion import calcular_asiento_desde_plantilla
@@ -22,6 +23,7 @@ from .forms import CuentaContableForm
 from core.models import Empresa
 from core.permissions import require_access
 from .plan_base import PLAN_CUENTAS_BASE, TIPO_NOMBRES, ORDEN_TIPOS
+from .plan_export import serializar_plan_empresa, importar_acciones_plan
 
 
 def _ruta_pdf_temporal_segura(filename):
@@ -693,6 +695,52 @@ def plan_cuentas_cargar_base_view(request):
         'empresa_actual': empresa_actual,
         'tipos_ordenados': tipos_ordenados,
     })
+
+
+@login_required
+def plan_cuentas_exportar_view(request):
+    """Exporta plan de cuentas + acciones rápidas en JSON."""
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    payload = serializar_plan_empresa(empresa_actual)
+    nombre = f"plan_cuentas_{empresa_actual.id}.json"
+    response = JsonResponse(payload, json_dumps_params={'indent': 2, 'ensure_ascii': False})
+    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return response
+
+
+@login_required
+def plan_cuentas_importar_view(request):
+    """Importa acciones rápidas desde JSON exportado (cuentas por código)."""
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        reemplazar = request.POST.get('reemplazar') == 'on'
+
+        if not archivo:
+            messages.error(request, 'Selecciona un archivo JSON exportado del plan.')
+        else:
+            try:
+                data = json.load(archivo)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                messages.error(request, 'El archivo no es un JSON válido.')
+            else:
+                if reemplazar:
+                    AccionRapidaCuenta.objects.filter(cuenta__empresa=empresa_actual).delete()
+                importadas, omitidas = importar_acciones_plan(empresa_actual, data)
+                messages.success(
+                    request,
+                    f'Importadas {importadas} acciones rápidas.'
+                    + (f' Omitidas {omitidas} cuentas sin match por código.' if omitidas else ''),
+                )
+                return redirect('contabilidad:plan_cuentas_lista')
+
+    return render(request, 'contabilidad/plan_cuentas/importar.html')
 
 # =====================================================================
 # VISTAS DE PLANTILLAS DE CENTRALIZACIÓN (FÓRMULAS)

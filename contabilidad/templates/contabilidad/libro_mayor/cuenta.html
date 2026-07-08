@@ -21,8 +21,13 @@
     {% if puede_saldar %}
     <div class="alert alert-success border-0 shadow-sm">
         <i class="fas fa-bolt me-2"></i>
-        Selecciona movimientos pendientes y {% if es_pago %}paga{% else %}cobra{% endif %} repartiendo el monto entre una o más cuentas (Caja, Banco, etc.).
-        <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="alert-link ms-1">Configurar acciones rápidas</a>
+        Selecciona movimientos pendientes y reparte el monto entre una o más cuentas según la acción rápida elegida.
+    </div>
+    {% else %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        <i class="fas fa-info-circle me-2"></i>
+        Esta cuenta no tiene <strong>acciones rápidas</strong> configuradas. Sin ellas no puedes saldar desde el Mayor.
+        <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="alert-link">Configurar ahora</a>
     </div>
     {% endif %}
 
@@ -84,24 +89,23 @@
         {% if puede_saldar and cuentas_pago %}
         <div class="card border-success shadow-sm position-sticky bottom-0" style="z-index:100">
             <div class="card-body">
+                <input type="hidden" name="accion_id" id="inputAccionId" value="">
                 <div class="row g-3 mb-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-bold">Fecha del {% if es_pago %}pago{% else %}cobro{% endif %}</label>
+                        <label class="form-label fw-bold">Fecha</label>
                         <input type="date" name="fecha_pago" class="form-control" value="{{ corte.fecha_corte|date:'Y-m-d' }}" required>
                     </div>
-                    <div class="col-md-5">
-                        <label class="form-label fw-bold">Glosa (opcional)</label>
-                        <input type="text" name="glosa" class="form-control" placeholder="{% if es_pago %}Pago {{ cuenta.nombre }}{% else %}Cobro {{ cuenta.nombre }}{% endif %}">
-                    </div>
                     <div class="col-md-4">
+                        <label class="form-label fw-bold">Glosa (opcional)</label>
+                        <input type="text" name="glosa" class="form-control" placeholder="Pago / cobro {{ cuenta.nombre }}">
+                    </div>
+                    <div class="col-md-5">
                         <label class="form-label fw-bold">Acción rápida</label>
-                        <select id="selAccion" class="form-select">
-                            <option value="">— Manual —</option>
-                        </select>
+                        <select id="selAccion" class="form-select" required></select>
                     </div>
                 </div>
 
-                <label class="form-label fw-bold">{% if es_pago %}Pagar con{% else %}Cobrar en{% endif %} (una o más cuentas)</label>
+                <label class="form-label fw-bold"><span id="lblMedios">Medios de pago/cobro</span> (una o más cuentas)</label>
                 <div id="mediosContainer" class="mb-2"></div>
                 <button type="button" class="btn btn-sm btn-outline-success mb-3" id="btnAgregarMedio">
                     <i class="fas fa-plus"></i> Agregar fila
@@ -118,7 +122,7 @@
                     </div>
                     <div class="col-md-4">
                         <button type="submit" class="btn btn-success w-100 fw-bold" id="btnSaldar" disabled>
-                            <i class="fas fa-check me-1"></i> {% if es_pago %}Pagar{% else %}Cobrar{% endif %}
+                            <i class="fas fa-check me-1"></i> <span id="btnSaldarTexto">Registrar</span>
                         </button>
                     </div>
                 </div>
@@ -139,9 +143,21 @@
 {% block extra_js %}
 <script>
 const acciones = {{ acciones_json|safe }};
-const sugeridas = {{ sugeridas_json|safe }};
 const tplCuentas = document.getElementById('tplCuentas').innerHTML;
 const fmt = n => '$' + new Intl.NumberFormat('es-CL').format(n);
+
+function etiquetaAccion(accion) {
+    return accion.tipo === 'pago' ? 'Pagar' : 'Cobrar';
+}
+
+function aplicarAccion(accion) {
+    document.getElementById('inputAccionId').value = accion ? accion.id : '';
+    document.getElementById('btnSaldarTexto').textContent = accion ? etiquetaAccion(accion) : 'Registrar';
+    document.getElementById('lblMedios').textContent = accion
+        ? (accion.tipo === 'pago' ? 'Pagar con' : 'Cobrar en')
+        : 'Medios de pago/cobro';
+    cargarAccion(accion);
+}
 
 function totalSeleccionado() {
     let t = 0;
@@ -209,30 +225,21 @@ function cargarAccion(accion) {
 }
 
 const selAccion = document.getElementById('selAccion');
-if (selAccion) {
+if (selAccion && acciones.length) {
     acciones.forEach(a => {
         const opt = document.createElement('option');
         opt.value = a.id;
-        opt.textContent = a.nombre;
+        opt.textContent = `${a.nombre} (${a.tipo === 'pago' ? 'Pago' : 'Cobro'})`;
         selAccion.appendChild(opt);
     });
     selAccion.addEventListener('change', () => {
         const id = parseInt(selAccion.value, 10);
-        const accion = acciones.find(a => a.id === id);
-        cargarAccion(accion);
+        aplicarAccion(acciones.find(a => a.id === id));
     });
+    aplicarAccion(acciones[0]);
 }
 
 document.getElementById('btnAgregarMedio')?.addEventListener('click', () => crearFilaMedio());
 document.querySelectorAll('.chk-mov').forEach(chk => chk.addEventListener('change', actualizarTotales));
-
-if (acciones.length) {
-    selAccion.value = acciones[0].id;
-    cargarAccion(acciones[0]);
-} else if (sugeridas.length) {
-    sugeridas.forEach(c => crearFilaMedio(c.id, 0));
-} else {
-    crearFilaMedio();
-}
 </script>
 {% endblock %}

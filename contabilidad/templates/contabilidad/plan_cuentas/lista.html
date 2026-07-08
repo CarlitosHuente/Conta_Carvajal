@@ -17,6 +17,12 @@
             <a href="{% url 'contabilidad:plan_cuentas_cargar_base' %}" class="btn btn-warning shadow-sm">
                 <i class="fas fa-cloud-download-alt"></i> Cargar Plan Base
             </a>
+            <a href="{% url 'contabilidad:plan_cuentas_exportar' %}" class="btn btn-outline-primary shadow-sm">
+                <i class="fas fa-file-export"></i> Exportar plan
+            </a>
+            <a href="{% url 'contabilidad:plan_cuentas_importar' %}" class="btn btn-outline-secondary shadow-sm">
+                <i class="fas fa-file-import"></i> Importar acciones
+            </a>
             {% if puede_vaciar_plan %}
             <button type="button" class="btn btn-outline-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#modalVaciarPlan">
                 <i class="fas fa-trash-alt"></i> Vaciar Plan
@@ -36,6 +42,11 @@
         Sin movimientos contables aún. Puedes eliminar cuentas individuales o vaciar todo el plan para volver a cargar el estándar <strong>X.XX.XX</strong>.
     </div>
     {% endif %}
+    <div class="alert alert-light border shadow-sm small mb-3">
+        <i class="fas fa-bolt text-warning me-1"></i>
+        Las <strong>acciones rápidas</strong> (pago/cobro desde el Mayor) se configuran por cuenta con el botón ⚡.
+        Al <strong>exportar el plan</strong> se incluyen; «Cargar plan base» no las trae — usa export/import entre empresas.
+    </div>
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
