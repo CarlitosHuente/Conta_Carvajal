@@ -27,7 +27,8 @@
     <div class="alert alert-warning border-0 shadow-sm">
         <i class="fas fa-info-circle me-2"></i>
         Esta cuenta no tiene <strong>acciones rápidas</strong> configuradas. Sin ellas no puedes saldar desde el Mayor.
-        <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="alert-link">Configurar ahora</a>
+        <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="alert-link">Asignar acciones</a>
+        o créalas en <a href="{% url 'contabilidad:acciones_rapidas_lista' %}" class="alert-link">Acciones rápidas</a>.
     </div>
     {% endif %}
 

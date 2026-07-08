@@ -27,6 +27,12 @@ urlpatterns = [
     path('plan-cuentas/<int:pk>/acciones/', views.plan_cuentas_acciones_view, name='plan_cuentas_acciones'),
     path('plan-cuentas/<int:pk>/eliminar/', views.plan_cuentas_eliminar_view, name='plan_cuentas_eliminar'),
 
+    # --- ACCIONES RÁPIDAS (plantillas reutilizables) ---
+    path('acciones-rapidas/', views.acciones_rapidas_lista_view, name='acciones_rapidas_lista'),
+    path('acciones-rapidas/crear/', views.acciones_rapidas_form_view, name='acciones_rapidas_crear'),
+    path('acciones-rapidas/<int:pk>/editar/', views.acciones_rapidas_form_view, name='acciones_rapidas_editar'),
+    path('acciones-rapidas/<int:pk>/eliminar/', views.acciones_rapidas_eliminar_view, name='acciones_rapidas_eliminar'),
+
     # --- PLANTILLAS DE CENTRALIZACIÓN ---
     path('plantillas/', views.plantilla_lista_view, name='plantilla_lista'),
     path('plantillas/crear/', views.plantilla_crear_view, name='plantilla_crear'),

@@ -13,7 +13,7 @@ from .libros import (
     movimientos_cuenta,
     resumen_cuentas_empresa,
 )
-from .models import AccionRapidaCuenta, CuentaContable, LineaAsiento
+from .models import AccionRapida, CuentaContable, LineaAsiento
 from .views import _get_empresa_plan
 
 
@@ -30,7 +30,10 @@ def _fecha_corte_desde_request(request):
 
 def _acciones_json(cuenta):
     acciones = []
-    for accion in cuenta.acciones_rapidas.filter(activa=True).prefetch_related('lineas_contrapartida__cuenta'):
+    for asig in cuenta.asignaciones_acciones.filter(accion__activa=True).select_related('accion').prefetch_related(
+        'accion__lineas_contrapartida__cuenta',
+    ).order_by('orden', 'id'):
+        accion = asig.accion
         acciones.append({
             'id': accion.id,
             'nombre': accion.nombre,
@@ -69,7 +72,9 @@ def libro_mayor_cuenta_view(request, pk):
         return redirect('core:home')
 
     cuenta = get_object_or_404(
-        CuentaContable.objects.prefetch_related('acciones_rapidas__lineas_contrapartida__cuenta'),
+        CuentaContable.objects.prefetch_related(
+            'asignaciones_acciones__accion__lineas_contrapartida__cuenta',
+        ),
         pk=pk,
         empresa=empresa,
     )
@@ -92,7 +97,10 @@ def libro_mayor_cuenta_view(request, pk):
 
         accion_sel = None
         if accion_id:
-            accion_sel = cuenta.acciones_rapidas.filter(pk=accion_id, activa=True).first()
+            accion_sel = AccionRapida.objects.filter(
+                pk=accion_id, empresa=empresa, activa=True,
+                asignaciones_cuentas__cuenta=cuenta,
+            ).first()
         config_post = config_saldar_cuenta(cuenta, accion_sel)
 
         medios = []
@@ -162,7 +170,14 @@ def balance_tributario_view(request):
         'balance_grupos': balance_grupos,
         'totales': totales,
         'corte': corte,
-        'cuadra': totales['saldo_deudor'] == totales['saldo_acreedor'],
+        'cuadra_comprobacion': (
+            totales['debe'] == totales['haber']
+            and totales['saldo_deudor'] == totales['saldo_acreedor']
+        ),
+        'cuadra_balance': (
+            totales['activos'] == totales['pasivos']
+            and totales['perdidas'] == totales['ganancias']
+        ),
     })
 
 

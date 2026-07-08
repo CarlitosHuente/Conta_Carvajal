@@ -1,7 +1,7 @@
 """Cálculos de Libro Mayor y Balance."""
 
 from django.db.models import Sum, Q
-from .models import CuentaContable, LineaAsiento
+from .models import CuentaContable, LineaAsiento, CuentaAccionRapida
 
 
 def _filtro_hasta(fecha_corte):
@@ -11,11 +11,20 @@ def _filtro_hasta(fecha_corte):
 
 
 def config_saldar_cuenta(cuenta, accion=None):
-    """Solo cuentas con acción rápida activa configurada por el usuario."""
+    """Cuenta con al menos una acción rápida asignada."""
     if accion is None:
-        accion = cuenta.acciones_rapidas.filter(activa=True).order_by('orden', 'id').first()
-    if not accion:
+        asignacion = (
+            CuentaAccionRapida.objects.filter(cuenta=cuenta, accion__activa=True)
+            .select_related('accion')
+            .order_by('orden', 'id')
+            .first()
+        )
+        if not asignacion:
+            return None
+        accion = asignacion.accion
+    elif not CuentaAccionRapida.objects.filter(cuenta=cuenta, accion=accion, accion__activa=True).exists():
         return None
+
     return {
         'tipo': accion.tipo,
         'lado_pendiente': accion.lado_pendiente,
@@ -24,14 +33,43 @@ def config_saldar_cuenta(cuenta, accion=None):
 
 
 def saldo_cuenta_natural(cuenta, total_debe, total_haber):
-    """Saldo según naturaleza de la cuenta (deudora o acreedora)."""
     if cuenta.tipo in ('activo', 'perdida'):
         return total_debe - total_haber
     return total_haber - total_debe
 
 
+def _clasificar_ocho_columnas(cuenta, debe, haber):
+    """Columnas 1-4 comprobación; 5-8 clasificación tributaria."""
+    saldo_deudor = max(0, debe - haber)
+    saldo_acreedor = max(0, haber - debe)
+
+    activos = pasivos = perdidas = ganancias = 0
+    t = cuenta.tipo
+    if t == 'activo':
+        activos, pasivos = saldo_deudor, saldo_acreedor
+    elif t in ('pasivo', 'patrimonio'):
+        pasivos, activos = saldo_acreedor, saldo_deudor
+    elif t == 'perdida':
+        perdidas, ganancias = saldo_deudor, saldo_acreedor
+    elif t == 'ganancia':
+        ganancias, perdidas = saldo_acreedor, saldo_deudor
+
+    return {
+        'debe': debe,
+        'haber': haber,
+        'saldo_deudor': saldo_deudor,
+        'saldo_acreedor': saldo_acreedor,
+        'activos': activos,
+        'pasivos': pasivos,
+        'perdidas': perdidas,
+        'ganancias': ganancias,
+    }
+
+
 def resumen_cuentas_empresa(empresa, fecha_corte=None):
-    cuentas = CuentaContable.objects.filter(empresa=empresa).prefetch_related('acciones_rapidas')
+    cuentas = CuentaContable.objects.filter(empresa=empresa).prefetch_related(
+        'asignaciones_acciones__accion',
+    )
     filtro = _filtro_hasta(fecha_corte)
     resumen = []
 
@@ -45,22 +83,20 @@ def resumen_cuentas_empresa(empresa, fecha_corte=None):
         if debe == 0 and haber == 0:
             continue
         saldo = saldo_cuenta_natural(cuenta, debe, haber)
-        config = config_saldar_cuenta(cuenta)
         resumen.append({
             'cuenta': cuenta,
             'debe': debe,
             'haber': haber,
             'saldo': saldo,
-            'subtipo': cuenta.subtipo_detectado(),
-            'puede_saldar': bool(config),
+            'puede_saldar': cuenta.permite_saldar_operaciones(),
         })
 
     return sorted(resumen, key=lambda x: x['cuenta'].codigo)
 
 
-def movimientos_cuenta(cuenta, fecha_corte=None):
+def movimientos_cuenta(cuenta, fecha_corte=None, accion=None):
     filtro = _filtro_hasta(fecha_corte)
-    config = config_saldar_cuenta(cuenta)
+    config = config_saldar_cuenta(cuenta, accion)
     lado_pendiente = config['lado_pendiente'] if config else None
 
     lineas = (
@@ -105,21 +141,35 @@ def movimientos_cuenta(cuenta, fecha_corte=None):
 
 
 def balance_ocho_columnas(empresa, fecha_corte=None):
-    filas = resumen_cuentas_empresa(empresa, fecha_corte)
+    cuentas = CuentaContable.objects.filter(empresa=empresa)
+    filtro = _filtro_hasta(fecha_corte)
     resultado = []
-    totales = {'debe': 0, 'haber': 0, 'saldo_deudor': 0, 'saldo_acreedor': 0}
+    totales = {
+        'debe': 0, 'haber': 0,
+        'saldo_deudor': 0, 'saldo_acreedor': 0,
+        'activos': 0, 'pasivos': 0, 'perdidas': 0, 'ganancias': 0,
+    }
 
-    for fila in filas:
-        saldo = fila['saldo']
-        saldo_deudor = saldo if saldo > 0 else 0
-        saldo_acreedor = abs(saldo) if saldo < 0 else 0
-        totales['debe'] += fila['debe']
-        totales['haber'] += fila['haber']
-        totales['saldo_deudor'] += saldo_deudor
-        totales['saldo_acreedor'] += saldo_acreedor
-        resultado.append({**fila, 'saldo_deudor': saldo_deudor, 'saldo_acreedor': saldo_acreedor})
+    for cuenta in cuentas:
+        agregados = LineaAsiento.objects.filter(cuenta=cuenta).filter(filtro).aggregate(
+            debe=Sum('debe'),
+            haber=Sum('haber'),
+        )
+        debe = agregados['debe'] or 0
+        haber = agregados['haber'] or 0
+        if debe == 0 and haber == 0:
+            continue
 
-    return resultado, totales
+        cols = _clasificar_ocho_columnas(cuenta, debe, haber)
+        for k in totales:
+            totales[k] += cols[k]
+
+        resultado.append({
+            'cuenta': cuenta,
+            **cols,
+        })
+
+    return sorted(resultado, key=lambda x: x['cuenta'].codigo), totales
 
 
 def cuentas_medio_pago(empresa):
@@ -133,5 +183,4 @@ def cuentas_medio_pago(empresa):
 
 
 def cuentas_contrapartida_disponibles(empresa):
-    """Todas las cuentas que pueden usarse como medio de pago/cobro."""
     return CuentaContable.objects.filter(empresa=empresa).order_by('codigo')

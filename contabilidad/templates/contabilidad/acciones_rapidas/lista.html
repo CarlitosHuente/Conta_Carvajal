@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fas fa-bolt"></i> Acciones rápidas</h2>
+            <p class="text-muted mb-0">Plantillas reutilizables de pago/cobro — créalas una vez y asígnalas a las cuentas que necesites.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'contabilidad:acciones_rapidas_crear' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus"></i> Nueva acción
+            </a>
+            <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary btn-sm">Plan de cuentas</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            {% if acciones %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-primary text-white">
+                        <tr>
+                            <th class="ps-4">Nombre</th>
+                            <th>Tipo</th>
+                            <th>Pendientes en</th>
+                            <th>Contrapartidas</th>
+                            <th>Asignada a</th>
+                            <th class="text-center pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for accion in acciones %}
+                        <tr>
+                            <td class="ps-4 fw-bold">{{ accion.nombre }}</td>
+                            <td><span class="badge bg-secondary">{{ accion.get_tipo_display }}</span></td>
+                            <td>{{ accion.get_lado_pendiente_display }}</td>
+                            <td class="small">
+                                {% for l in accion.lineas_contrapartida.all %}
+                                <span class="badge bg-light text-dark border me-1">{{ l.cuenta.codigo }}</span>
+                                {% endfor %}
+                            </td>
+                            <td class="small">
+                                {% for a in accion.asignaciones_cuentas.all %}
+                                <span class="badge bg-info text-dark me-1">{{ a.cuenta.codigo }}</span>
+                                {% empty %}
+                                <span class="text-muted">Sin asignar</span>
+                                {% endfor %}
+                            </td>
+                            <td class="text-center pe-4 text-nowrap">
+                                <a href="{% url 'contabilidad:acciones_rapidas_editar' accion.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
+                                <form method="POST" action="{% url 'contabilidad:acciones_rapidas_eliminar' accion.pk %}" class="d-inline"
+                                      onsubmit="return confirm('¿Eliminar acción {{ accion.nombre }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info m-4 text-center">
+                Crea acciones como <strong>Pago estándar</strong> o <strong>Cobro clientes</strong> y luego asígnalas desde el plan de cuentas (⚡).
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

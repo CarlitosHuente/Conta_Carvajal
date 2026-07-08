@@ -18,45 +18,60 @@
         </form>
     </div>
 
-    {% if cuadra %}
-    <div class="alert alert-success"><i class="fas fa-check-circle"></i> El balance cuadra: saldos deudores = acreedores.</div>
+    {% if cuadra_comprobacion %}
+    <div class="alert alert-success py-2"><i class="fas fa-check-circle"></i> Comprobación: sumas Debe = Haber y saldos deudores = acreedores.</div>
     {% else %}
-    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Los saldos deudores y acreedores no coinciden — revisa los comprobantes.</div>
+    <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i> La comprobación no cuadra — revisa los comprobantes.</div>
+    {% endif %}
+    {% if cuadra_balance %}
+    <div class="alert alert-success py-2"><i class="fas fa-check-circle"></i> Balance: Activos = Pasivos y Pérdidas = Ganancias.</div>
+    {% else %}
+    <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i> Activos/Pasivos o Pérdidas/Ganancias no coinciden.</div>
     {% endif %}
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-primary text-white">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-primary text-white text-center">
                         <tr>
-                            <th class="ps-3">Código</th>
-                            <th>Cuenta</th>
+                            <th rowspan="2" class="ps-3 text-start">Código</th>
+                            <th rowspan="2" class="text-start">Cuenta</th>
+                            <th colspan="4">Comprobación</th>
+                            <th colspan="4" class="pe-3">Balance</th>
+                        </tr>
+                        <tr>
                             <th class="text-end">Sumas Debe</th>
                             <th class="text-end">Sumas Haber</th>
                             <th class="text-end">Saldo Deudor</th>
-                            <th class="text-end pe-3">Saldo Acreedor</th>
+                            <th class="text-end">Saldo Acreedor</th>
+                            <th class="text-end">Activos</th>
+                            <th class="text-end">Pasivos</th>
+                            <th class="text-end">Pérdidas</th>
+                            <th class="text-end pe-3">Ganancias</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for grupo_nombre, filas in balance_grupos %}
                         <tr class="table-secondary">
-                            <td colspan="6" class="fw-bold ps-3">{{ grupo_nombre|upper }}</td>
+                            <td colspan="10" class="fw-bold ps-3">{{ grupo_nombre|upper }}</td>
                         </tr>
                         {% for fila in filas %}
                         <tr>
-                            <td class="ps-3 font-monospace">{{ fila.cuenta.codigo }}</td>
-                            <td>
-                                {{ fila.cuenta.nombre }}
-                            </td>
-                            <td class="text-end">${{ fila.debe|intcomma }}</td>
-                            <td class="text-end">${{ fila.haber|intcomma }}</td>
+                            <td class="ps-3 font-monospace small">{{ fila.cuenta.codigo }}</td>
+                            <td>{{ fila.cuenta.nombre }}</td>
+                            <td class="text-end">{% if fila.debe %}${{ fila.debe|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if fila.haber %}${{ fila.haber|intcomma }}{% endif %}</td>
                             <td class="text-end">{% if fila.saldo_deudor %}${{ fila.saldo_deudor|intcomma }}{% endif %}</td>
-                            <td class="text-end pe-3">{% if fila.saldo_acreedor %}${{ fila.saldo_acreedor|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if fila.saldo_acreedor %}${{ fila.saldo_acreedor|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if fila.activos %}${{ fila.activos|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if fila.pasivos %}${{ fila.pasivos|intcomma }}{% endif %}</td>
+                            <td class="text-end">{% if fila.perdidas %}${{ fila.perdidas|intcomma }}{% endif %}</td>
+                            <td class="text-end pe-3">{% if fila.ganancias %}${{ fila.ganancias|intcomma }}{% endif %}</td>
                         </tr>
                         {% endfor %}
                         {% empty %}
-                        <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos hasta la fecha de corte.</td></tr>
+                        <tr><td colspan="10" class="text-center py-4 text-muted">Sin movimientos hasta la fecha de corte.</td></tr>
                         {% endfor %}
                     </tbody>
                     <tfoot class="table-light fw-bold border-top border-2">
@@ -65,7 +80,11 @@
                             <td class="text-end">${{ totales.debe|intcomma }}</td>
                             <td class="text-end">${{ totales.haber|intcomma }}</td>
                             <td class="text-end">${{ totales.saldo_deudor|intcomma }}</td>
-                            <td class="text-end pe-3">${{ totales.saldo_acreedor|intcomma }}</td>
+                            <td class="text-end">${{ totales.saldo_acreedor|intcomma }}</td>
+                            <td class="text-end">${{ totales.activos|intcomma }}</td>
+                            <td class="text-end">${{ totales.pasivos|intcomma }}</td>
+                            <td class="text-end">${{ totales.perdidas|intcomma }}</td>
+                            <td class="text-end pe-3">${{ totales.ganancias|intcomma }}</td>
                         </tr>
                     </tfoot>
                 </table>

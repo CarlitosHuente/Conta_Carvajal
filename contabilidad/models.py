@@ -180,9 +180,11 @@ class CuentaContable(models.Model):
         return 'general'
 
     def permite_saldar_operaciones(self):
-        return self.acciones_rapidas.filter(activa=True).exists()
+        return self.asignaciones_acciones.filter(accion__activa=True).exists()
 
-class AccionRapidaCuenta(models.Model):
+
+class AccionRapida(models.Model):
+    """Plantilla reutilizable de pago/cobro — se asigna a una o más cuentas."""
     TIPO_CHOICES = (
         ('pago', 'Pago'),
         ('cobro', 'Cobro'),
@@ -191,31 +193,50 @@ class AccionRapidaCuenta(models.Model):
         ('debe', 'Debe'),
         ('haber', 'Haber'),
     )
-    cuenta = models.ForeignKey(
-        CuentaContable, on_delete=models.CASCADE, related_name='acciones_rapidas',
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.CASCADE, related_name='acciones_rapidas',
     )
-    nombre = models.CharField(max_length=80, verbose_name='Nombre de la acción', help_text='Ej: Pago, Cobro')
+    nombre = models.CharField(max_length=80, verbose_name='Nombre', help_text='Ej: Pago estándar, Cobro clientes')
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='pago')
     lado_pendiente = models.CharField(
         max_length=10, choices=LADO_CHOICES, default='haber',
         verbose_name='Movimientos pendientes en',
-        help_text='Lado del mayor que queda por saldar (Debe o Haber).',
+        help_text='Lado del mayor que queda por saldar.',
     )
-    orden = models.PositiveSmallIntegerField(default=0)
     activa = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = 'Acción rápida'
         verbose_name_plural = 'Acciones rápidas'
+        ordering = ['nombre', 'id']
+
+    def __str__(self):
+        return f'{self.nombre} ({self.get_tipo_display()})'
+
+
+class CuentaAccionRapida(models.Model):
+    """Vincula una acción rápida a una cuenta del plan."""
+    cuenta = models.ForeignKey(
+        CuentaContable, on_delete=models.CASCADE, related_name='asignaciones_acciones',
+    )
+    accion = models.ForeignKey(
+        AccionRapida, on_delete=models.CASCADE, related_name='asignaciones_cuentas',
+    )
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Asignación acción rápida'
+        verbose_name_plural = 'Asignaciones acciones rápidas'
+        unique_together = ('cuenta', 'accion')
         ordering = ['orden', 'id']
 
     def __str__(self):
-        return f'{self.nombre} — {self.cuenta.codigo}'
+        return f'{self.cuenta.codigo} ← {self.accion.nombre}'
 
 
 class LineaAccionRapida(models.Model):
     accion = models.ForeignKey(
-        AccionRapidaCuenta, on_delete=models.CASCADE, related_name='lineas_contrapartida',
+        AccionRapida, on_delete=models.CASCADE, related_name='lineas_contrapartida',
     )
     cuenta = models.ForeignKey(CuentaContable, on_delete=models.CASCADE)
     orden = models.PositiveSmallIntegerField(default=0)

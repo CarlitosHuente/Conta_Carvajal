@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="text-primary mb-0">
+                <i class="fas fa-bolt"></i> {% if accion %}Editar{% else %}Nueva{% endif %} acción rápida
+            </h2>
+        </div>
+        <a href="{% url 'contabilidad:acciones_rapidas_lista' %}" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+
+    <div class="card shadow-sm border-0 col-lg-8">
+        <div class="card-body p-4">
+            <form method="POST" id="formAccion">
+                {% csrf_token %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Nombre</label>
+                        <input type="text" name="nombre" class="form-control" value="{{ accion.nombre|default:'' }}" placeholder="Ej: Pago estándar" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tipo</label>
+                        <select name="tipo" class="form-select">
+                            <option value="pago" {% if not accion or accion.tipo == 'pago' %}selected{% endif %}>Pago</option>
+                            <option value="cobro" {% if accion.tipo == 'cobro' %}selected{% endif %}>Cobro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Movimientos pendientes en</label>
+                        <select name="lado_pendiente" class="form-select">
+                            <option value="haber" {% if not accion or accion.lado_pendiente == 'haber' %}selected{% endif %}>Haber</option>
+                            <option value="debe" {% if accion.lado_pendiente == 'debe' %}selected{% endif %}>Debe</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label class="form-label fw-bold">Cuentas de contrapartida</label>
+                <p class="small text-muted">Medios sugeridos al saldar (Caja, Banco, etc.).</p>
+                <div id="contrapartidas">
+                    {% if contrapartidas %}
+                    {% for cid in contrapartidas %}
+                    <div class="row g-2 mb-2 fila-contra">
+                        <div class="col">
+                            <select name="cuenta_contrapartida[]" class="form-select" required>
+                                <option value="">— Cuenta —</option>
+                                {% for c in todas_cuentas %}
+                                <option value="{{ c.id }}" {% if c.id == cid %}selected{% endif %}>{{ c.codigo }} — {{ c.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto"><button type="button" class="btn btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="row g-2 mb-2 fila-contra">
+                        <div class="col">
+                            <select name="cuenta_contrapartida[]" class="form-select" required>
+                                <option value="">— Cuenta —</option>
+                                {% for c in todas_cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto"><button type="button" class="btn btn-outline-danger btn-quitar" disabled><i class="fas fa-times"></i></button></div>
+                    </div>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success mb-3" id="btnAgregarContra"><i class="fas fa-plus"></i> Agregar cuenta</button>
+                <div class="d-grid"><button type="submit" class="btn btn-success btn-lg"><i class="fas fa-save"></i> Guardar</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<select id="tplCuentas" class="d-none">
+    <option value="">— Cuenta —</option>
+    {% for c in todas_cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
+</select>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const tpl = document.getElementById('tplCuentas').innerHTML;
+function enlazarFila(row) {
+    row.querySelector('.btn-quitar')?.addEventListener('click', () => {
+        if (document.querySelectorAll('.fila-contra').length > 1) row.remove();
+    });
+}
+document.getElementById('btnAgregarContra').addEventListener('click', () => {
+    const div = document.createElement('div');
+    div.className = 'row g-2 mb-2 fila-contra';
+    div.innerHTML = `<div class="col"><select name="cuenta_contrapartida[]" class="form-select" required>${tpl}</select></div>
+        <div class="col-auto"><button type="button" class="btn btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></div>`;
+    document.getElementById('contrapartidas').appendChild(div);
+    enlazarFila(div);
+});
+document.querySelectorAll('.fila-contra').forEach(enlazarFila);
+</script>
+{% endblock %}

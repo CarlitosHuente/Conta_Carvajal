@@ -236,6 +236,10 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 18. **Correo corporativo** por dominio del cliente.
 19. **Módulos a medida** bajo demanda.
 
+### Contabilidad (próximo)
+* **Plantillas masivas de centralización:** crear/copiar lotes de plantillas F29 o RR.HH. entre empresas o períodos (similar a acciones rápidas reutilizables). *Pendiente — evaluar junto a clonación masiva de plan + acciones.*
+* **Balance 8 columnas** con Activos, Pasivos, Pérdidas y Ganancias (completado jul 2026).
+
 ### Baja prioridad (fase 2 — no iniciado)
 * APV, mutual/CCAF, reliquidaciones, aguinaldos.
 * Auditoría detallada de subsidios en licencias médicas.

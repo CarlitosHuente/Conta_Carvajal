@@ -17,7 +17,8 @@ from .extractor import extraer_datos_f29
 from .centralizacion import calcular_asiento_desde_plantilla
 from .models import (
     CodigoF29, DeclaracionF29, CuentaContable, PlantillaCentralizacion,
-    LineaPlantilla, AsientoContable, LineaAsiento, AccionRapidaCuenta, LineaAccionRapida,
+    LineaPlantilla, AsientoContable, LineaAsiento, AccionRapida, LineaAccionRapida,
+    CuentaAccionRapida,
 )
 from .forms import CuentaContableForm
 from core.models import Empresa
@@ -467,7 +468,9 @@ def plan_cuentas_lista_view(request):
         messages.warning(request, "Por favor, selecciona una empresa para ver su Plan de Cuentas.")
         return redirect('core:home')
 
-    cuentas = CuentaContable.objects.filter(empresa=empresa_actual).prefetch_related('acciones_rapidas')
+    cuentas = CuentaContable.objects.filter(empresa=empresa_actual).prefetch_related(
+        'asignaciones_acciones__accion',
+    )
     tiene_movimientos = AsientoContable.objects.filter(empresa=empresa_actual).exists()
     puede_vaciar_plan = cuentas.exists() and not tiene_movimientos
 
@@ -538,44 +541,87 @@ def plan_cuentas_editar_view(request, pk):
 
 @login_required
 def plan_cuentas_acciones_view(request, pk):
-    """Configura acciones rápidas de pago/cobro para una cuenta del mayor."""
+    """Asigna acciones rápidas ya creadas a una cuenta del plan."""
     empresa_actual = _get_empresa_plan(request)
     if not empresa_actual:
         return redirect('core:home')
 
     cuenta = get_object_or_404(CuentaContable, pk=pk, empresa=empresa_actual)
-    todas_cuentas = CuentaContable.objects.filter(empresa=empresa_actual).exclude(pk=cuenta.pk)
+    acciones_empresa = AccionRapida.objects.filter(empresa=empresa_actual, activa=True).prefetch_related(
+        'lineas_contrapartida__cuenta', 'asignaciones_cuentas',
+    )
 
     if request.method == 'POST':
-        accion = request.POST.get('accion')
+        seleccionadas = request.POST.getlist('accion_ids')
+        CuentaAccionRapida.objects.filter(cuenta=cuenta).delete()
+        for orden, accion_id in enumerate(seleccionadas):
+            if accion_id:
+                CuentaAccionRapida.objects.create(
+                    cuenta=cuenta,
+                    accion_id=accion_id,
+                    orden=orden,
+                )
+        messages.success(request, f'Acciones asignadas a {cuenta.codigo}.')
+        return redirect('contabilidad:plan_cuentas_lista')
 
-        if accion == 'eliminar':
-            accion_id = request.POST.get('accion_id')
-            AccionRapidaCuenta.objects.filter(pk=accion_id, cuenta=cuenta).delete()
-            messages.success(request, 'Acción rápida eliminada.')
-            return redirect('contabilidad:plan_cuentas_acciones', pk=cuenta.pk)
+    asignadas_ids = set(
+        cuenta.asignaciones_acciones.values_list('accion_id', flat=True)
+    )
 
+    return render(request, 'contabilidad/plan_cuentas/acciones.html', {
+        'cuenta': cuenta,
+        'acciones_empresa': acciones_empresa,
+        'asignadas_ids': asignadas_ids,
+    })
+
+
+@login_required
+def acciones_rapidas_lista_view(request):
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    acciones = AccionRapida.objects.filter(empresa=empresa_actual).prefetch_related(
+        'lineas_contrapartida__cuenta',
+        'asignaciones_cuentas__cuenta',
+    )
+    return render(request, 'contabilidad/acciones_rapidas/lista.html', {
+        'acciones': acciones,
+    })
+
+
+@login_required
+def acciones_rapidas_form_view(request, pk=None):
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    accion = None
+    if pk:
+        accion = get_object_or_404(AccionRapida, pk=pk, empresa=empresa_actual)
+
+    todas_cuentas = CuentaContable.objects.filter(empresa=empresa_actual)
+
+    if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
         tipo = request.POST.get('tipo', 'pago')
         lado_pendiente = request.POST.get('lado_pendiente', 'haber')
         cuenta_ids = request.POST.getlist('cuenta_contrapartida[]')
-        accion_id = request.POST.get('accion_id')
 
         if not nombre:
-            messages.error(request, 'El nombre de la acción es obligatorio.')
+            messages.error(request, 'El nombre es obligatorio.')
         elif not cuenta_ids:
             messages.error(request, 'Agrega al menos una cuenta de contrapartida.')
         else:
-            if accion_id:
-                obj = get_object_or_404(AccionRapidaCuenta, pk=accion_id, cuenta=cuenta)
-                obj.nombre = nombre
-                obj.tipo = tipo
-                obj.lado_pendiente = lado_pendiente
-                obj.save()
-                obj.lineas_contrapartida.all().delete()
+            if accion:
+                accion.nombre = nombre
+                accion.tipo = tipo
+                accion.lado_pendiente = lado_pendiente
+                accion.save()
+                accion.lineas_contrapartida.all().delete()
             else:
-                obj = AccionRapidaCuenta.objects.create(
-                    cuenta=cuenta,
+                accion = AccionRapida.objects.create(
+                    empresa=empresa_actual,
                     nombre=nombre,
                     tipo=tipo,
                     lado_pendiente=lado_pendiente,
@@ -583,20 +629,36 @@ def plan_cuentas_acciones_view(request, pk):
             for orden, c_id in enumerate(cuenta_ids):
                 if c_id:
                     LineaAccionRapida.objects.create(
-                        accion=obj,
-                        cuenta_id=c_id,
-                        orden=orden,
+                        accion=accion, cuenta_id=c_id, orden=orden,
                     )
             messages.success(request, f'Acción "{nombre}" guardada.')
-            return redirect('contabilidad:plan_cuentas_acciones', pk=cuenta.pk)
+            return redirect('contabilidad:acciones_rapidas_lista')
 
-    acciones = cuenta.acciones_rapidas.prefetch_related('lineas_contrapartida__cuenta')
+    contrapartidas = []
+    if accion:
+        contrapartidas = list(accion.lineas_contrapartida.values_list('cuenta_id', flat=True))
 
-    return render(request, 'contabilidad/plan_cuentas/acciones.html', {
-        'cuenta': cuenta,
-        'acciones': acciones,
+    return render(request, 'contabilidad/acciones_rapidas/form.html', {
+        'accion': accion,
         'todas_cuentas': todas_cuentas,
+        'contrapartidas': contrapartidas,
     })
+
+
+@login_required
+def acciones_rapidas_eliminar_view(request, pk):
+    if request.method != 'POST':
+        return redirect('contabilidad:acciones_rapidas_lista')
+
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    accion = get_object_or_404(AccionRapida, pk=pk, empresa=empresa_actual)
+    nombre = accion.nombre
+    accion.delete()
+    messages.success(request, f'Acción "{nombre}" eliminada.')
+    return redirect('contabilidad:acciones_rapidas_lista')
 
 
 @login_required
@@ -731,7 +793,7 @@ def plan_cuentas_importar_view(request):
                 messages.error(request, 'El archivo no es un JSON válido.')
             else:
                 if reemplazar:
-                    AccionRapidaCuenta.objects.filter(cuenta__empresa=empresa_actual).delete()
+                    AccionRapida.objects.filter(empresa=empresa_actual).delete()
                 importadas, omitidas = importar_acciones_plan(empresa_actual, data)
                 messages.success(
                     request,

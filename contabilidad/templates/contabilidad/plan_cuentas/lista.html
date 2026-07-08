@@ -44,8 +44,9 @@
     {% endif %}
     <div class="alert alert-light border shadow-sm small mb-3">
         <i class="fas fa-bolt text-warning me-1"></i>
-        Las <strong>acciones rápidas</strong> (pago/cobro desde el Mayor) se configuran por cuenta con el botón ⚡.
-        Al <strong>exportar el plan</strong> se incluyen; «Cargar plan base» no las trae — usa export/import entre empresas.
+        Las <strong>acciones rápidas</strong> se crean una vez en
+        <a href="{% url 'contabilidad:acciones_rapidas_lista' %}">Acciones rápidas</a> y se asignan por cuenta (⚡).
+        El <strong>exportar plan</strong> incluye acciones y asignaciones.
     </div>
 
     <div class="card shadow-sm border-0">
@@ -68,7 +69,7 @@
                             <td class="fw-bold">{{ cuenta.nombre }}</td>
                             <td>
                                 <span class="badge bg-secondary px-3 py-2">{{ cuenta.get_tipo_display }}</span>
-                                {% if cuenta.acciones_rapidas.exists %}
+                                {% if cuenta.asignaciones_acciones.exists %}
                                 <span class="badge bg-success ms-1" title="Tiene acciones rápidas"><i class="fas fa-bolt"></i></span>
                                 {% endif %}
                             </td>
