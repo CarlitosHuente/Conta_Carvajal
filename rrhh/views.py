@@ -234,9 +234,21 @@ def trabajador_detail_view(request, pk):
     trabajador = get_object_or_404(Trabajador, pk=pk, empresa_id=empresa_id)
     contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio')
 
+    liquidaciones_qs = (
+        Liquidacion.objects.filter(contrato__trabajador=trabajador)
+        .select_related('contrato')
+        .order_by('-ano', '-mes')
+    )
+    total_liquidaciones = liquidaciones_qs.count()
+    ver_todas = request.GET.get('ver_todas') == '1'
+    liquidaciones = liquidaciones_qs if ver_todas else liquidaciones_qs[:3]
+
     context = {
         'trabajador': trabajador,
         'contratos': contratos,
+        'liquidaciones': liquidaciones,
+        'total_liquidaciones': total_liquidaciones,
+        'ver_todas_liquidaciones': ver_todas,
     }
     return render(request, 'rrhh/trabajador_detail.html', context)
 
