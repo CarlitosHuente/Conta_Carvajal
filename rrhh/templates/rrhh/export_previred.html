@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Exportar Previred{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="h3 mb-4">Exportar datos para Previred</h1>
+    <p class="text-muted">Genera un archivo CSV con rentas y cotizaciones del período para respaldo o carga manual en Previred.</p>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">Mes</label>
+                    <select name="mes" class="form-select">
+                        {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Año</label>
+                    <select name="ano" class="form-select">
+                        {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Consultar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert {% if cantidad_liquidaciones %}alert-success{% else %}alert-warning{% endif %}">
+        {% if cantidad_liquidaciones %}
+        Hay <strong>{{ cantidad_liquidaciones }}</strong> liquidación(es) en {{ mes_seleccionado }}/{{ ano_seleccionado }}.
+        <a href="?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}&descargar=1" class="btn btn-success btn-sm ms-2">
+            <i class="fas fa-download"></i> Descargar CSV
+        </a>
+        {% else %}
+        No hay liquidaciones emitidas en este período. Emite las liquidaciones antes de exportar.
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

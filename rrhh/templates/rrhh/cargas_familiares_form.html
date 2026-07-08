@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Cargas familiares — {{ trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Cargas familiares</h2>
+        <a href="{% url 'rrhh:trabajador_detail' trabajador.pk %}" class="btn btn-outline-secondary">Volver a ficha</a>
+    </div>
+    <p class="text-muted">{{ trabajador.nombre_completo }} · RUT {{ trabajador.rut }}</p>
+    <div class="alert alert-info small">
+        Las cargas activas determinan el monto de asignación familiar según el tramo de renta imponible del mes.
+    </div>
+    <form method="post" class="card shadow-sm">
+        <div class="card-body">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            <table class="table">
+                <thead><tr><th>Nombre</th><th>RUT</th><th>Tipo</th><th>Activa</th><th>Eliminar</th></tr></thead>
+                <tbody>
+                {% for form in formset %}
+                <tr>
+                    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                    <td>{{ form.nombre }}</td>
+                    <td>{{ form.rut }}</td>
+                    <td>{{ form.tipo_carga }}</td>
+                    <td>{{ form.activa }}</td>
+                    <td>{% if form.DELETE %}{{ form.DELETE }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary">Guardar cargas</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

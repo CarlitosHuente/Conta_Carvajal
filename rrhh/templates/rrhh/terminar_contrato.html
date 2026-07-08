@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Terminar contrato — {{ trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Terminar relación laboral</h2>
+        <a href="{% url 'rrhh:trabajador_detail' trabajador.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <p><strong>Trabajador:</strong> {{ trabajador.nombre_completo }}</p>
+                    <p><strong>Cargo:</strong> {{ contrato.cargo|default:"—" }}</p>
+                    <p><strong>Inicio:</strong> {{ contrato.fecha_inicio|date:"d/m/Y" }}</p>
+                    <p><strong>Saldo vacaciones:</strong> {{ saldo_vacaciones }} días</p>
+                    <hr>
+                    <form method="post">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="form-check">{{ field }} <label class="form-check-label">{{ field.label }}</label></div>
+                            {% else %}
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Confirmas el término del contrato?');">Terminar contrato</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning-subtle">Referencia finiquito (renuncia)</div>
+                <div class="card-body">
+                    {% if preview %}
+                    <ul class="list-unstyled mb-0">
+                        <li>Vacaciones: ${{ preview.monto_vacaciones|intcomma }}</li>
+                        <li>Indemnización: ${{ preview.monto_indemnizacion|intcomma }}</li>
+                        <li class="fw-bold mt-2">Total estimado: ${{ preview.total_bruto_finiquito|intcomma }}</li>
+                    </ul>
+                    <p class="small text-muted mt-2">El monto final depende del motivo seleccionado al guardar.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

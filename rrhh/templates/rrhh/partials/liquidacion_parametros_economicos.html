@@ -1,0 +1,18 @@
+{% load humanize %}
+<div class="{% if compact %}border p-2 mb-3{% else %}border p-3 mb-4 bg-light{% endif %}">
+    <p class="{% if compact %}mb-1 fw-bold small{% else %}mb-2 fw-bold{% endif %}">Parámetros económicos del período</p>
+    <div class="row {% if compact %}small{% endif %}">
+        <div class="col-md-4">
+            <span class="text-muted">UF:</span>
+            <strong>${{ liquidacion.uf_valor|intcomma }}</strong>
+        </div>
+        <div class="col-md-4">
+            <span class="text-muted">UTM:</span>
+            <strong>${{ liquidacion.utm_valor|intcomma }}</strong>
+        </div>
+        <div class="col-md-4">
+            <span class="text-muted">Sueldo mínimo:</span>
+            <strong>${{ liquidacion.sueldo_minimo_valor|intcomma }}</strong>
+        </div>
+    </div>
+</div>

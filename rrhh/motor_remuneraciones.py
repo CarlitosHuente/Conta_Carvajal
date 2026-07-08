@@ -4,7 +4,13 @@ from datetime import date
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
-from .models import Liquidacion, ItemLiquidacion, IndicadorEconomico, NovedadMensual, ConceptoVariable
+from .models import (
+    Liquidacion, ItemLiquidacion, IndicadorEconomico, NovedadMensual, ConceptoVariable,
+    Prestamo, CuotaPrestamoLiquidacion,
+)
+from .calculos_rrhh import (
+    calcular_horas_extras, calcular_asignacion_familiar, tasa_afc_empleador,
+)
 
 
 def etiqueta_descuento_salud(contrato):
@@ -89,6 +95,15 @@ def procesar_liquidacion(contrato, mes, ano):
     sueldo_proporcional = round((contrato.sueldo_base / 30) * dias_trabajados)
     items_a_guardar.append(('Sueldo Base', sueldo_proporcional, 'HABER', True))
     total_imponible += sueldo_proporcional
+
+    # A2. Horas extras (50% y 100%)
+    if novedad:
+        he_total, he_items = calcular_horas_extras(
+            contrato, novedad.horas_extras_50, novedad.horas_extras_100,
+        )
+        for nombre_he, monto_he in he_items:
+            items_a_guardar.append((nombre_he, monto_he, 'HABER', True))
+        total_imponible += he_total
 
     # B. Gross Up del Bono Esporádico Líquido (Aproximación estándar)
     if novedad and novedad.bono_esporadico > 0:
@@ -176,6 +191,13 @@ def procesar_liquidacion(contrato, mes, ano):
             except (ConceptoVariable.DoesNotExist, ValueError, TypeError):
                 continue # Si el concepto fue borrado o el dato es inválido, lo ignoramos
 
+    # G. Asignación familiar (no imponible)
+    num_cargas = contrato.trabajador.cargas_familiares.filter(activa=True).count()
+    monto_asig_fam = calcular_asignacion_familiar(indicador, total_imponible, num_cargas)
+    if monto_asig_fam > 0:
+        items_a_guardar.append(('Asignación Familiar', monto_asig_fam, 'HABER', False))
+        total_no_imponible += monto_asig_fam
+
     # --- FASE 2: CÁLCULO DE DESCUENTOS LEGALES ---
     total_descuentos_legales = 0
     
@@ -242,12 +264,32 @@ def procesar_liquidacion(contrato, mes, ano):
         items_a_guardar.append(('Descuento por Novedades', novedad.descuento_esporadico, 'DESCUENTO', False))
         total_descuentos_varios += novedad.descuento_esporadico
 
+    # Préstamos activos (una cuota por liquidación)
+    prestamos_descontados = []
+    for prestamo in Prestamo.objects.filter(contrato=contrato, activo=True):
+        if prestamo.cuotas_pendientes <= 0:
+            prestamo.activo = False
+            prestamo.save(update_fields=['activo'])
+            continue
+        etiqueta = prestamo.descripcion or f'Cuota préstamo ({prestamo.cuotas_pagadas + 1}/{prestamo.numero_cuotas})'
+        items_a_guardar.append((etiqueta, prestamo.monto_cuota, 'DESCUENTO', False))
+        total_descuentos_varios += prestamo.monto_cuota
+        prestamos_descontados.append(prestamo)
+
+    # Cotizaciones empleador (informativas — no afectan líquido)
+    cotizacion_sis = round(imponible_afp_salud * (float(indicador.tasa_sis) / 100))
+    tasa_afc_emp = tasa_afc_empleador(contrato)
+    cotizacion_afc_emp = round(imponible_cesantia * tasa_afc_emp)
+
     # ALCANCE LÍQUIDO FINAL
     sueldo_liquido = (total_imponible + total_no_imponible) - (total_descuentos_legales + total_descuentos_varios)
 
     # 4. GUARDAR EN BASE DE DATOS (Fotografía inmutable)
     # Eliminamos si ya existía una generada en este mes para reemplazarla
-    Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano).delete()
+    liq_previa = Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano).first()
+    if liq_previa:
+        CuotaPrestamoLiquidacion.objects.filter(liquidacion=liq_previa).delete()
+        liq_previa.delete()
 
     ultimo_dia = calendar.monthrange(ano, mes)[1]
     fecha_emision = date(ano, mes, ultimo_dia)
@@ -257,13 +299,27 @@ def procesar_liquidacion(contrato, mes, ano):
         dias_trabajados=dias_trabajados,
         fecha_ingreso_contrato=contrato.fecha_inicio,
         cargo_contrato=(contrato.cargo or '')[:120],
-        uf_valor=uf, utm_valor=utm, afp_nombre=contrato.afp.nombre, afp_tasa=tasa_afp_historica,
-        salud_nombre=contrato.sistema_salud.nombre, total_haberes_imponibles=total_imponible,
-        total_haberes_no_imponibles=total_no_imponible, total_descuentos_legales=total_descuentos_legales,
+        uf_valor=uf, utm_valor=utm, sueldo_minimo_valor=indicador.sueldo_minimo,
+        afp_nombre=contrato.afp.nombre, afp_tasa=tasa_afp_historica,
+        salud_nombre=contrato.sistema_salud.nombre,
+        total_haberes_imponibles=total_imponible,
+        total_haberes_no_imponibles=total_no_imponible,
+        total_asignacion_familiar=monto_asig_fam,
+        cotizacion_sis_empleador=cotizacion_sis,
+        cotizacion_afc_empleador=cotizacion_afc_emp,
+        total_descuentos_legales=total_descuentos_legales,
         total_descuentos_varios=total_descuentos_varios, sueldo_liquido=sueldo_liquido
     )
 
     for nombre, monto, tipo, es_imponible in items_a_guardar:
         ItemLiquidacion.objects.create(liquidacion=liq, nombre=nombre, monto=monto, tipo=tipo, es_imponible=es_imponible)
-        
+
+    for prestamo in prestamos_descontados:
+        CuotaPrestamoLiquidacion.objects.create(
+            prestamo=prestamo, liquidacion=liq, monto=prestamo.monto_cuota,
+        )
+        if prestamo.cuotas_pendientes <= 0:
+            prestamo.activo = False
+            prestamo.save(update_fields=['activo'])
+
     return liq

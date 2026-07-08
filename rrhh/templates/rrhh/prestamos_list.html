@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Préstamos — {{ contrato.trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Préstamos del contrato</h2>
+        <a href="{% url 'rrhh:trabajador_detail' contrato.trabajador.pk %}" class="btn btn-outline-secondary">Volver</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header">Nuevo préstamo</div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">Registrar préstamo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header">Préstamos registrados</div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr><th>Descripción</th><th>Total</th><th>Cuota</th><th>Progreso</th><th>Estado</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for p in prestamos %}
+                        <tr>
+                            <td>{{ p.descripcion|default:"Préstamo" }}</td>
+                            <td>${{ p.monto_total|intcomma }}</td>
+                            <td>${{ p.monto_cuota|intcomma }}</td>
+                            <td>{{ p.cuotas_pagadas }}/{{ p.numero_cuotas }}</td>
+                            <td>{% if p.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Cerrado</span>{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">Sin préstamos</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

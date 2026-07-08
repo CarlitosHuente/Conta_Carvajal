@@ -1,7 +1,7 @@
 # rrhh/forms.py
 
 from django import forms
-from .models import Trabajador, Contrato, IndicadorEconomico, NovedadMensual, ItemContrato, ConceptoVariable, TramoConcepto
+from .models import Trabajador, Contrato, IndicadorEconomico, NovedadMensual, ItemContrato, ConceptoVariable, TramoConcepto, CargaFamiliar, Prestamo, MovimientoVacaciones, Finiquito
 from core.models import Empresa
 
 class EmpresaForm(forms.ModelForm):
@@ -209,12 +209,15 @@ class NovedadMensualForm(forms.ModelForm):
     class Meta:
         model = NovedadMensual
         fields = [
-            'dias_licencia', 'dias_ausencia', 'horas_extras_50', 'horas_extras_100',
+            'dias_licencia', 'dias_ausencia', 'tipo_licencia', 'folio_licencia',
+            'horas_extras_50', 'horas_extras_100',
             'bono_esporadico', 'descuento_esporadico'
         ]
         widgets = {
             'dias_licencia': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'min-width: 70px;'}),
             'dias_ausencia': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'min-width: 70px;'}),
+            'tipo_licencia': forms.Select(attrs={'class': 'form-select form-select-sm', 'style': 'min-width: 110px;'}),
+            'folio_licencia': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Folio', 'style': 'min-width: 90px;'}),
             'horas_extras_50': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'min-width: 70px;'}),
             'horas_extras_100': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'min-width: 70px;'}),
             'bono_esporadico': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'style': 'min-width: 100px;'}),
@@ -289,3 +292,72 @@ class TramoConceptoForm(forms.ModelForm):
             'tramo_hasta': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 1000000 (O vacío)'}),
             'porcentaje': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 2.5'}),
         }
+
+
+class CargaFamiliarForm(forms.ModelForm):
+    class Meta:
+        model = CargaFamiliar
+        fields = ['nombre', 'rut', 'tipo_carga', 'activa']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+            'tipo_carga': forms.Select(attrs={'class': 'form-select'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class PrestamoForm(forms.ModelForm):
+    class Meta:
+        model = Prestamo
+        fields = ['descripcion', 'monto_total', 'numero_cuotas', 'fecha_solicitud', 'activo']
+        widgets = {
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Anticipo sueldo'}),
+            'monto_total': forms.NumberInput(attrs={'class': 'form-control'}),
+            'numero_cuotas': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'fecha_solicitud': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class MovimientoVacacionesForm(forms.ModelForm):
+    class Meta:
+        model = MovimientoVacaciones
+        fields = ['fecha', 'dias', 'tipo', 'observacion']
+        widgets = {
+            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'dias': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5'}),
+            'tipo': forms.Select(attrs={'class': 'form-select'}),
+            'observacion': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class TerminarContratoForm(forms.Form):
+    fecha_termino = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Fecha de término',
+    )
+    motivo = forms.ChoiceField(
+        choices=Finiquito.MOTIVO_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Motivo del término',
+    )
+    generar_finiquito = forms.BooleanField(
+        required=False, initial=True,
+        label='Calcular y guardar finiquito',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+    incluir_ultimo_mes = forms.BooleanField(
+        required=False, initial=False,
+        label='Incluir liquidación del último mes en el finiquito',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+
+class CentralizacionRRHHForm(forms.Form):
+    mes = forms.IntegerField(min_value=1, max_value=12, label='Mes', widget=forms.NumberInput(attrs={'class': 'form-control'}))
+    ano = forms.IntegerField(min_value=2020, label='Año', widget=forms.NumberInput(attrs={'class': 'form-control'}))
+    cuenta_gasto = forms.CharField(max_length=20, initial='4.1.01.01', label='Cuenta gasto remuneraciones', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_sueldos = forms.CharField(max_length=20, initial='2.1.01.01', label='Cuenta sueldos por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_cotizaciones = forms.CharField(max_length=20, initial='2.1.02.01', label='Cuenta cotizaciones por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_sis = forms.CharField(max_length=20, initial='2.1.02.02', label='Cuenta SIS por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_afc = forms.CharField(max_length=20, initial='2.1.02.03', label='Cuenta AFC empleador por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))

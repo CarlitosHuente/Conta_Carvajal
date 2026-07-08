@@ -34,10 +34,11 @@
                 <strong>RUT EMPLEADOR:</strong> {{ liquidacion.contrato.trabajador.empresa.rut }}
             </div>
             <div class="col-5 text-end">
-                <strong>PERÍODO:</strong> {{ liquidacion.mes }}/{{ liquidacion.ano }}<br>
-                <strong>FECHA PAGO:</strong> {{ liquidacion.fecha_emision|date:"d/m/Y" }}
+                <strong>PERÍODO:</strong> {{ liquidacion.mes }}/{{ liquidacion.ano }}
             </div>
         </div>
+
+        {% include 'rrhh/partials/liquidacion_parametros_economicos.html' with compact=True %}
 
         <div class="box">
             <div class="row">

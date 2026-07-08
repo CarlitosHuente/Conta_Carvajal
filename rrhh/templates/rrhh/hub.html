@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Centro RR.HH. — {{ empresa.razon_social }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-0">Centro de Recursos Humanos</h1>
+            <p class="text-muted mb-0">{{ empresa.razon_social }}</p>
+        </div>
+        <a href="{% url 'core:empresa_dashboard' %}" class="btn btn-outline-secondary">Volver al panel</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-primary"><i class="fas fa-id-badge me-2"></i>Personal</h5>
+                    <p class="text-muted small">Fichas, contratos, cargas familiares, préstamos y término de relación.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'rrhh:trabajador_list' %}" class="list-group-item list-group-item-action">Fichas y contratos</a>
+                        <a href="{% url 'rrhh:finiquito_list' %}" class="list-group-item list-group-item-action">Finiquitos emitidos</a>
+                        {% if user.perfil.rol == 'admin' %}
+                        <a href="{% url 'rrhh:trabajador_create' %}" class="list-group-item list-group-item-action">Nuevo trabajador</a>
+                        <a href="{% url 'rrhh:concepto_variable_list' %}" class="list-group-item list-group-item-action">Conceptos variables</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-success"><i class="fas fa-calendar-alt me-2"></i>Proceso mensual</h5>
+                    <p class="text-muted small">Flujo recomendado: novedades → liquidaciones → libro → exportación.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'rrhh:ingresar_novedades' %}?mes={{ mes_actual }}&ano={{ ano_actual }}" class="list-group-item list-group-item-action">
+                            <span class="badge bg-secondary me-2">1</span> Ingresar novedades
+                        </a>
+                        <a href="{% url 'rrhh:crear_liquidacion' %}?mes={{ mes_actual }}&ano={{ ano_actual }}" class="list-group-item list-group-item-action">
+                            <span class="badge bg-secondary me-2">2</span> Emitir liquidaciones
+                        </a>
+                        <a href="{% url 'rrhh:libro_remuneraciones' %}?mes={{ mes_actual }}&ano={{ ano_actual }}" class="list-group-item list-group-item-action">
+                            <span class="badge bg-secondary me-2">3</span> Libro de remuneraciones
+                        </a>
+                        <a href="{% url 'rrhh:export_previred' %}?mes={{ mes_actual }}&ano={{ ano_actual }}" class="list-group-item list-group-item-action">
+                            <span class="badge bg-secondary me-2">4</span> Exportar datos Previred (CSV)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-info border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-info"><i class="fas fa-calculator me-2"></i>Contabilidad</h5>
+                    <p class="text-muted small">Centraliza el mes en el libro diario con un asiento automático.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'rrhh:centralizar_remuneraciones' %}?mes={{ mes_actual }}&ano={{ ano_actual }}" class="list-group-item list-group-item-action">Centralizar remuneraciones</a>
+                        <a href="{% url 'contabilidad:libro_diario' %}" class="list-group-item list-group-item-action">Ver libro diario</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

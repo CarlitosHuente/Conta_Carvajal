@@ -222,6 +222,7 @@ def trabajador_create_view(request):
     }
     return render(request, 'rrhh/trabajador_form.html', context)
 @login_required
+@require_access('rrhh', 'trabajadores', 'ver')
 def trabajador_detail_view(request, pk):
     """
     Muestra la información detallada de un trabajador y sus contratos.
@@ -268,6 +269,7 @@ def contrato_create_view(request, trabajador_pk):
     return render(request, 'rrhh/contrato_form.html', context)
 
 @login_required
+@require_access('rrhh', 'trabajadores', 'editar')
 def contrato_edit_view(request, pk):
     if request.user.perfil.rol != 'admin':
         return HttpResponseForbidden("No tienes permiso para realizar esta acción.")
@@ -292,6 +294,7 @@ def contrato_edit_view(request, pk):
     return render(request, 'rrhh/contrato_form.html', context)
 
 @login_required
+@require_access('rrhh', 'trabajadores', 'editar')
 def gestionar_items_contrato_view(request, contrato_id):
     """
     Permite agregar bonos fijos, asignaciones o descuentos recurrentes a un contrato.
@@ -477,6 +480,7 @@ def afp_list_view(request):
     afps = AFP.objects.all().order_by('nombre')
     return render(request, 'rrhh/afp_list.html', {'afps': afps})
 @login_required
+@require_access('rrhh', 'liquidaciones', 'ver')
 def liquidacion_detail_view(request, pk):
     """
     Muestra el detalle completo de una liquidación generada, en formato de payslip.
@@ -537,10 +541,22 @@ def libro_remuneraciones_view(request):
         contrato__trabajador__empresa=empresa, mes=mes, ano=ano
     ).select_related('contrato__trabajador').order_by('contrato__trabajador__apellido_paterno')
 
+    totales = {
+        'imponible': sum(l.total_haberes_imponibles for l in liquidaciones),
+        'no_imponible': sum(l.total_haberes_no_imponibles for l in liquidaciones),
+        'leyes': sum(l.total_descuentos_legales for l in liquidaciones),
+        'varios': sum(l.total_descuentos_varios for l in liquidaciones),
+        'liquido': sum(l.sueldo_liquido for l in liquidaciones),
+        'sis': sum(l.cotizacion_sis_empleador for l in liquidaciones),
+        'afc_emp': sum(l.cotizacion_afc_empleador for l in liquidaciones),
+        'asig_fam': sum(l.total_asignacion_familiar for l in liquidaciones),
+    }
+
     context = {
         'mes_seleccionado': mes, 'ano_seleccionado': ano,
         'meses_opciones': range(1, 13), 'anos_opciones': range(2024, today.year + 2),
         'liquidaciones': liquidaciones,
+        'totales': totales,
     }
     return render(request, 'rrhh/libro_remuneraciones.html', context)
 

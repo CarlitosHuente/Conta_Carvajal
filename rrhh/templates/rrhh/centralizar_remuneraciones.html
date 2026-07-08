@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Centralizar remuneraciones{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="h3 mb-4">Centralizar remuneraciones en contabilidad</h1>
+
+    {% if asiento_existente %}
+    <div class="alert alert-info">
+        Ya existe un asiento para este período:
+        <a href="{% url 'contabilidad:asiento_detalle' asiento_existente.pk %}">Ver asiento #{{ asiento_existente.id }}</a>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">Resumen del período {{ mes_seleccionado }}/{{ ano_seleccionado }}</div>
+        <div class="card-body">
+            {% if resumen.cantidad %}
+            <div class="row text-center">
+                <div class="col"><small class="text-muted">Liquidaciones</small><div class="fw-bold">{{ resumen.cantidad }}</div></div>
+                <div class="col"><small class="text-muted">Total haberes</small><div class="fw-bold">${{ resumen.total_haberes|intcomma }}</div></div>
+                <div class="col"><small class="text-muted">Retenciones</small><div class="fw-bold">${{ resumen.total_leyes|add:resumen.total_varios|intcomma }}</div></div>
+                <div class="col"><small class="text-muted">Líquido</small><div class="fw-bold">${{ resumen.total_liquido|intcomma }}</div></div>
+                <div class="col"><small class="text-muted">SIS + AFC empl.</small><div class="fw-bold">${{ resumen.total_cotizaciones_empleador|intcomma }}</div></div>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No hay liquidaciones en este período.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if resumen.cantidad and not asiento_existente %}
+    <form method="post" class="card shadow-sm">
+        <div class="card-header">Cuentas contables (ajusta si tu plan es distinto)</div>
+        <div class="card-body">
+            {% csrf_token %}
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Generar asiento contable</button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

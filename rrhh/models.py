@@ -138,6 +138,10 @@ class Liquidacion(models.Model):
     dias_trabajados = models.PositiveIntegerField(default=30)
     uf_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     utm_valor = models.PositiveIntegerField(default=0)
+    sueldo_minimo_valor = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Sueldo mínimo (snapshot)',
+    )
     afp_nombre = models.CharField(max_length=50, default="")
     afp_tasa = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     salud_nombre = models.CharField(max_length=50, default="")
@@ -150,6 +154,9 @@ class Liquidacion(models.Model):
         max_length=120, blank=True, default='',
         verbose_name='Cargo (snapshot)',
     )
+    total_asignacion_familiar = models.PositiveIntegerField(default=0)
+    cotizacion_sis_empleador = models.PositiveIntegerField(default=0)
+    cotizacion_afc_empleador = models.PositiveIntegerField(default=0)
     
     # TOTALES AGRUPADOS
     total_haberes_imponibles = models.IntegerField(default=0)
@@ -178,15 +185,104 @@ class ItemLiquidacion(models.Model):
         return f"{self.nombre} (${self.monto})"
 
 class Prestamo(models.Model):
-    # ... (sin cambios) ...
-    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE)
+    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name='prestamos')
+    descripcion = models.CharField(max_length=200, blank=True, default='')
     monto_total = models.PositiveIntegerField()
     numero_cuotas = models.PositiveIntegerField()
+    monto_cuota = models.PositiveIntegerField(editable=False, default=0)
     fecha_solicitud = models.DateField()
     activo = models.BooleanField(default=True)
-    
+
+    @property
+    def cuotas_pagadas(self):
+        return self.cuotas_liquidadas.count()
+
+    @property
+    def cuotas_pendientes(self):
+        return max(0, self.numero_cuotas - self.cuotas_pagadas)
+
+    def save(self, *args, **kwargs):
+        if self.numero_cuotas > 0:
+            self.monto_cuota = round(self.monto_total / self.numero_cuotas)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Préstamo de ${self.monto_total} a {self.contrato.trabajador.nombre_completo}"
+
+
+class CuotaPrestamoLiquidacion(models.Model):
+    prestamo = models.ForeignKey(Prestamo, on_delete=models.CASCADE, related_name='cuotas_liquidadas')
+    liquidacion = models.OneToOneField('Liquidacion', on_delete=models.CASCADE, related_name='cuota_prestamo')
+    monto = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"Cuota ${self.monto} — {self.prestamo}"
+
+
+class CargaFamiliar(models.Model):
+    TIPO_CARGA_CHOICES = [
+        ('NORMAL', 'Carga normal'),
+        ('INVALIDEZ', 'Carga invalidez'),
+        ('MATERNAL', 'Carga maternal'),
+    ]
+    trabajador = models.ForeignKey(Trabajador, on_delete=models.CASCADE, related_name='cargas_familiares')
+    nombre = models.CharField(max_length=150)
+    rut = models.CharField(max_length=12, blank=True, default='')
+    tipo_carga = models.CharField(max_length=10, choices=TIPO_CARGA_CHOICES, default='NORMAL')
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Carga familiar'
+        verbose_name_plural = 'Cargas familiares'
+
+    def __str__(self):
+        return f"{self.nombre} ({self.trabajador.nombre_completo})"
+
+
+class MovimientoVacaciones(models.Model):
+    TIPO_CHOICES = [
+        ('DEVENGADO', 'Días devengados'),
+        ('GOZADO', 'Días gozados'),
+        ('AJUSTE', 'Ajuste manual'),
+    ]
+    trabajador = models.ForeignKey(Trabajador, on_delete=models.CASCADE, related_name='movimientos_vacaciones')
+    fecha = models.DateField()
+    dias = models.DecimalField(max_digits=6, decimal_places=2)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    observacion = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['-fecha', '-id']
+        verbose_name = 'Movimiento de vacaciones'
+        verbose_name_plural = 'Movimientos de vacaciones'
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.dias} días — {self.trabajador.nombre_completo}"
+
+
+class Finiquito(models.Model):
+    MOTIVO_CHOICES = [
+        ('RENUNCIA', 'Renuncia voluntaria'),
+        ('DESPIDO', 'Despido (necesidades de la empresa)'),
+        ('MUTUO_ACUERDO', 'Mutuo acuerdo'),
+        ('VENCIMIENTO', 'Vencimiento de plazo'),
+    ]
+    contrato = models.ForeignKey(Contrato, on_delete=models.PROTECT, related_name='finiquitos')
+    fecha_termino = models.DateField()
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES)
+    dias_vacaciones_pendientes = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    monto_vacaciones = models.PositiveIntegerField(default=0)
+    monto_indemnizacion = models.PositiveIntegerField(default=0)
+    monto_ultimo_sueldo = models.PositiveIntegerField(default=0, help_text='Sueldo proporcional u otros haberes del cierre')
+    total_bruto_finiquito = models.PositiveIntegerField(default=0)
+    observaciones = models.TextField(blank=True, default='')
+    fecha_emision = models.DateField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_emision', '-id']
+
+    def __str__(self):
+        return f"Finiquito {self.contrato.trabajador.nombre_completo} ({self.fecha_termino})"
     
 class ConceptoNoImponible(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -265,6 +361,12 @@ class NovedadMensual(models.Model):
     Registra la asistencia, licencias y horas extras de un trabajador en un mes específico.
     Es el paso previo y obligatorio antes de calcular su liquidación.
     """
+    TIPO_LICENCIA_CHOICES = [
+        ('NINGUNA', 'Sin licencia'),
+        ('COMUN', 'Licencia común'),
+        ('MEDICA', 'Licencia médica'),
+        ('MATERNAL', 'Licencia maternal/paternal'),
+    ]
     trabajador = models.ForeignKey(Trabajador, on_delete=models.CASCADE, related_name='novedades')
     mes = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
     ano = models.IntegerField()
@@ -273,6 +375,8 @@ class NovedadMensual(models.Model):
     dias_trabajados = models.IntegerField(default=30) 
     dias_licencia = models.IntegerField(default=0)
     dias_ausencia = models.IntegerField(default=0)
+    tipo_licencia = models.CharField(max_length=10, choices=TIPO_LICENCIA_CHOICES, default='NINGUNA')
+    folio_licencia = models.CharField(max_length=50, blank=True, default='', verbose_name='Folio licencia')
     
     # Horas Extras
     horas_extras_50 = models.IntegerField(default=0, help_text="Horas extras normales (50%)")
@@ -299,4 +403,9 @@ class NovedadMensual(models.Model):
         self.dias_trabajados = 30 - self.dias_ausencia - self.dias_licencia
         if self.dias_trabajados < 0:
             self.dias_trabajados = 0
+        if self.dias_licencia <= 0:
+            self.tipo_licencia = 'NINGUNA'
+            self.folio_licencia = ''
+        elif self.tipo_licencia == 'NINGUNA':
+            self.tipo_licencia = 'COMUN'
         super().save(*args, **kwargs)

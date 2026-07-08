@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Finiquito — {{ finiquito.contrato.trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between mb-4">
+        <h1 class="h4">Documento de finiquito</h1>
+        <button onclick="window.print()" class="btn btn-outline-primary">Imprimir</button>
+    </div>
+    <div class="card shadow-sm p-4">
+        <div class="text-center mb-4">
+            <h5>{{ finiquito.contrato.trabajador.empresa.razon_social }}</h5>
+            <h4>FINIQUITO DE RELACIÓN LABORAL</h4>
+        </div>
+        <p><strong>Trabajador:</strong> {{ finiquito.contrato.trabajador.nombre_completo }} ({{ finiquito.contrato.trabajador.rut }})</p>
+        <p><strong>Cargo:</strong> {{ finiquito.contrato.cargo|default:"—" }}</p>
+        <p><strong>Fecha inicio:</strong> {{ finiquito.contrato.fecha_inicio|date:"d/m/Y" }}</p>
+        <p><strong>Fecha término:</strong> {{ finiquito.fecha_termino|date:"d/m/Y" }}</p>
+        <p><strong>Motivo:</strong> {{ finiquito.get_motivo_display }}</p>
+        <hr>
+        <table class="table table-sm">
+            <tr><td>Vacaciones pendientes ({{ finiquito.dias_vacaciones_pendientes }} días)</td><td class="text-end">${{ finiquito.monto_vacaciones|intcomma }}</td></tr>
+            <tr><td>Indemnización por años de servicio</td><td class="text-end">${{ finiquito.monto_indemnizacion|intcomma }}</td></tr>
+            {% if finiquito.monto_ultimo_sueldo %}<tr><td>Última liquidación incluida</td><td class="text-end">${{ finiquito.monto_ultimo_sueldo|intcomma }}</td></tr>{% endif %}
+            <tr class="table-success fw-bold"><td>TOTAL FINIQUITO</td><td class="text-end">${{ finiquito.total_bruto_finiquito|intcomma }}</td></tr>
+        </table>
+        {% if finiquito.observaciones %}<p class="small text-muted">{{ finiquito.observaciones }}</p>{% endif %}
+        <div class="row mt-5 pt-4">
+            <div class="col-6 text-center"><hr>Firma empleador</div>
+            <div class="col-6 text-center"><hr>Firma trabajador</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

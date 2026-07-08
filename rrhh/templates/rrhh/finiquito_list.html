@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Finiquitos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Finiquitos</h1>
+        <a href="{% url 'rrhh:hub' %}" class="btn btn-outline-secondary">Centro RR.HH.</a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>Fecha término</th><th>Trabajador</th><th>Motivo</th><th class="text-end">Total</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for f in finiquitos %}
+                <tr>
+                    <td>{{ f.fecha_termino|date:"d/m/Y" }}</td>
+                    <td>{{ f.contrato.trabajador.nombre_completo }}</td>
+                    <td>{{ f.get_motivo_display }}</td>
+                    <td class="text-end">${{ f.total_bruto_finiquito|intcomma }}</td>
+                    <td><a href="{% url 'rrhh:finiquito_detail' f.pk %}" class="btn btn-sm btn-outline-primary">Ver</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-4 text-muted">No hay finiquitos registrados.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

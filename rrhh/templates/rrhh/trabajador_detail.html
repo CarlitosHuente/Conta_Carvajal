@@ -9,7 +9,20 @@
         <h2 class="mb-0">{{ trabajador.nombre_completo }}</h2>
         <small class="text-muted">RUT {{ trabajador.rut }} · {{ trabajador.empresa.razon_social }}</small>
     </div>
-    <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-outline-secondary">Volver al Listado</a>
+    <div class="d-flex flex-wrap gap-2">
+        {% if user.perfil.rol == 'admin' %}
+        <a href="{% url 'rrhh:trabajador_edit' trabajador.pk %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-edit"></i> Editar ficha</a>
+        <form method="post" action="{% url 'rrhh:trabajador_toggle_activo' trabajador.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-warning btn-sm">
+                {% if trabajador.activo %}Desactivar{% else %}Reactivar{% endif %}
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'rrhh:gestionar_cargas' trabajador.pk %}" class="btn btn-outline-secondary btn-sm">Cargas familiares</a>
+        <a href="{% url 'rrhh:gestionar_vacaciones' trabajador.pk %}" class="btn btn-outline-secondary btn-sm">Vacaciones</a>
+        <a href="{% url 'rrhh:trabajador_list' %}" class="btn btn-outline-secondary btn-sm">Listado</a>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4">
@@ -80,6 +93,10 @@
                     <td>
                         <a href="{% url 'rrhh:contrato_edit' contrato.pk %}" class="btn btn-sm btn-outline-primary" title="Editar datos del contrato"><i class="fas fa-edit me-1"></i>Editar</a>
                         <a href="{% url 'rrhh:gestionar_items_contrato' contrato.id %}" class="btn btn-sm btn-outline-info" title="Gestionar Bonos/Descuentos Fijos"><i class="fas fa-sliders-h me-1"></i>Ítems</a>
+                        <a href="{% url 'rrhh:gestionar_prestamos' contrato.id %}" class="btn btn-sm btn-outline-secondary" title="Préstamos"><i class="fas fa-hand-holding-usd"></i></a>
+                        {% if contrato.vigente and user.perfil.rol == 'admin' %}
+                        <a href="{% url 'rrhh:terminar_contrato' contrato.id %}" class="btn btn-sm btn-outline-danger" title="Terminar contrato">Terminar</a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

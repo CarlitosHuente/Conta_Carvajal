@@ -45,6 +45,8 @@
                             <th class="text-end">T. No Imponible</th>
                             <th class="text-end">Leyes Sociales</th>
                             <th class="text-end">Otros Dctos.</th>
+                            <th class="text-end">SIS Empl.</th>
+                            <th class="text-end">AFC Empl.</th>
                             <th class="text-end bg-success text-white">Líquido a Pagar</th>
                         </tr>
                     </thead>
@@ -58,12 +60,28 @@
                             <td class="text-end">${{ liq.total_haberes_no_imponibles|intcomma }}</td>
                             <td class="text-end">${{ liq.total_descuentos_legales|intcomma }}</td>
                             <td class="text-end">${{ liq.total_descuentos_varios|intcomma }}</td>
+                            <td class="text-end">${{ liq.cotizacion_sis_empleador|intcomma }}</td>
+                            <td class="text-end">${{ liq.cotizacion_afc_empleador|intcomma }}</td>
                             <td class="text-end fw-bold">${{ liq.sueldo_liquido|intcomma }}</td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="8" class="text-center py-4">No hay liquidaciones emitidas en este período.</td></tr>
+                        <tr><td colspan="10" class="text-center py-4">No hay liquidaciones emitidas en este período.</td></tr>
                         {% endfor %}
                     </tbody>
+                    {% if liquidaciones %}
+                    <tfoot class="table-secondary fw-bold">
+                        <tr>
+                            <td colspan="3" class="text-end">TOTALES</td>
+                            <td class="text-end">${{ totales.imponible|intcomma }}</td>
+                            <td class="text-end">${{ totales.no_imponible|intcomma }}</td>
+                            <td class="text-end">${{ totales.leyes|intcomma }}</td>
+                            <td class="text-end">${{ totales.varios|intcomma }}</td>
+                            <td class="text-end">${{ totales.sis|intcomma }}</td>
+                            <td class="text-end">${{ totales.afc_emp|intcomma }}</td>
+                            <td class="text-end">${{ totales.liquido|intcomma }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
             </div>
         </div>
