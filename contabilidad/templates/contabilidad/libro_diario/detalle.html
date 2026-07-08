@@ -17,13 +17,23 @@
                 </div>
                 
                 <div class="card-body p-4 bg-light">
+                    {% include 'contabilidad/_nav_contabilidad.html' %}
                     <div class="mb-4 p-3 bg-white border rounded shadow-sm">
                         <h6 class="text-secondary fw-bold text-uppercase mb-1" style="font-size: 0.8rem;">Glosa / Concepto</h6>
                         <p class="mb-0 fs-5">{{ asiento.glosa }}</p>
                         
                         {% if asiento.origen_f29 %}
                         <hr class="my-2">
-                        <small class="text-muted"><i class="fas fa-link me-1"></i> Documento Origen: <strong>F29 Período {{ asiento.origen_f29.mes }}/{{ asiento.origen_f29.ano }}</strong> (Folio: {{ asiento.origen_f29.folio|default:"S/N" }})</small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-link me-1"></i> F29 {{ asiento.origen_f29.mes }}/{{ asiento.origen_f29.ano }}
+                            (Folio {{ asiento.origen_f29.folio|default:"S/N" }})
+                        </small>
+                        {% if asiento.origen_plantilla %}
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-cogs me-1"></i> Plantilla: <strong>{{ asiento.origen_plantilla.nombre }}</strong>
+                        </small>
+                        {% endif %}
+                        <a href="{% url 'contabilidad:f29_detalle' asiento.origen_f29.pk %}" class="btn btn-sm btn-outline-info mt-2">Ver F29 origen</a>
                         {% endif %}
                     </div>
 
@@ -63,10 +73,11 @@
                     </div>
                     {% endif %}
 
-                    <div class="d-grid mt-4">
+                    <div class="d-grid mt-4 gap-2">
                         <a href="{% url 'contabilidad:libro_diario' %}" class="btn btn-outline-secondary btn-lg">
                             <i class="fas fa-arrow-left me-2"></i> Volver al Libro Diario
                         </a>
+                        <a href="{% url 'contabilidad:hub' %}" class="btn btn-outline-primary">Ir a Contabilidad</a>
                     </div>
                 </div>
             </div>

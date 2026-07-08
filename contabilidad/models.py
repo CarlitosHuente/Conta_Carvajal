@@ -195,6 +195,14 @@ class AsientoContable(models.Model):
     # Relaciones de origen (Polimorfismo básico). 
     # Si el asiento viene de un F29, se llena este campo. Si viene de RCV (futuro), usaremos el otro.
     origen_f29 = models.ForeignKey('DeclaracionF29', on_delete=models.SET_NULL, null=True, blank=True, related_name='asientos_generados', verbose_name="Origen F29")
+    origen_plantilla = models.ForeignKey(
+        'PlantillaCentralizacion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='asientos_generados',
+        verbose_name='Plantilla de centralización',
+    )
     origen_rrhh_mes = models.PositiveIntegerField(null=True, blank=True, verbose_name='Mes origen RR.HH.')
     origen_rrhh_ano = models.PositiveIntegerField(null=True, blank=True, verbose_name='Año origen RR.HH.')
     # origen_rcv = models.ForeignKey('RegistroCompraVenta', on_delete=models.SET_NULL, null=True, blank=True) # <-- Se activará en el futuro
@@ -210,6 +218,11 @@ class AsientoContable(models.Model):
                 fields=['empresa', 'origen_rrhh_mes', 'origen_rrhh_ano'],
                 condition=models.Q(origen_rrhh_mes__isnull=False, origen_rrhh_ano__isnull=False),
                 name='unique_asiento_rrhh_periodo',
+            ),
+            models.UniqueConstraint(
+                fields=['origen_f29', 'origen_plantilla'],
+                condition=models.Q(origen_f29__isnull=False, origen_plantilla__isnull=False),
+                name='unique_asiento_f29_plantilla',
             ),
         ]
 

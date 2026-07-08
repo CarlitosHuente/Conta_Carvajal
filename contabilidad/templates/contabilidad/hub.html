@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Centro Contabilidad — {{ empresa.razon_social }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-0 text-primary"><i class="fas fa-calculator me-2"></i>Centro de Contabilidad</h1>
+            <p class="text-muted mb-0">{{ empresa.razon_social }}</p>
+        </div>
+        <a href="{% url 'core:empresa_dashboard' %}" class="btn btn-outline-secondary">Volver al panel de empresa</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold text-primary">{{ f29_count }}</div>
+                    <small class="text-muted">F29 cargados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold text-success">{{ asientos_count }}</div>
+                    <small class="text-muted">Asientos en libro</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold text-warning">{{ cuentas_count }}</div>
+                    <small class="text-muted">Cuentas activas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold text-info">{{ plantillas_count }}</div>
+                    <small class="text-muted">Plantillas F29</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-primary"><i class="fas fa-file-invoice-dollar me-2"></i>Formulario 29</h5>
+                    <p class="text-muted small">Importar PDF, auditar códigos y centralizar compras, ventas o pago del impuesto.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'contabilidad:f29_lista' %}" class="list-group-item list-group-item-action">Historial de F29</a>
+                        <a href="{% url 'contabilidad:f29_subir' %}" class="list-group-item list-group-item-action">Subir nuevo F29</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-success"><i class="fas fa-book-open me-2"></i>Libro diario</h5>
+                    <p class="text-muted small">Comprobantes generados desde F29, remuneraciones u otros orígenes.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'contabilidad:libro_diario' %}" class="list-group-item list-group-item-action">Ver libro diario</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-warning"><i class="fas fa-sitemap me-2"></i>Configuración contable</h5>
+                    <p class="text-muted small">Plan de cuentas y plantillas reutilizables para todas las empresas del estudio.</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="list-group-item list-group-item-action">Plan de cuentas</a>
+                        <a href="{% url 'contabilidad:plantilla_lista' %}" class="list-group-item list-group-item-action">Plantillas de centralización</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@
 
 {% block content %}
 <div class="container mt-4">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-file-invoice-dollar text-primary"></i> Historial de Declaraciones F29</h2>
         <a href="{% url 'contabilidad:f29_subir' %}" class="btn btn-primary btn-lg shadow-sm">
@@ -36,7 +37,10 @@
                             <td>
                                 {% if f29.asientos_generados.all %}
                                     {% for asiento in f29.asientos_generados.all %}
-                                        <a href="{% url 'contabilidad:asiento_detalle' asiento.id %}" class="badge bg-success text-decoration-none mb-1 shadow-sm"><i class="fas fa-book"></i> Asiento #{{ asiento.id }}</a><br>
+                                        <a href="{% url 'contabilidad:asiento_detalle' asiento.id %}" class="badge bg-success text-decoration-none mb-1 shadow-sm" title="{{ asiento.glosa }}">
+                                            <i class="fas fa-book"></i> #{{ asiento.id }}
+                                            {% if asiento.origen_plantilla %}— {{ asiento.origen_plantilla.nombre }}{% endif %}
+                                        </a><br>
                                     {% endfor %}
                                 {% else %}
                                     <span class="badge bg-secondary fw-normal">Sin centralizar</span>

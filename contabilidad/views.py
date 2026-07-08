@@ -2,6 +2,8 @@ import os
 import re
 import calendar
 from django.core import signing
+from django.db import transaction
+from django.db.models import Prefetch
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import FileSystemStorage
@@ -11,6 +13,7 @@ from django.urls import reverse
 from django.http import FileResponse, Http404
 
 from .extractor import extraer_datos_f29
+from .centralizacion import calcular_asiento_desde_plantilla
 from .models import CodigoF29, DeclaracionF29, CuentaContable, PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento
 from .forms import CuentaContableForm
 from core.models import Empresa
@@ -53,7 +56,12 @@ def f29_lista_view(request):
         messages.warning(request, "Por favor, selecciona una empresa para ver sus declaraciones.")
         return redirect('core:home')
     
-    declaraciones = DeclaracionF29.objects.filter(empresa_id=empresa_id).order_by('-ano', '-mes').prefetch_related('asientos_generados')
+    declaraciones = DeclaracionF29.objects.filter(empresa_id=empresa_id).order_by('-ano', '-mes').prefetch_related(
+        Prefetch(
+            'asientos_generados',
+            queryset=AsientoContable.objects.select_related('origen_plantilla').order_by('id'),
+        )
+    )
     return render(request, 'contabilidad/f29_lista.html', {'declaraciones': declaraciones})
 
 @login_required
@@ -188,8 +196,12 @@ def f29_detalle_view(request, pk):
         f29 = get_object_or_404(DeclaracionF29, pk=pk)
     else:
         f29 = get_object_or_404(DeclaracionF29, pk=pk, empresa_id=request.user.perfil.empresa_id)
-        
-    return render(request, 'contabilidad/f29_detalle.html', {'f29': f29})
+
+    asientos_f29 = f29.asientos_generados.select_related('origen_plantilla').order_by('id')
+    return render(request, 'contabilidad/f29_detalle.html', {
+        'f29': f29,
+        'asientos_f29': asientos_f29,
+    })
 
 @login_required
 def f29_eliminar_view(request, pk):
@@ -279,103 +291,155 @@ def f29_editar_view(request, pk):
     ]
     return render(request, 'contabilidad/f29_editar.html', {'f29': f29, 'codigos_lista': codigos_lista})
 
+
+def _plantillas_ya_aplicadas(f29):
+    return set(
+        AsientoContable.objects.filter(origen_f29=f29, origen_plantilla__isnull=False)
+        .values_list('origen_plantilla_id', flat=True)
+    )
+
+
+def _guardar_asiento_f29(f29, plantilla, fecha, glosa, calculo):
+    asiento = AsientoContable.objects.create(
+        empresa=f29.empresa,
+        fecha=fecha,
+        glosa=glosa,
+        origen_f29=f29,
+        origen_plantilla=plantilla,
+    )
+    for lc in calculo['lineas_calculadas']:
+        cuenta = CuentaContable.objects.get(empresa=f29.empresa, codigo=lc['cuenta_codigo'])
+        LineaAsiento.objects.create(
+            asiento=asiento,
+            cuenta=cuenta,
+            debe=lc['debe'],
+            haber=lc['haber'],
+        )
+    return asiento
+
+
 @login_required
 def f29_centralizar_view(request, pk):
-    """Motor Matemático: Transforma un F29 en un Asiento Contable usando una Plantilla."""
+    """Genera uno o más asientos desde plantillas seleccionadas (compras, ventas, pago, etc.)."""
     empresa_id = request.session.get('empresa_activa_id')
     if not empresa_id:
         return redirect('core:home')
-        
+
     f29 = get_object_or_404(DeclaracionF29, pk=pk, empresa_id=empresa_id)
     plantillas = PlantillaCentralizacion.objects.filter(empresa_id=empresa_id, tipo_origen='f29')
-    
-    # Fecha por defecto: Último día del mes del F29
+    plantillas_aplicadas = _plantillas_ya_aplicadas(f29)
+    asientos_existentes = f29.asientos_generados.select_related('origen_plantilla').order_by('id')
+
     ultimo_dia = calendar.monthrange(f29.ano, f29.mes)[1]
     fecha_sugerida = f"{f29.ano}-{f29.mes:02d}-{ultimo_dia:02d}"
-    glosa_sugerida = f"Centralización Impuestos F29 - Período {f29.mes:02d}/{f29.ano}"
-    
-    context = {'f29': f29, 'plantillas': plantillas, 'fecha_sugerida': fecha_sugerida, 'glosa_sugerida': glosa_sugerida}
+    glosa_sugerida = f"F29 período {f29.mes:02d}/{f29.ano}"
+
+    context = {
+        'f29': f29,
+        'plantillas': plantillas,
+        'plantillas_aplicadas': plantillas_aplicadas,
+        'asientos_existentes': asientos_existentes,
+        'fecha_sugerida': fecha_sugerida,
+        'glosa_sugerida': glosa_sugerida,
+    }
 
     if request.method == 'POST':
-        plantilla_id = request.POST.get('plantilla_id')
+        plantilla_ids = [int(x) for x in request.POST.getlist('plantilla_ids') if x.isdigit()]
         fecha = request.POST.get('fecha')
-        glosa = request.POST.get('glosa')
+        glosa_base = request.POST.get('glosa', glosa_sugerida)
         confirmado = request.POST.get('confirmado') == 'true'
-        
-        # Mantenemos los datos en el formulario para que no se borren al previsualizar
-        context['plantilla_id_sel'] = int(plantilla_id) if plantilla_id else None
+
         context['fecha_sel'] = fecha
-        context['glosa_sel'] = glosa
-        
-        plantilla = get_object_or_404(PlantillaCentralizacion, id=plantilla_id)
-        f29_datos = f29.datos_extraidos
-        resultados_cuentas = {} # Memoria temporal para variables locales [CTA:X]
-        
-        total_debe = 0
-        total_haber = 0
-        lineas_calculadas = []
-        
+        context['glosa_sel'] = glosa_base
+        context['plantilla_ids_sel'] = plantilla_ids
+
+        if not plantilla_ids:
+            messages.error(request, 'Selecciona al menos una plantilla de centralización.')
+            return render(request, 'contabilidad/f29_centralizar.html', context)
+
         try:
-            for linea in plantilla.lineas.all():
-                formula = linea.formula
-                
-                # 1. Reemplazar Códigos F29 ([520])
-                codigos_f29 = re.findall(r'\[(\d+)\]', formula)
-                for cod in codigos_f29:
-                    valor = f29_datos.get(cod, 0) or 0
-                    formula = formula.replace(f'[{cod}]', str(valor))
-                    
-                # 2. Reemplazar Cuentas Locales calculadas previamente ([CTA:1.1.05])
-                codigos_cta = re.findall(r'\[CTA:([0-9\.]+)\]', formula)
-                for cod in codigos_cta:
-                    valor = resultados_cuentas.get(cod, 0)
-                    formula = formula.replace(f'[CTA:{cod}]', str(valor))
-                    
-                # 3. Evaluación Matemática Segura
-                # eval() con __builtins__: None impide la inyección de código malicioso
-                resultado_linea = round(eval(formula, {"__builtins__": None}, {}))
-                resultados_cuentas[linea.cuenta.codigo] = resultado_linea
-                
-                debe = resultado_linea if linea.tipo_movimiento == 'debe' else 0
-                haber = resultado_linea if linea.tipo_movimiento == 'haber' else 0
-                
-                total_debe += debe
-                total_haber += haber
-                
-                lineas_calculadas.append({
-                    'cuenta_codigo': linea.cuenta.codigo,
-                    'cuenta_nombre': linea.cuenta.nombre,
-                    'debe': debe,
-                    'haber': haber
-                })
-                
-            # REGLA DE ORO: Validar Cuadratura
-            if total_debe != total_haber:
-                raise ValueError(f"Descuadre detectado. Debe: ${total_debe:,} | Haber: ${total_haber:,}. Revisa las fórmulas de tu plantilla.")
-                
+            asientos_preview = []
+            omitidas_sin_monto = []
+
+            for plantilla_id in plantilla_ids:
+                plantilla = get_object_or_404(PlantillaCentralizacion, id=plantilla_id, empresa_id=empresa_id)
+                if plantilla.id in plantillas_aplicadas:
+                    raise ValueError(
+                        f'La plantilla «{plantilla.nombre}» ya fue centralizada para este F29. '
+                        'Desmarca las ya aplicadas o elige otras.'
+                    )
+
+                calculo = calcular_asiento_desde_plantilla(plantilla, f29.datos_extraidos)
+                if calculo is None:
+                    omitidas_sin_monto.append(plantilla.nombre)
+                    continue
+
+                glosa_asiento = f"{plantilla.nombre} — {glosa_base}"
+                calculo['glosa'] = glosa_asiento
+                asientos_preview.append(calculo)
+
+            if not asientos_preview:
+                if omitidas_sin_monto:
+                    messages.warning(
+                        request,
+                        'Ninguna plantilla seleccionada generó montos: '
+                        + ', '.join(omitidas_sin_monto)
+                        + '. Revisa los códigos del F29 o las fórmulas.',
+                    )
+                return render(request, 'contabilidad/f29_centralizar.html', context)
+
             if confirmado:
-                # Todo OK: Usuario vio el Pop-up y aceptó. Guardar Asiento.
-                asiento = AsientoContable.objects.create(empresa=f29.empresa, fecha=fecha, glosa=glosa, origen_f29=f29)
-                for lc in lineas_calculadas:
-                    cuenta = CuentaContable.objects.get(empresa=f29.empresa, codigo=lc['cuenta_codigo'])
-                    LineaAsiento.objects.create(asiento=asiento, cuenta=cuenta, debe=lc['debe'], haber=lc['haber'])
-                    
-                messages.success(request, f"¡Centralización Exitosa! Se ha generado el comprobante #{asiento.id} por ${total_debe:,}")
-                return redirect('contabilidad:libro_diario') # Redirigimos al Libro Diario para ver la creación
-            else:
-                # Mostrar Pop-up de Vista Previa
-                context['mostrar_modal'] = True
-                context['lineas_calculadas'] = lineas_calculadas
-                context['total_debe'] = total_debe
-                context['total_haber'] = total_haber
-                context['plantilla_nombre'] = plantilla.nombre
-            
+                creados = []
+                with transaction.atomic():
+                    for preview in asientos_preview:
+                        asiento = _guardar_asiento_f29(
+                            f29,
+                            preview['plantilla'],
+                            fecha,
+                            preview['glosa'],
+                            preview,
+                        )
+                        creados.append(asiento)
+
+                ids = ', '.join(f'#{a.id}' for a in creados)
+                msg = f'Se generaron {len(creados)} asiento(s): {ids}.'
+                if omitidas_sin_monto:
+                    msg += f' Omitidas sin monto: {", ".join(omitidas_sin_monto)}.'
+                messages.success(request, msg)
+                return redirect('contabilidad:f29_detalle', pk=f29.pk)
+
+            context['mostrar_modal'] = True
+            context['asientos_preview'] = asientos_preview
+            context['omitidas_sin_monto'] = omitidas_sin_monto
+
         except ZeroDivisionError:
-            messages.error(request, "Error Matemático: Intento de división por cero. Revisa si algún código del F29 está vacío e intenta dividir.")
+            messages.error(request, 'Error matemático: división por cero en alguna fórmula. Revisa los códigos del F29.')
         except Exception as e:
-            messages.error(request, f"Fallo en la Centralización: {str(e)}")
-            
+            messages.error(request, f'Fallo en la centralización: {str(e)}')
+
     return render(request, 'contabilidad/f29_centralizar.html', context)
+
+
+@login_required
+def contabilidad_hub_view(request):
+    """Centro de navegación del módulo Contabilidad."""
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        messages.warning(request, 'Selecciona una empresa para acceder a Contabilidad.')
+        return redirect('core:home')
+
+    f29_count = DeclaracionF29.objects.filter(empresa=empresa_actual).count()
+    asientos_count = AsientoContable.objects.filter(empresa=empresa_actual).count()
+    cuentas_count = CuentaContable.objects.filter(empresa=empresa_actual).count()
+    plantillas_count = PlantillaCentralizacion.objects.filter(empresa=empresa_actual).count()
+
+    return render(request, 'contabilidad/hub.html', {
+        'empresa': empresa_actual,
+        'f29_count': f29_count,
+        'asientos_count': asientos_count,
+        'cuentas_count': cuentas_count,
+        'plantillas_count': plantillas_count,
+    })
 
 
 # =====================================================================
@@ -701,7 +765,9 @@ def libro_diario_view(request):
         messages.warning(request, "Selecciona una empresa para ver su Libro Diario.")
         return redirect('core:home')
         
-    asientos = AsientoContable.objects.filter(empresa_id=empresa_id).prefetch_related('lineas')
+    asientos = AsientoContable.objects.filter(empresa_id=empresa_id).select_related(
+        'origen_f29', 'origen_plantilla'
+    ).prefetch_related('lineas')
     return render(request, 'contabilidad/libro_diario/lista.html', {'asientos': asientos})
 
 @login_required

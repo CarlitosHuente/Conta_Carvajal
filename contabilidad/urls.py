@@ -4,6 +4,7 @@ from . import views
 app_name = 'contabilidad'
 
 urlpatterns = [
+    path('', views.contabilidad_hub_view, name='hub'),
     path('f29/', views.f29_lista_view, name='f29_lista'),
     path('f29/subir/', views.f29_subir_view, name='f29_subir'),
     path('f29/pdf-temporal/<str:token>/', views.f29_pdf_temporal_view, name='f29_pdf_temporal'),
