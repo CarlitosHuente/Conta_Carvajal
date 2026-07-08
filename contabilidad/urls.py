@@ -18,6 +18,9 @@ urlpatterns = [
     path('plan-cuentas/', views.plan_cuentas_lista_view, name='plan_cuentas_lista'),
     path('plan-cuentas/crear/', views.plan_cuentas_crear_view, name='plan_cuentas_crear'),
     path('plan-cuentas/cargar-base/', views.plan_cuentas_cargar_base_view, name='plan_cuentas_cargar_base'),
+    path('plan-cuentas/vaciar/', views.plan_cuentas_vaciar_view, name='plan_cuentas_vaciar'),
+    path('plan-cuentas/<int:pk>/editar/', views.plan_cuentas_editar_view, name='plan_cuentas_editar'),
+    path('plan-cuentas/<int:pk>/eliminar/', views.plan_cuentas_eliminar_view, name='plan_cuentas_eliminar'),
 
     # --- PLANTILLAS DE CENTRALIZACIÓN ---
     path('plantillas/', views.plantilla_lista_view, name='plantilla_lista'),

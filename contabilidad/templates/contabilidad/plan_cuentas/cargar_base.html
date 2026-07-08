@@ -5,7 +5,7 @@
     <div class="card shadow-sm border-0" style="border-radius: 1rem;">
         <div class="card-header bg-warning text-dark py-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
             <h3 class="mb-0 fw-bold"><i class="fas fa-cloud-download-alt me-2"></i> Cargar Plan de Cuentas Predefinido</h3>
-            <p class="mb-0 mt-2">Selecciona las cuentas del estándar contable chileno que deseas importar a <strong>{{ empresa_actual.razon_social }}</strong>.</p>
+            <p class="mb-0 mt-2">Formato <strong>X.XX.XX</strong> — selecciona las cuentas estándar para importar a <strong>{{ empresa_actual.razon_social }}</strong>.</p>
         </div>
         
         <div class="card-body p-4 bg-light">
@@ -16,11 +16,11 @@
                 {% endif %}
 
                 <div class="row">
-                    {% for tipo, lista_cuentas in cuentas_agrupadas.items %}
+                    {% for tipo_key, tipo_nombre, lista_cuentas in tipos_ordenados %}
                     <div class="col-md-6 mb-4">
                         <div class="card h-100 border-0 shadow-sm">
                             <div class="card-header bg-white text-uppercase fw-bold text-primary border-bottom-0 pt-3">
-                                <i class="fas fa-folder-open me-2"></i> {{ tipo|title }}
+                                <i class="fas fa-folder-open me-2"></i> {{ tipo_nombre }}
                             </div>
                             <ul class="list-group list-group-flush">
                                 {% for cuenta in lista_cuentas %}

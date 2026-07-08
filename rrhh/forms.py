@@ -356,8 +356,8 @@ class TerminarContratoForm(forms.Form):
 class CentralizacionRRHHForm(forms.Form):
     mes = forms.IntegerField(min_value=1, max_value=12, label='Mes', widget=forms.NumberInput(attrs={'class': 'form-control'}))
     ano = forms.IntegerField(min_value=2020, label='Año', widget=forms.NumberInput(attrs={'class': 'form-control'}))
-    cuenta_gasto = forms.CharField(max_length=20, initial='4.1.01.01', label='Cuenta gasto remuneraciones', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_sueldos = forms.CharField(max_length=20, initial='2.1.01.01', label='Cuenta sueldos por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_cotizaciones = forms.CharField(max_length=20, initial='2.1.02.01', label='Cuenta cotizaciones por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_sis = forms.CharField(max_length=20, initial='2.1.02.02', label='Cuenta SIS por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_afc = forms.CharField(max_length=20, initial='2.1.02.03', label='Cuenta AFC empleador por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_gasto = forms.CharField(max_length=20, initial='4.02.01', label='Cuenta gasto remuneraciones', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_sueldos = forms.CharField(max_length=20, initial='2.02.01', label='Cuenta sueldos por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_cotizaciones = forms.CharField(max_length=20, initial='2.02.02', label='Cuenta cotizaciones por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_sis = forms.CharField(max_length=20, initial='2.02.03', label='Cuenta SIS por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    cuenta_afc = forms.CharField(max_length=20, initial='2.02.04', label='Cuenta AFC empleador por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))

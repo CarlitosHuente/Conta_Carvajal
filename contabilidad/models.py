@@ -138,7 +138,7 @@ class CuentaContable(models.Model):
         ('ganancia', 'Resultado Ganancia'),
     )
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='cuentas_contables')
-    codigo = models.CharField(max_length=20, verbose_name="Código de Cuenta", help_text="Ej: 1.1.01.01")
+    codigo = models.CharField(max_length=20, verbose_name="Código de Cuenta", help_text="Ej: 1.01.05")
     nombre = models.CharField(max_length=150, verbose_name="Nombre de la Cuenta", help_text="Ej: IVA Crédito Fiscal")
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
 
@@ -150,6 +150,9 @@ class CuentaContable(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+    def tiene_movimientos(self):
+        return self.lineaasiento_set.exists()
 
 class PlantillaCentralizacion(models.Model):
     TIPO_ORIGEN_CHOICES = (

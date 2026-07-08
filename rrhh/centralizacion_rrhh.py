@@ -10,11 +10,11 @@ from .models import Liquidacion
 
 
 CUENTAS_SUGERIDAS = {
-    'gasto_remuneraciones': ('4.1.01.01', 'Gasto Remuneraciones'),
-    'sueldos_por_pagar': ('2.1.01.01', 'Sueldos por Pagar'),
-    'cotizaciones_por_pagar': ('2.1.02.01', 'Cotizaciones por Pagar'),
-    'sis_por_pagar': ('2.1.02.02', 'SIS por Pagar'),
-    'afc_empleador_por_pagar': ('2.1.02.03', 'AFC Empleador por Pagar'),
+    'gasto_remuneraciones': ('4.02.01', 'Remuneraciones'),
+    'sueldos_por_pagar': ('2.02.01', 'Remuneraciones por Pagar'),
+    'cotizaciones_por_pagar': ('2.02.02', 'Cotizaciones Previsionales por Pagar'),
+    'sis_por_pagar': ('2.02.03', 'SIS por Pagar'),
+    'afc_empleador_por_pagar': ('2.02.04', 'AFC Empleador por Pagar'),
 }
 
 

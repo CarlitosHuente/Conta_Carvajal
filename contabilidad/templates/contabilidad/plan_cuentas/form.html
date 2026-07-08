@@ -6,13 +6,23 @@
         <div class="col-md-8 col-lg-6">
             <div class="card shadow border-0" style="border-radius: 1rem;">
                 <div class="card-header bg-primary text-white text-center py-3" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
-                    <h4 class="mb-0 fw-bold"><i class="fas fa-plus-circle me-2"></i> Crear Cuenta Contable</h4>
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-{% if cuenta %}edit{% else %}plus-circle{% endif %} me-2"></i> {{ titulo }}
+                    </h4>
                 </div>
-                
+
                 <div class="card-body p-4 bg-light">
                     <div class="alert alert-primary bg-white border-primary mb-4 text-center shadow-sm">
-                        <i class="fas fa-building text-primary me-2"></i> Agregando cuenta a: <strong>{{ empresa_activa.razon_social }}</strong>
+                        <i class="fas fa-building text-primary me-2"></i>
+                        Empresa: <strong>{{ empresa_activa.razon_social }}</strong>
                     </div>
+
+                    {% if bloquear_estructura %}
+                    <div class="alert alert-warning border-0 shadow-sm small">
+                        <i class="fas fa-lock me-1"></i>
+                        Esta cuenta tiene movimientos en el libro diario. Solo puedes modificar el <strong>nombre</strong>.
+                    </div>
+                    {% endif %}
 
                     <form method="POST">
                         {% csrf_token %}
@@ -31,7 +41,9 @@
                         {% endfor %}
 
                         <div class="d-grid mt-5">
-                            <button type="submit" class="btn btn-success btn-lg fw-bold"><i class="fas fa-save me-2"></i> Guardar Cuenta</button>
+                            <button type="submit" class="btn btn-success btn-lg fw-bold">
+                                <i class="fas fa-save me-2"></i> Guardar Cuenta
+                            </button>
                             <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary mt-3">Cancelar y Volver</a>
                         </div>
                     </form>

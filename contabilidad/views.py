@@ -15,7 +15,7 @@ from .models import CodigoF29, DeclaracionF29, CuentaContable, PlantillaCentrali
 from .forms import CuentaContableForm
 from core.models import Empresa
 from core.permissions import require_access
-from .plan_base import PLAN_CUENTAS_BASE
+from .plan_base import PLAN_CUENTAS_BASE, TIPO_NOMBRES, ORDEN_TIPOS
 
 
 def _ruta_pdf_temporal_segura(filename):
@@ -264,7 +264,20 @@ def f29_editar_view(request, pk):
         messages.success(request, 'Formulario 29 actualizado exitosamente.')
         return redirect('contabilidad:f29_lista')
 
-    return render(request, 'contabilidad/f29_editar.html', {'f29': f29})
+    codigos_encontrados = list(f29.datos_extraidos.keys())
+    codigos_db = {
+        c.codigo: c.descripcion
+        for c in CodigoF29.objects.filter(codigo__in=codigos_encontrados)
+    }
+    codigos_lista = [
+        {
+            'codigo': codigo,
+            'valor': valor,
+            'descripcion': codigos_db.get(str(codigo), f'Código {codigo} (Sin nombre)'),
+        }
+        for codigo, valor in f29.datos_extraidos.items()
+    ]
+    return render(request, 'contabilidad/f29_editar.html', {'f29': f29, 'codigos_lista': codigos_lista})
 
 @login_required
 def f29_centralizar_view(request, pk):
@@ -369,28 +382,39 @@ def f29_centralizar_view(request, pk):
 # VISTAS DE PLAN DE CUENTAS
 # =====================================================================
 
+def _get_empresa_plan(request):
+    empresa_id = request.session.get('empresa_activa_id')
+    if not empresa_id:
+        return None
+    return get_object_or_404(Empresa, id=empresa_id)
+
+
 @login_required
 def plan_cuentas_lista_view(request):
     """Muestra el plan de cuentas de la empresa seleccionada."""
-    empresa_id = request.session.get('empresa_activa_id')
-    if not empresa_id:
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
         messages.warning(request, "Por favor, selecciona una empresa para ver su Plan de Cuentas.")
         return redirect('core:home')
 
-    empresa_actual = get_object_or_404(Empresa, id=empresa_id)
     cuentas = CuentaContable.objects.filter(empresa=empresa_actual)
+    tiene_movimientos = AsientoContable.objects.filter(empresa=empresa_actual).exists()
+    puede_vaciar_plan = cuentas.exists() and not tiene_movimientos
 
-    return render(request, 'contabilidad/plan_cuentas/lista.html', {'cuentas': cuentas})
+    return render(request, 'contabilidad/plan_cuentas/lista.html', {
+        'cuentas': cuentas,
+        'tiene_movimientos': tiene_movimientos,
+        'puede_vaciar_plan': puede_vaciar_plan,
+    })
+
 
 @login_required
 def plan_cuentas_crear_view(request):
     """Crea una nueva cuenta contable para una empresa específica."""
-    empresa_id = request.session.get('empresa_activa_id')
-    if not empresa_id:
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
         messages.warning(request, "Por favor, selecciona una empresa para agregarle una cuenta.")
         return redirect('core:home')
-    
-    empresa_actual = get_object_or_404(Empresa, id=empresa_id)
 
     if request.method == 'POST':
         form = CuentaContableForm(request.POST)
@@ -403,54 +427,139 @@ def plan_cuentas_crear_view(request):
     else:
         form = CuentaContableForm()
 
-    return render(request, 'contabilidad/plan_cuentas/form.html', {'form': form})
+    return render(request, 'contabilidad/plan_cuentas/form.html', {
+        'form': form,
+        'titulo': 'Crear Cuenta Contable',
+        'cuenta': None,
+    })
+
+
+@login_required
+def plan_cuentas_editar_view(request, pk):
+    """Edita código, nombre y tipo de una cuenta contable."""
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        messages.warning(request, "Por favor, selecciona una empresa.")
+        return redirect('core:home')
+
+    cuenta = get_object_or_404(CuentaContable, pk=pk, empresa=empresa_actual)
+    bloquear = cuenta.tiene_movimientos()
+
+    if request.method == 'POST':
+        form = CuentaContableForm(request.POST, instance=cuenta, bloquear_estructura=bloquear)
+        if form.is_valid():
+            cuenta_editada = form.save(commit=False)
+            if bloquear:
+                cuenta_editada.codigo = cuenta.codigo
+                cuenta_editada.tipo = cuenta.tipo
+            cuenta_editada.save()
+            messages.success(request, f'Cuenta {cuenta_editada.codigo} actualizada correctamente.')
+            return redirect('contabilidad:plan_cuentas_lista')
+    else:
+        form = CuentaContableForm(instance=cuenta, bloquear_estructura=bloquear)
+
+    return render(request, 'contabilidad/plan_cuentas/form.html', {
+        'form': form,
+        'titulo': 'Editar Cuenta Contable',
+        'cuenta': cuenta,
+        'bloquear_estructura': bloquear,
+    })
+
+
+@login_required
+def plan_cuentas_eliminar_view(request, pk):
+    """Elimina una cuenta si no tiene movimientos en el libro diario."""
+    if request.method != 'POST':
+        return redirect('contabilidad:plan_cuentas_lista')
+
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    cuenta = get_object_or_404(CuentaContable, pk=pk, empresa=empresa_actual)
+    if cuenta.tiene_movimientos():
+        messages.error(
+            request,
+            f'No se puede eliminar {cuenta.codigo}: tiene movimientos en el libro diario.',
+        )
+        return redirect('contabilidad:plan_cuentas_lista')
+
+    codigo = cuenta.codigo
+    cuenta.delete()
+    messages.success(request, f'Cuenta {codigo} eliminada correctamente.')
+    return redirect('contabilidad:plan_cuentas_lista')
+
+
+@login_required
+def plan_cuentas_vaciar_view(request):
+    """Elimina todo el plan de cuentas de la empresa si no hay asientos contables."""
+    if request.method != 'POST':
+        return redirect('contabilidad:plan_cuentas_lista')
+
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
+        return redirect('core:home')
+
+    if AsientoContable.objects.filter(empresa=empresa_actual).exists():
+        messages.error(
+            request,
+            'No se puede vaciar el plan: la empresa ya tiene asientos en el libro diario.',
+        )
+        return redirect('contabilidad:plan_cuentas_lista')
+
+    total = CuentaContable.objects.filter(empresa=empresa_actual).count()
+    CuentaContable.objects.filter(empresa=empresa_actual).delete()
+    messages.success(request, f'Se eliminaron {total} cuentas del plan. Puedes cargar el plan base nuevamente.')
+    return redirect('contabilidad:plan_cuentas_lista')
+
 
 @login_required
 def plan_cuentas_cargar_base_view(request):
     """Muestra una lista de cuentas predeterminadas y permite crearlas en bloque."""
-    empresa_id = request.session.get('empresa_activa_id')
-    if not empresa_id:
+    empresa_actual = _get_empresa_plan(request)
+    if not empresa_actual:
         messages.warning(request, "Por favor, selecciona una empresa para cargarle un plan de cuentas.")
         return redirect('core:home')
 
-    empresa_actual = get_object_or_404(Empresa, id=empresa_id)
-
-    if not empresa_actual:
-        messages.error(request, "Debe seleccionar una empresa primero.")
-        return redirect('contabilidad:plan_cuentas_lista')
-
-    # Cuentas que la empresa ya tiene registradas (para no sugerir duplicados)
-    codigos_existentes = list(CuentaContable.objects.filter(empresa=empresa_actual).values_list('codigo', flat=True))
+    codigos_existentes = set(
+        CuentaContable.objects.filter(empresa=empresa_actual).values_list('codigo', flat=True)
+    )
 
     if request.method == 'POST':
-        codigos_seleccionados = request.POST.getlist('cuentas_seleccionadas')
+        codigos_seleccionados = set(request.POST.getlist('cuentas_seleccionadas'))
         cuentas_creadas = 0
-        
+
         for cuenta_base in PLAN_CUENTAS_BASE:
             if cuenta_base['codigo'] in codigos_seleccionados and cuenta_base['codigo'] not in codigos_existentes:
                 CuentaContable.objects.create(
                     empresa=empresa_actual,
                     codigo=cuenta_base['codigo'],
                     nombre=cuenta_base['nombre'],
-                    tipo=cuenta_base['tipo']
+                    tipo=cuenta_base['tipo'],
                 )
                 cuentas_creadas += 1
-                
+
         messages.success(request, f'Se han importado {cuentas_creadas} cuentas correctamente al plan de la empresa.')
         return redirect('contabilidad:plan_cuentas_lista')
 
-    # Preparamos las cuentas agrupadas para la vista HTML
     cuentas_agrupadas = {}
-    for cuenta in PLAN_CUENTAS_BASE:
-        tipo = cuenta['tipo']
+    for cuenta_base in PLAN_CUENTAS_BASE:
+        tipo = cuenta_base['tipo']
         if tipo not in cuentas_agrupadas:
             cuentas_agrupadas[tipo] = []
-        # Le añadimos un flag si ya existe
+        cuenta = cuenta_base.copy()
         cuenta['ya_existe'] = cuenta['codigo'] in codigos_existentes
         cuentas_agrupadas[tipo].append(cuenta)
 
+    tipos_ordenados = [
+        (tipo, TIPO_NOMBRES.get(tipo, tipo.title()), cuentas_agrupadas[tipo])
+        for tipo in ORDEN_TIPOS
+        if tipo in cuentas_agrupadas
+    ]
+
     return render(request, 'contabilidad/plan_cuentas/cargar_base.html', {
-        'cuentas_agrupadas': cuentas_agrupadas
+        'empresa_actual': empresa_actual,
+        'tipos_ordenados': tipos_ordenados,
     })
 
 # =====================================================================

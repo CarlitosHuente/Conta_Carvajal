@@ -6,7 +6,13 @@ class CuentaContableForm(forms.ModelForm):
         model = CuentaContable
         fields = ['codigo', 'nombre', 'tipo']
         widgets = {
-            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 1.1.01.01'}),
+            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 1.01.05'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: IVA Crédito Fiscal'}),
             'tipo': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, bloquear_estructura=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if bloquear_estructura:
+            self.fields['codigo'].disabled = True
+            self.fields['tipo'].disabled = True
