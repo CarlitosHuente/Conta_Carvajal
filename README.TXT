@@ -73,4 +73,6 @@ python manage.py runserver
 En produccion se usa:
 cd /home/contaca3/repositories/erp_sistema
 
+Todas Migraciones
+/home/contaca3/virtualenv/repositories/erp_sistema/3.12/bin/python manage.py migrate --noinput
 

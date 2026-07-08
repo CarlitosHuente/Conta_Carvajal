@@ -89,11 +89,9 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 * **Estrategia de Centralización:** Se aconseja y permite la aplicación de múltiples plantillas separadas (Compras, Ventas, etc.) a un mismo F29 para mantener la granularidad y limpieza del Libro Diario, en lugar de "Mega Asientos".
 * **Auditoría de Prevención:** Se agregó en el Historial de F29 y en el motor de centralización un sistema de alertas que detecta e informa si un F29 ya posee Asientos Contables vinculados, evitando la duplicación de partidas.
 
-### Fecha: [Fase de Planificación]
-**Resumen:** Refactorización de Navegación (Enfoque "Contexto de Empresa")
-* **Problema:** La navegación actual es "Módulo -> Todas las Empresas". Esto es desordenado y poco escalable para un Administrador.
-* **Solución Propuesta:** Invertir la navegación a "Empresa -> Módulos". 
-* **Mecanismo:** Implementar un "Contexto de Empresa" usando `request.session`. El Admin selecciona una empresa en el Home, el sistema la guarda en sesión, y redirige a un "Dashboard de Empresa" con accesos rápidos. El cliente entra directo a su Dashboard. El Menú Lateral (`base.html`) y las vistas se adaptarán dinámicamente a la empresa en sesión.
+### Fecha: [Fase de Planificación — implementado]
+**Resumen:** Refactorización de Navegación (Enfoque "Contexto de Empresa") — **completado**
+* **Solución:** Navegación "Empresa → Módulos" con `empresa_activa_id` en sesión, dashboard por empresa, menús modales RR.HH./Contabilidad y filtro de datos operativos por empresa activa.
 
 ---
 
@@ -111,30 +109,12 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 
 ---
 
-## Próximos Pasos (Pendientes para la siguiente sesión)
-1. **Exportación a PDF del Comprobante Contable:** Implementar la vista imprimible del Asiento en el Libro Diario.
-2. **Módulo de Libro Mayor:** Vista interactiva para auditar cuentas contables.
-3. **Centralización Masiva:** Ejecutar plantillas sobre múltiples F29 en bloque.
-4. **Libro de Caja:** Reporte de flujo (Ingresos vs Egresos).
+### Fecha: 30 de Abril de 2026 (Definición de Negocio RR.HH — emisión masiva)
+**Resumen:** Emisión masiva y regularización para clientes migrados.
 
----
-
-### Fecha: 30 de Abril de 2026 (Definición de Negocio RR.HH)
-**Resumen:** Emisión Masiva de Liquidaciones para Clientes Migrados desde otros Estudios Contables
-
-* **Contexto de Negocio:** Al captar clientes de la competencia, frecuentemente existen trabajadores activos sin historial formal de liquidaciones emitidas en sistema. Se requiere un flujo de regularización rápida y segura para emitir liquidaciones en bloque.
-* **Objetivo Principal:** Permitir al contador generar liquidaciones masivas de forma práctica, guiada y con mínima fricción operativa, priorizando velocidad de carga para casos estándar.
-* **Criterio Funcional:** Si falta información crítica para el cálculo, el sistema debe detectarlo y solicitarla de forma asistida (paso a paso), en lugar de bloquear con errores técnicos.
-* **Modo Asistido (Wizard/Prompt):** Flujo interactivo por período (ej: Enero 2026) que pregunte solo variables faltantes por trabajador o por lote (días trabajados, bono especial, etc.), permitiendo responder rápido (Sí/No, monto, Enter para continuar).
-* **Estrategia Operativa:** 
-  * Caso estándar: emisión masiva directa con valores por defecto/plantilla.
-  * Caso no estándar: activación de asistente para completar datos faltantes y continuar el proceso sin salir del flujo.
-* **Validaciones Obligatorias Previas a Emisión:**
-  * Contrato vigente por trabajador.
-  * Indicadores económicos del período disponibles.
-  * Datos mínimos completos para cálculo (o captura asistida antes de continuar).
-* **Salida Esperada:** Generación completa de liquidaciones del período para todos los trabajadores seleccionados, con trazabilidad de qué datos fueron inferidos, heredados o ingresados manualmente.
-* **Meta UX:** "Menos clics, más productividad contable": foco en teclado, preguntas contextuales y confirmación final antes de emitir en bloque.
+* **Contexto:** Clientes captados sin historial de liquidaciones en sistema.
+* **Implementado (Julio 2026):** Procesamiento masivo por mes, autocompletar novedades mínimas, pestaña **Regularización** con rango de hasta 24 meses, **Ver período** sin recalcular, historial de liquidaciones en ficha del trabajador.
+* **Pendiente (wizard avanzado):** Flujo interactivo paso a paso por trabajador/período con trazabilidad explícita de datos inferidos vs. manuales (ver Roadmap).
 
 ---
 
@@ -169,7 +149,7 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
   * RR.HH: `trabajadores` (ver), `liquidaciones` (crear/ver), `novedades` (editar).
   * Contabilidad: `f29` (ver/crear).
 * **Backoffice de Administración:** Permisos visibles y administrables desde Django Admin (`core/admin.py`).
-* **Próximo Paso Técnico:** Agregar permisos en menú (`base.html`) para ocultar opciones no autorizadas y completar cobertura en el resto de vistas críticas.
+* **Estado:** Fase 1 operativa; ampliar cobertura `require_access` y planes comerciales → ver Roadmap.
 
 ### Fecha: 3 de Mayo de 2026
 **Resumen:** Estabilidad en producción (HostingChile), contratos, motor de liquidaciones y datos de liquidación para comprobantes.
@@ -197,3 +177,76 @@ El ERP está diseñado de manera modular para escalar sin "código espagueti". L
 
 #### 5. Control de versiones
 * Cambios subidos a repositorio remoto `main` en GitHub (`Conta_Carvajal`); en producción: `git pull` + `migrate` + reinicio de aplicación (p. ej. `tmp/restart.txt`).
+
+### Fecha: 7 de Julio de 2026
+**Resumen:** RR.HH. operativo ampliado — motor, UX, contabilidad y despliegue.
+
+#### 1. Contexto y menú
+* Filtro de trabajadores/contratos/novedades por **empresa activa** (no mezclar empresas).
+* **Centro RR.HH.** (`/rrhh/`): flujo mensual, personal, exportación y centralización.
+* Parámetros nacionales (indicadores, AFP, cobranza maestro) en selector de empresas / navbar sin contexto empresa.
+
+#### 2. Motor de liquidaciones
+* **Horas extras** 50% y 100% según jornada del contrato.
+* **Asignación familiar** por cargas activas y tramos del indicador.
+* **Préstamos:** descuento automático de cuota mensual.
+* **Cotizaciones empleador** (SIS + AFC) en snapshot y libro.
+* Comprobante: parámetros económicos (UF, UTM, sueldo mínimo); sin “fecha de pago” en PDF.
+
+#### 3. Gestión de personal
+* Editar ficha, activar/desactivar trabajador, terminar contrato + **finiquito** básico.
+* Cargas familiares, préstamos, vacaciones (saldo + movimientos).
+* Licencias: tipo y folio en novedades.
+* **Historial de liquidaciones** en ficha del trabajador (últimas 3 / ver todas).
+
+#### 4. Cierre mensual y contabilidad
+* **Export Previred** (CSV por período).
+* **Centralizar remuneraciones** → asiento en libro diario (selector de mes/año).
+* Emisión: un filtro mes/año + **Ver período** / **Procesar mes**; regularización en pestaña aparte.
+
+#### 5. Migraciones
+* `rrhh` 0008–0009, `contabilidad` 0005 (solo aditivas; no borran datos de trabajadores).
+
+---
+
+## Roadmap — Pendiente / Futuro
+
+### Contabilidad
+1. **PDF del comprobante contable** (asiento en Libro Diario, imprimible).
+2. **Libro Mayor** interactivo por cuenta.
+3. **Centralización masiva** de F29 (varios períodos en bloque).
+4. **Libro de Caja** (flujo ingresos vs. egresos).
+5. **RCV / Contabilidad completa** (captura Registro Compras y Ventas; hoy solo simplificada vía F29).
+
+### RR.HH.
+6. **Asistencia vía AppSheet:** captura de marcaciones/asistencia en campo o móvil; sincronización o importación al ERP para alimentar novedades (días trabajados, ausencias, horas). *Integración por definir: API, CSV programado o webhook.*
+7. **Wizard asistido de emisión masiva** (preguntas por trabajador, trazabilidad inferido vs. manual).
+8. **Simulación de liquidación** sin persistir (vista previa antes de emitir).
+9. **Export Previred formato LRE** (archivo compatible con carga directa; hoy CSV de respaldo).
+10. **PDF nativo** de liquidación (generación servidor; hoy HTML imprimible).
+11. **Portal del trabajador** (ver sus liquidaciones; enlace cliente hoy es placeholder).
+12. **Envío de liquidaciones por correo** (masivo al cerrar mes).
+13. **Archivo de transferencias bancarias** para pago de sueldos.
+14. **Jornada parcial** aplicada al cálculo proporcional en motor.
+15. **Tests automatizados** del motor de remuneraciones.
+
+### Seguridad, planes y producto
+16. **RBAC completo:** `require_access` en todas las vistas críticas; menú 100% alineado a permisos.
+17. **Planes comerciales** por empresa (módulos/submódulos según contrato).
+18. **Correo corporativo** por dominio del cliente.
+19. **Módulos a medida** bajo demanda.
+
+### Baja prioridad (fase 2 — no iniciado)
+* APV, mutual/CCAF, reliquidaciones, aguinaldos.
+* Auditoría detallada de subsidios en licencias médicas.
+* Duplicación centralización RR.HH. con plantillas configurables (hoy asiento fijo con cuentas editables).
+
+---
+
+## Próximos Pasos (referencia rápida — ver Roadmap arriba)
+
+Prioridad sugerida para la siguiente iteración:
+1. AppSheet → novedades/asistencia.
+2. PDF comprobante contable + Libro Mayor.
+3. RBAC y portal trabajador.
+4. Export Previred LRE y simulación de liquidación.

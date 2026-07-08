@@ -6,6 +6,7 @@ app_name = 'contabilidad'
 urlpatterns = [
     path('f29/', views.f29_lista_view, name='f29_lista'),
     path('f29/subir/', views.f29_subir_view, name='f29_subir'),
+    path('f29/pdf-temporal/<str:token>/', views.f29_pdf_temporal_view, name='f29_pdf_temporal'),
     path('f29/guardar/', views.f29_guardar_view, name='f29_guardar'),
     path('f29/<int:pk>/', views.f29_detalle_view, name='f29_detalle'),
     path('f29/<int:pk>/eliminar/', views.f29_eliminar_view, name='f29_eliminar'),

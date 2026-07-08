@@ -1,12 +1,14 @@
 import os
 import re
 import calendar
+from django.core import signing
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import FileSystemStorage
 from django.contrib import messages
 from django.conf import settings
 from django.urls import reverse
+from django.http import FileResponse, Http404
 
 from .extractor import extraer_datos_f29
 from .models import CodigoF29, DeclaracionF29, CuentaContable, PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento
@@ -14,6 +16,33 @@ from .forms import CuentaContableForm
 from core.models import Empresa
 from core.permissions import require_access
 from .plan_base import PLAN_CUENTAS_BASE
+
+
+def _ruta_pdf_temporal_segura(filename):
+    """Resuelve la ruta del PDF temporal validando que quede dentro de media/tmp."""
+    tmp_dir = os.path.realpath(os.path.join(settings.MEDIA_ROOT, 'tmp'))
+    ruta = os.path.realpath(os.path.join(tmp_dir, os.path.basename(filename)))
+    if not ruta.startswith(tmp_dir + os.sep):
+        raise Http404('Ruta no permitida')
+    if not os.path.isfile(ruta):
+        raise Http404('Archivo no encontrado')
+    return ruta
+
+
+@login_required
+@require_access('contabilidad', 'f29', 'crear')
+def f29_pdf_temporal_view(request, token):
+    """Sirve el PDF temporal durante la revisión (producción no expone /media/ con DEBUG=False)."""
+    try:
+        data = signing.loads(token, max_age=3600)
+        filename = data['f']
+    except signing.BadSignature:
+        raise Http404('Enlace de vista previa inválido o expirado')
+    return FileResponse(
+        open(_ruta_pdf_temporal_segura(filename), 'rb'),
+        content_type='application/pdf',
+    )
+
 
 @login_required
 @require_access('contabilidad', 'f29', 'ver')
@@ -44,7 +73,8 @@ def f29_subir_view(request):
         fs = FileSystemStorage(location=tmp_dir)
         filename = fs.save(archivo.name, archivo)
         ruta_absoluta = fs.path(filename)
-        url_pdf = f"{settings.MEDIA_URL}tmp/{filename}"
+        token_pdf = signing.dumps({'f': filename})
+        url_pdf = reverse('contabilidad:f29_pdf_temporal', kwargs={'token': token_pdf})
         
         # 2. Extraer datos del PDF
         datos_extraidos, texto_completo = extraer_datos_f29(ruta_absoluta)
