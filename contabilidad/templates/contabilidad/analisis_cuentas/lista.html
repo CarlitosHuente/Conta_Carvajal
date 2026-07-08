@@ -6,8 +6,8 @@
     {% include 'contabilidad/_nav_contabilidad.html' %}
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
-            <h2 class="text-primary mb-0"><i class="fas fa-book"></i> Libro Mayor</h2>
-            <p class="text-muted mb-0">Saldos acumulados al <strong>{{ corte.fecha_corte|date:"d/m/Y" }}</strong></p>
+            <h2 class="text-primary mb-0"><i class="fas fa-chart-bar"></i> Análisis de cuentas</h2>
+            <p class="text-muted mb-0">Saldos acumulados al <strong>{{ corte.fecha_corte|date:"d/m/Y" }}</strong> — selecciona una cuenta para ver el libro mayor.</p>
         </div>
         <form method="GET" class="d-flex gap-2 align-items-end">
             <div>
@@ -29,28 +29,24 @@
                             <th>Cuenta</th>
                             <th class="text-end">Debe acum.</th>
                             <th class="text-end">Haber acum.</th>
-                            <th class="text-end">Saldo</th>
-                            <th class="text-center pe-4">Detalle</th>
+                            <th class="text-end pe-4">Saldo</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for fila in cuentas %}
-                        <tr>
+                        <tr style="cursor:pointer" onclick="window.location='{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}'">
                             <td class="ps-4 font-monospace fw-bold text-primary">{{ fila.cuenta.codigo }}</td>
                             <td>
-                                {{ fila.cuenta.nombre }}
+                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="text-decoration-none fw-bold" onclick="event.stopPropagation()">
+                                    {{ fila.cuenta.nombre }}
+                                </a>
                                 {% if fila.puede_saldar %}
-                                <span class="badge bg-success ms-1"><i class="fas fa-bolt"></i> Acción rápida</span>
+                                <span class="badge bg-success ms-1"><i class="fas fa-bolt"></i></span>
                                 {% endif %}
                             </td>
                             <td class="text-end">${{ fila.debe|intcomma }}</td>
                             <td class="text-end">${{ fila.haber|intcomma }}</td>
-                            <td class="text-end fw-bold {% if fila.saldo < 0 %}text-danger{% else %}text-success{% endif %}">${{ fila.saldo|intcomma }}</td>
-                            <td class="text-center pe-4">
-                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-search"></i> Mayor
-                                </a>
-                            </td>
+                            <td class="text-end pe-4 fw-bold {% if fila.saldo < 0 %}text-danger{% else %}text-success{% endif %}">${{ fila.saldo|intcomma }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

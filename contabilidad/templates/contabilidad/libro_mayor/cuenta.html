@@ -14,7 +14,7 @@
                 <input type="date" name="fecha_corte" class="form-control form-control-sm" value="{{ corte.fecha_corte|date:'Y-m-d' }}">
                 <button type="submit" class="btn btn-primary btn-sm">Ver</button>
             </form>
-            <a href="{% url 'contabilidad:libro_mayor' %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">Volver</a>
+            <a href="{% url 'contabilidad:analisis_cuentas' %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">Volver al análisis</a>
         </div>
     </div>
 

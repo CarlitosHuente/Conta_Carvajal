@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views, views_libros
 
 app_name = 'contabilidad'
@@ -37,8 +38,10 @@ urlpatterns = [
     path('libro-diario/nuevo/', views_libros.asiento_crear_view, name='asiento_crear'),
     path('libro-diario/asiento/<int:pk>/', views.asiento_detalle_view, name='asiento_detalle'),
 
-    # --- LIBRO MAYOR Y BALANCE ---
-    path('libro-mayor/', views_libros.libro_mayor_view, name='libro_mayor'),
+    # --- ANÁLISIS, MAYOR Y BALANCE TRIBUTARIO ---
+    path('analisis-cuentas/', views_libros.analisis_cuentas_view, name='analisis_cuentas'),
+    path('libro-mayor/', RedirectView.as_view(pattern_name='contabilidad:analisis_cuentas', permanent=False), name='libro_mayor'),
     path('libro-mayor/cuenta/<int:pk>/', views_libros.libro_mayor_cuenta_view, name='libro_mayor_cuenta'),
-    path('balance/', views_libros.balance_view, name='balance'),
+    path('balance-tributario/', views_libros.balance_tributario_view, name='balance_tributario'),
+    path('balance/', RedirectView.as_view(pattern_name='contabilidad:balance_tributario', permanent=False), name='balance'),
 ]

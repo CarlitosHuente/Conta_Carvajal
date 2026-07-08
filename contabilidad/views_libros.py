@@ -47,16 +47,16 @@ def _acciones_json(cuenta):
 
 
 @login_required
-def libro_mayor_view(request):
+def analisis_cuentas_view(request):
     empresa = _get_empresa_plan(request)
     if not empresa:
-        messages.warning(request, 'Selecciona una empresa para ver el Libro Mayor.')
+        messages.warning(request, 'Selecciona una empresa para ver el análisis de cuentas.')
         return redirect('core:home')
 
     corte = _fecha_corte_desde_request(request)
     cuentas = resumen_cuentas_empresa(empresa, corte['fecha_corte'])
 
-    return render(request, 'contabilidad/libro_mayor/lista.html', {
+    return render(request, 'contabilidad/analisis_cuentas/lista.html', {
         'cuentas': cuentas,
         'corte': corte,
     })
@@ -140,10 +140,10 @@ def libro_mayor_cuenta_view(request, pk):
 
 
 @login_required
-def balance_view(request):
+def balance_tributario_view(request):
     empresa = _get_empresa_plan(request)
     if not empresa:
-        messages.warning(request, 'Selecciona una empresa para ver el Balance.')
+        messages.warning(request, 'Selecciona una empresa para ver el Balance Tributario.')
         return redirect('core:home')
 
     corte = _fecha_corte_desde_request(request)
