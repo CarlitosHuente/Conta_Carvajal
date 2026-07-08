@@ -7,52 +7,114 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Emisión Masiva de Liquidaciones</h1>
 
-    <!-- Selector de Período y Botón de Acción -->
+    <!-- Emisión: pestañas mensual / regularización -->
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">1. Seleccionar Período a Procesar</h6>
+        <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h6 class="m-0 font-weight-bold text-primary">1. Emisión de liquidaciones</h6>
+            <ul class="nav nav-pills card-header-pills small" id="tabs-emision" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-mensual-btn" data-bs-toggle="tab" data-bs-target="#tab-mensual" type="button" role="tab" aria-controls="tab-mensual" aria-selected="true">
+                        <i class="fas fa-calendar-day me-1"></i> Mes habitual
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-regularizacion-btn" data-bs-toggle="tab" data-bs-target="#tab-regularizacion" type="button" role="tab" aria-controls="tab-regularizacion" aria-selected="false">
+                        <i class="fas fa-layer-group me-1"></i> Regularización
+                    </button>
+                </li>
+            </ul>
         </div>
         <div class="card-body">
-            <div class="row align-items-end g-3">
-                <div class="col-md-3">
-                    <label for="periodo-mes" class="form-label">Mes:</label>
-                    <select id="periodo-mes" class="form-select">
-                        {% for mes in meses_opciones %}
-                            <option value="{{ mes }}" {% if mes == mes_seleccionado %}selected{% endif %}>{{ mes }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="periodo-ano" class="form-label">Año:</label>
-                    <select id="periodo-ano" class="form-select">
-                        {% for ano in anos_opciones %}
-                            <option value="{{ ano }}" {% if ano == ano_seleccionado %}selected{% endif %}>{{ ano }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <div class="d-flex flex-wrap gap-2">
-                        <button type="button" class="btn btn-outline-primary flex-grow-1" id="btn-ver-periodo">
-                            <i class="fas fa-search me-1"></i> Ver período
-                        </button>
-                        <button type="button" class="btn btn-success flex-grow-1" id="btn-procesar-mes">
-                            <i class="fas fa-cogs me-1"></i> Procesar mes
-                        </button>
+            <div class="tab-content" id="tabs-emision-content">
+                <!-- Pestaña: proceso mensual -->
+                <div class="tab-pane fade show active" id="tab-mensual" role="tabpanel" aria-labelledby="tab-mensual-btn">
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-3">
+                            <label for="periodo-mes" class="form-label">Mes:</label>
+                            <select id="periodo-mes" class="form-select">
+                                {% for mes in meses_opciones %}
+                                    <option value="{{ mes }}" {% if mes == mes_seleccionado %}selected{% endif %}>{{ mes }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="periodo-ano" class="form-label">Año:</label>
+                            <select id="periodo-ano" class="form-select">
+                                {% for ano in anos_opciones %}
+                                    <option value="{{ ano }}" {% if ano == ano_seleccionado %}selected{% endif %}>{{ ano }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-outline-primary flex-grow-1" id="btn-ver-periodo">
+                                    <i class="fas fa-search me-1"></i> Ver período
+                                </button>
+                                <button type="button" class="btn btn-success flex-grow-1" id="btn-procesar-mes">
+                                    <i class="fas fa-cogs me-1"></i> Procesar mes
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
+                    <form method="post" id="form-procesar-mes" class="d-none">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="procesar">
+                        <input type="hidden" name="mes" id="post-mes">
+                        <input type="hidden" name="ano" id="post-ano">
+                    </form>
+
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="fas fa-info-circle"></i> <strong>Ver período</strong> solo consulta lo ya emitido.
+                        <strong>Procesar mes</strong> calcula para todos los trabajadores vigentes (reemplaza si existía).
+                    </p>
+                </div>
+
+                <!-- Pestaña: regularización varios meses -->
+                <div class="tab-pane fade" id="tab-regularizacion" role="tabpanel" aria-labelledby="tab-regularizacion-btn">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Solo para clientes nuevos o atraso histórico. Procesa varios meses seguidos (máx. 24).
+                    </div>
+                    <form method="post" class="row g-3 align-items-end">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="procesar_rango">
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label">Desde</label>
+                            <div class="input-group">
+                                <select name="mes_desde" class="form-select">
+                                    {% for m in meses_opciones %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                                </select>
+                                <select name="ano_desde" class="form-select">
+                                    {% for a in anos_opciones %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label">Hasta</label>
+                            <div class="input-group">
+                                <select name="mes_hasta" class="form-select">
+                                    {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                                </select>
+                                <select name="ano_hasta" class="form-select">
+                                    {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="autocompletar_rango" id="autocompletar_rango" checked>
+                                <label class="form-check-label" for="autocompletar_rango">
+                                    Autocompletar novedades mínimas en cada mes
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-info" onclick="return confirm('¿Procesar todo el rango de meses seleccionado?');">
+                                <i class="fas fa-layer-group me-1"></i> Procesar rango de meses
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-            <form method="post" id="form-procesar-mes" class="d-none">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="procesar">
-                <input type="hidden" name="mes" id="post-mes">
-                <input type="hidden" name="ano" id="post-ano">
-            </form>
-
-            <p class="text-muted small mt-3 mb-0">
-                <i class="fas fa-info-circle"></i> <strong>Ver período</strong> solo consulta lo ya emitido.
-                <strong>Procesar mes</strong> calcula para todos los trabajadores vigentes (reemplaza si existía).
-            </p>
         </div>
     </div>
 
@@ -64,74 +126,32 @@
             const btnProcesar = document.getElementById('btn-procesar-mes');
             const formPost = document.getElementById('form-procesar-mes');
 
-            if (!mesSel || !anoSel || !btnVer || !btnProcesar || !formPost) return;
+            if (mesSel && anoSel && btnVer && btnProcesar && formPost) {
+                btnVer.addEventListener('click', function () {
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('mes', mesSel.value);
+                    params.set('ano', anoSel.value);
+                    params.delete('tab');
+                    window.location.search = params.toString();
+                });
 
-            btnVer.addEventListener('click', function () {
-                const params = new URLSearchParams(window.location.search);
-                params.set('mes', mesSel.value);
-                params.set('ano', anoSel.value);
-                window.location.search = params.toString();
-            });
+                btnProcesar.addEventListener('click', function () {
+                    if (!confirm('¿Calcular o reemplazar las liquidaciones de este mes?')) return;
+                    document.getElementById('post-mes').value = mesSel.value;
+                    document.getElementById('post-ano').value = anoSel.value;
+                    formPost.submit();
+                });
+            }
 
-            btnProcesar.addEventListener('click', function () {
-                if (!confirm('¿Calcular o reemplazar las liquidaciones de este mes?')) return;
-                document.getElementById('post-mes').value = mesSel.value;
-                document.getElementById('post-ano').value = anoSel.value;
-                formPost.submit();
-            });
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('tab') === 'regularizacion') {
+                const tabBtn = document.getElementById('tab-regularizacion-btn');
+                if (tabBtn && typeof bootstrap !== 'undefined') {
+                    bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+                }
+            }
         })();
     </script>
-
-    <div class="card shadow mb-4 border-info">
-        <div class="card-header py-3 bg-info-subtle">
-            <h6 class="m-0 fw-bold text-info-emphasis">Regularización: procesar varios meses</h6>
-        </div>
-        <div class="card-body">
-            <p class="text-muted small">
-                Útil cuando incorporas un cliente sin historial en el sistema (ej. 5 meses de atraso).
-                Procesa mes a mes en un solo paso. Máximo 24 meses por operación.
-            </p>
-            <form method="post" class="row g-3 align-items-end">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="procesar_rango">
-                <div class="col-md-2">
-                    <label class="form-label">Desde mes</label>
-                    <select name="mes_desde" class="form-select">
-                        {% for m in meses_opciones %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Desde año</label>
-                    <select name="ano_desde" class="form-select">
-                        {% for a in anos_opciones %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Hasta mes</label>
-                    <select name="mes_hasta" class="form-select">
-                        {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>{{ m }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Hasta año</label>
-                    <select name="ano_hasta" class="form-select">
-                        {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="autocompletar_rango" id="autocompletar_rango" checked>
-                        <label class="form-check-label" for="autocompletar_rango">
-                            Autocompletar novedades mínimas en cada mes
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-info w-100" onclick="return confirm('¿Procesar todo el rango de meses seleccionado?');">
-                        <i class="fas fa-layer-group me-1"></i> Procesar rango de meses
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     {% if pendientes_novedades %}
     <div class="card border-warning shadow-sm mb-4">

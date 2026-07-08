@@ -181,7 +181,7 @@ def crear_liquidacion_view(request):
                 messages.error(request, f"Fallos en el rango: {'; '.join(todos_errores[:5])}")
 
             return redirect(
-                f"{reverse('rrhh:crear_liquidacion')}?mes={mes_hasta}&ano={ano_hasta}"
+                f"{reverse('rrhh:crear_liquidacion')}?mes={mes_hasta}&ano={ano_hasta}&tab=regularizacion"
             )
 
         mes = int(request.POST.get('mes'))
