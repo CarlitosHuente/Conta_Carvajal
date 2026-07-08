@@ -13,61 +13,74 @@
             <h6 class="m-0 font-weight-bold text-primary">1. Seleccionar Período a Procesar</h6>
         </div>
         <div class="card-body">
-            <form method="get" class="row align-items-end g-3 mb-3">
-                <div class="col-md-4">
-                    <label for="mes_ver" class="form-label">Mes:</label>
-                    <select name="mes" id="mes_ver" class="form-select">
+            <div class="row align-items-end g-3">
+                <div class="col-md-3">
+                    <label for="periodo-mes" class="form-label">Mes:</label>
+                    <select id="periodo-mes" class="form-select">
                         {% for mes in meses_opciones %}
                             <option value="{{ mes }}" {% if mes == mes_seleccionado %}selected{% endif %}>{{ mes }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="ano_ver" class="form-label">Año:</label>
-                    <select name="ano" id="ano_ver" class="form-select">
+                <div class="col-md-3">
+                    <label for="periodo-ano" class="form-label">Año:</label>
+                    <select id="periodo-ano" class="form-select">
                         {% for ano in anos_opciones %}
                             <option value="{{ ano }}" {% if ano == ano_seleccionado %}selected{% endif %}>{{ ano }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-outline-primary w-100">
-                        <i class="fas fa-search me-1"></i> Ver período
-                    </button>
+                <div class="col-md-6">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-primary flex-grow-1" id="btn-ver-periodo">
+                            <i class="fas fa-search me-1"></i> Ver período
+                        </button>
+                        <button type="button" class="btn btn-success flex-grow-1" id="btn-procesar-mes">
+                            <i class="fas fa-cogs me-1"></i> Procesar mes
+                        </button>
+                    </div>
                 </div>
-            </form>
+            </div>
 
-            <form method="post" class="row align-items-end g-3 border-top pt-3">
+            <form method="post" id="form-procesar-mes" class="d-none">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="procesar">
-                <div class="col-md-4">
-                    <label for="mes" class="form-label">Mes a procesar:</label>
-                    <select name="mes" id="mes" class="form-select">
-                        {% for mes in meses_opciones %}
-                            <option value="{{ mes }}" {% if mes == mes_seleccionado %}selected{% endif %}>{{ mes }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="ano" class="form-label">Año a procesar:</label>
-                    <select name="ano" id="ano" class="form-select">
-                        {% for ano in anos_opciones %}
-                            <option value="{{ ano }}" {% if ano == ano_seleccionado %}selected{% endif %}>{{ ano }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-lg btn-success w-100" onclick="return confirm('¿Calcular o reemplazar las liquidaciones de este mes?');">
-                        <i class="fas fa-cogs me-2"></i> Procesar mes
-                    </button>
-                </div>
+                <input type="hidden" name="mes" id="post-mes">
+                <input type="hidden" name="ano" id="post-ano">
             </form>
-            <p class="text-muted small mt-2">
-                <i class="fas fa-info-circle"></i> Usa <strong>Ver período</strong> para revisar liquidaciones ya emitidas sin recalcular.
-                <strong>Procesar mes</strong> calcula para todos los trabajadores con contrato vigente (reemplaza si ya existía).
+
+            <p class="text-muted small mt-3 mb-0">
+                <i class="fas fa-info-circle"></i> <strong>Ver período</strong> solo consulta lo ya emitido.
+                <strong>Procesar mes</strong> calcula para todos los trabajadores vigentes (reemplaza si existía).
             </p>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const mesSel = document.getElementById('periodo-mes');
+            const anoSel = document.getElementById('periodo-ano');
+            const btnVer = document.getElementById('btn-ver-periodo');
+            const btnProcesar = document.getElementById('btn-procesar-mes');
+            const formPost = document.getElementById('form-procesar-mes');
+
+            if (!mesSel || !anoSel || !btnVer || !btnProcesar || !formPost) return;
+
+            btnVer.addEventListener('click', function () {
+                const params = new URLSearchParams(window.location.search);
+                params.set('mes', mesSel.value);
+                params.set('ano', anoSel.value);
+                window.location.search = params.toString();
+            });
+
+            btnProcesar.addEventListener('click', function () {
+                if (!confirm('¿Calcular o reemplazar las liquidaciones de este mes?')) return;
+                document.getElementById('post-mes').value = mesSel.value;
+                document.getElementById('post-ano').value = anoSel.value;
+                formPost.submit();
+            });
+        })();
+    </script>
 
     <div class="card shadow mb-4 border-info">
         <div class="card-header py-3 bg-info-subtle">
