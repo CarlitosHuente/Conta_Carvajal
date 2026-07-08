@@ -14,11 +14,17 @@ from core.models import Empresa
 from core.permissions import ensure_empresa_operativa, require_access
 
 from .calculos_rrhh import saldo_vacaciones_trabajador
-from .centralizacion_rrhh import generar_asiento_remuneraciones, resumen_liquidaciones_periodo
+from .centralizacion_rrhh import (
+    generar_asiento_remuneraciones,
+    obtener_o_crear_configuracion,
+    resumen_liquidaciones_periodo,
+    vista_previa_asiento,
+)
 from .export_previred import generar_csv_previred
 from .forms import (
     CargaFamiliarForm,
     CentralizacionRRHHForm,
+    ConfiguracionCentralizacionRRHHForm,
     MovimientoVacacionesForm,
     PrestamoForm,
     TerminarContratoForm,
@@ -315,6 +321,32 @@ def export_previred_view(request):
 
 @login_required
 @require_access('rrhh', 'liquidaciones', 'exportar')
+def configurar_centralizacion_rrhh_view(request):
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    empresa = get_object_or_404(Empresa, id=empresa_id)
+    config = obtener_o_crear_configuracion(empresa)
+
+    if request.method == 'POST':
+        form = ConfiguracionCentralizacionRRHHForm(request.POST, instance=config, empresa=empresa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cuentas de centralización de remuneraciones guardadas.')
+            next_url = request.POST.get('next') or reverse('rrhh:centralizar_remuneraciones')
+            return redirect(next_url)
+    else:
+        form = ConfiguracionCentralizacionRRHHForm(instance=config, empresa=empresa)
+
+    return render(request, 'rrhh/config_centralizacion_rrhh.html', {
+        'form': form,
+        'config': config,
+    })
+
+
+@login_required
+@require_access('rrhh', 'liquidaciones', 'exportar')
 def centralizar_remuneraciones_view(request):
     empresa_id, redirect_response = ensure_empresa_operativa(request)
     if redirect_response:
@@ -325,7 +357,9 @@ def centralizar_remuneraciones_view(request):
     mes = int(request.GET.get('mes', today.month))
     ano = int(request.GET.get('ano', today.year))
 
+    config = obtener_o_crear_configuracion(empresa)
     resumen = resumen_liquidaciones_periodo(empresa, mes, ano)
+    preview_lineas = vista_previa_asiento(resumen) if resumen['cantidad'] else []
     asiento_existente = AsientoContable.objects.filter(
         empresa=empresa, origen_rrhh_mes=mes, origen_rrhh_ano=ano,
     ).first()
@@ -333,16 +367,12 @@ def centralizar_remuneraciones_view(request):
     if request.method == 'POST':
         form = CentralizacionRRHHForm(request.POST)
         if form.is_valid():
-            cuentas_map = {
-                'gasto_remuneraciones': form.cleaned_data['cuenta_gasto'],
-                'sueldos_por_pagar': form.cleaned_data['cuenta_sueldos'],
-                'cotizaciones_por_pagar': form.cleaned_data['cuenta_cotizaciones'],
-                'sis_por_pagar': form.cleaned_data['cuenta_sis'],
-                'afc_empleador_por_pagar': form.cleaned_data['cuenta_afc'],
-            }
             try:
                 asiento, _ = generar_asiento_remuneraciones(
-                    empresa, form.cleaned_data['mes'], form.cleaned_data['ano'], cuentas_map,
+                    empresa,
+                    form.cleaned_data['mes'],
+                    form.cleaned_data['ano'],
+                    config=config,
                 )
                 messages.success(request, f'Asiento contable #{asiento.id} generado correctamente.')
                 return redirect('contabilidad:asiento_detalle', pk=asiento.pk)
@@ -353,7 +383,9 @@ def centralizar_remuneraciones_view(request):
 
     return render(request, 'rrhh/centralizar_remuneraciones.html', {
         'form': form,
+        'config': config,
         'resumen': resumen,
+        'preview_lineas': preview_lineas,
         'asiento_existente': asiento_existente,
         'mes_seleccionado': mes,
         'ano_seleccionado': ano,

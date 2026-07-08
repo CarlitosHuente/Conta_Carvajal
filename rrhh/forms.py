@@ -1,7 +1,8 @@
 # rrhh/forms.py
 
 from django import forms
-from .models import Trabajador, Contrato, IndicadorEconomico, NovedadMensual, ItemContrato, ConceptoVariable, TramoConcepto, CargaFamiliar, Prestamo, MovimientoVacaciones, Finiquito
+from contabilidad.models import CuentaContable
+from .models import Trabajador, Contrato, IndicadorEconomico, NovedadMensual, ItemContrato, ConceptoVariable, TramoConcepto, CargaFamiliar, Prestamo, MovimientoVacaciones, Finiquito, ConfiguracionCentralizacionRRHH
 from core.models import Empresa
 
 class EmpresaForm(forms.ModelForm):
@@ -353,11 +354,43 @@ class TerminarContratoForm(forms.Form):
     )
 
 
+class ConfiguracionCentralizacionRRHHForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionCentralizacionRRHH
+        fields = [
+            'cuenta_gasto', 'cuenta_sueldos_por_pagar', 'cuenta_cotizaciones_por_pagar',
+            'cuenta_sis_por_pagar', 'cuenta_afc_empleador_por_pagar',
+        ]
+        widgets = {
+            'cuenta_gasto': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_sueldos_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_cotizaciones_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_sis_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+            'cuenta_afc_empleador_por_pagar': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, empresa=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not empresa:
+            return
+        qs = CuentaContable.objects.filter(empresa=empresa).order_by('codigo')
+        self.fields['cuenta_gasto'].queryset = qs.filter(tipo='perdida')
+        pasivos = qs.filter(tipo='pasivo')
+        for name in (
+            'cuenta_sueldos_por_pagar', 'cuenta_cotizaciones_por_pagar',
+            'cuenta_sis_por_pagar', 'cuenta_afc_empleador_por_pagar',
+        ):
+            self.fields[name].queryset = pasivos
+        for field in self.fields.values():
+            field.label_from_instance = lambda cuenta: f'{cuenta.codigo} — {cuenta.nombre}'
+
+
 class CentralizacionRRHHForm(forms.Form):
-    mes = forms.IntegerField(min_value=1, max_value=12, label='Mes', widget=forms.NumberInput(attrs={'class': 'form-control'}))
-    ano = forms.IntegerField(min_value=2020, label='Año', widget=forms.NumberInput(attrs={'class': 'form-control'}))
-    cuenta_gasto = forms.CharField(max_length=20, initial='4.02.01', label='Cuenta gasto remuneraciones', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_sueldos = forms.CharField(max_length=20, initial='2.02.01', label='Cuenta sueldos por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_cotizaciones = forms.CharField(max_length=20, initial='2.02.02', label='Cuenta cotizaciones por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_sis = forms.CharField(max_length=20, initial='2.02.03', label='Cuenta SIS por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
-    cuenta_afc = forms.CharField(max_length=20, initial='2.02.04', label='Cuenta AFC empleador por pagar', widget=forms.TextInput(attrs={'class': 'form-control'}))
+    mes = forms.IntegerField(
+        min_value=1, max_value=12, label='Mes',
+        widget=forms.HiddenInput(),
+    )
+    ano = forms.IntegerField(
+        min_value=2020, label='Año',
+        widget=forms.HiddenInput(),
+    )

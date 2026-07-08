@@ -38,6 +38,7 @@ urlpatterns = [
     path('liquidacion/<int:pk>/pdf/', views.liquidacion_pdf_view, name='liquidacion_pdf'),
     path('libro-remuneraciones/', views.libro_remuneraciones_view, name='libro_remuneraciones'),
     path('export-previred/', views_operaciones.export_previred_view, name='export_previred'),
+    path('config-centralizacion-rrhh/', views_operaciones.configurar_centralizacion_rrhh_view, name='config_centralizacion_rrhh'),
     path('centralizar-remuneraciones/', views_operaciones.centralizar_remuneraciones_view, name='centralizar_remuneraciones'),
     path('finiquitos/', views_operaciones.finiquito_list_view, name='finiquito_list'),
     path('finiquito/<int:pk>/', views_operaciones.finiquito_detail_view, name='finiquito_detail'),

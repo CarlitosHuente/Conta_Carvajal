@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Cuentas centralización remuneraciones{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <h1 class="h3 mb-0">Cuentas para centralizar remuneraciones</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary btn-sm">Plan de cuentas</a>
+            <a href="{% url 'rrhh:centralizar_remuneraciones' %}" class="btn btn-outline-primary btn-sm">Centralizar</a>
+        </div>
+    </div>
+
+    <div class="alert alert-light border shadow-sm small">
+        Selecciona las cuentas del plan contable de la empresa. Esta configuración se guarda y se usa cada vez que centralices un período.
+        Si cargaste el plan base, las cuentas <strong>4.02.01</strong> y <strong>2.02.01–2.02.04</strong> ya vienen preasignadas.
+    </div>
+
+    <form method="post" class="card shadow-sm">
+        <div class="card-header">Asignación de cuentas</div>
+        <div class="card-body">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.GET.next }}">
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-md-6">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-primary mt-4">Guardar configuración</button>
+        </div>
+    </form>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">Cómo se usa en el asiento</div>
+        <div class="card-body small text-muted mb-0">
+            <ul class="mb-0">
+                <li><strong>Debe:</strong> Gasto remuneraciones = haberes + SIS empleador + AFC empleador</li>
+                <li><strong>Haber:</strong> SIS por pagar, AFC empleador por pagar, cotizaciones trabajador (AFP, salud, cesantía, IU, otros), sueldos por pagar (líquido)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

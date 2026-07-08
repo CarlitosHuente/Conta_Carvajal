@@ -409,3 +409,37 @@ class NovedadMensual(models.Model):
         elif self.tipo_licencia == 'NINGUNA':
             self.tipo_licencia = 'COMUN'
         super().save(*args, **kwargs)
+
+
+class ConfiguracionCentralizacionRRHH(models.Model):
+    """Cuentas del plan contable para centralizar remuneraciones (guardadas por empresa)."""
+    empresa = models.OneToOneField(
+        'core.Empresa', on_delete=models.CASCADE, related_name='config_centralizacion_rrhh',
+    )
+    cuenta_gasto = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='Gasto remuneraciones',
+    )
+    cuenta_sueldos_por_pagar = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='Sueldos por pagar',
+    )
+    cuenta_cotizaciones_por_pagar = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='Cotizaciones previsionales por pagar',
+    )
+    cuenta_sis_por_pagar = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='SIS empleador por pagar',
+    )
+    cuenta_afc_empleador_por_pagar = models.ForeignKey(
+        'contabilidad.CuentaContable', on_delete=models.PROTECT,
+        related_name='+', verbose_name='AFC empleador por pagar',
+    )
+
+    class Meta:
+        verbose_name = 'Configuración centralización RR.HH.'
+        verbose_name_plural = 'Configuraciones centralización RR.HH.'
+
+    def __str__(self):
+        return f'Centralización RR.HH. — {self.empresa.razon_social}'
