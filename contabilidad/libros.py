@@ -4,13 +4,27 @@ from django.db.models import Sum, Q
 from .models import CuentaContable, LineaAsiento
 
 
-def _filtro_fecha(desde, hasta):
-    q = Q()
-    if desde:
-        q &= Q(asiento__fecha__gte=desde)
-    if hasta:
-        q &= Q(asiento__fecha__lte=hasta)
-    return q
+def _filtro_hasta(fecha_corte):
+    if fecha_corte:
+        return Q(asiento__fecha__lte=fecha_corte)
+    return Q()
+
+
+def config_saldar_cuenta(cuenta):
+    """Devuelve tipo (pago/cobro), lado pendiente y acción rápida si aplica."""
+    subtipo = cuenta.subtipo_detectado()
+    if subtipo == 'proveedores':
+        return {'tipo': 'pago', 'lado_pendiente': 'haber', 'accion': None}
+    if subtipo == 'clientes':
+        return {'tipo': 'cobro', 'lado_pendiente': 'debe', 'accion': None}
+    accion = cuenta.acciones_rapidas.filter(activa=True).order_by('orden', 'id').first()
+    if accion:
+        return {
+            'tipo': accion.tipo,
+            'lado_pendiente': accion.lado_pendiente,
+            'accion': accion,
+        }
+    return None
 
 
 def saldo_cuenta_natural(cuenta, total_debe, total_haber):
@@ -20,9 +34,9 @@ def saldo_cuenta_natural(cuenta, total_debe, total_haber):
     return total_haber - total_debe
 
 
-def resumen_cuentas_empresa(empresa, fecha_desde=None, fecha_hasta=None):
-    cuentas = CuentaContable.objects.filter(empresa=empresa)
-    filtro = _filtro_fecha(fecha_desde, fecha_hasta)
+def resumen_cuentas_empresa(empresa, fecha_corte=None):
+    cuentas = CuentaContable.objects.filter(empresa=empresa).prefetch_related('acciones_rapidas')
+    filtro = _filtro_hasta(fecha_corte)
     resumen = []
 
     for cuenta in cuentas:
@@ -35,19 +49,24 @@ def resumen_cuentas_empresa(empresa, fecha_desde=None, fecha_hasta=None):
         if debe == 0 and haber == 0:
             continue
         saldo = saldo_cuenta_natural(cuenta, debe, haber)
+        config = config_saldar_cuenta(cuenta)
         resumen.append({
             'cuenta': cuenta,
             'debe': debe,
             'haber': haber,
             'saldo': saldo,
             'subtipo': cuenta.subtipo_detectado(),
+            'puede_saldar': bool(config),
         })
 
     return sorted(resumen, key=lambda x: x['cuenta'].codigo)
 
 
-def movimientos_cuenta(cuenta, fecha_desde=None, fecha_hasta=None):
-    filtro = _filtro_fecha(fecha_desde, fecha_hasta)
+def movimientos_cuenta(cuenta, fecha_corte=None):
+    filtro = _filtro_hasta(fecha_corte)
+    config = config_saldar_cuenta(cuenta)
+    lado_pendiente = config['lado_pendiente'] if config else None
+
     lineas = (
         LineaAsiento.objects.filter(cuenta=cuenta)
         .filter(filtro)
@@ -67,9 +86,9 @@ def movimientos_cuenta(cuenta, fecha_desde=None, fecha_hasta=None):
             saldo_acum += linea.haber - linea.debe
 
         lado_operacion = None
-        if cuenta.subtipo_detectado() == 'proveedores' and linea.haber > 0:
+        if lado_pendiente == 'haber' and linea.haber > 0:
             lado_operacion = 'cargo'
-        elif cuenta.subtipo_detectado() == 'clientes' and linea.debe > 0:
+        elif lado_pendiente == 'debe' and linea.debe > 0:
             lado_operacion = 'cargo'
 
         movimientos.append({
@@ -89,8 +108,8 @@ def movimientos_cuenta(cuenta, fecha_desde=None, fecha_hasta=None):
     return movimientos, saldo_acum
 
 
-def balance_ocho_columnas(empresa, fecha_desde=None, fecha_hasta=None):
-    filas = resumen_cuentas_empresa(empresa, fecha_desde, fecha_hasta)
+def balance_ocho_columnas(empresa, fecha_corte=None):
+    filas = resumen_cuentas_empresa(empresa, fecha_corte)
     resultado = []
     totales = {'debe': 0, 'haber': 0, 'saldo_deudor': 0, 'saldo_acreedor': 0}
 
@@ -115,3 +134,8 @@ def cuentas_medio_pago(empresa):
         | Q(codigo__startswith='1.01.01')
         | Q(codigo__startswith='1.01.02'),
     ).order_by('codigo')
+
+
+def cuentas_contrapartida_disponibles(empresa):
+    """Todas las cuentas que pueden usarse como medio de pago/cobro."""
+    return CuentaContable.objects.filter(empresa=empresa).order_by('codigo')

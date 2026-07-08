@@ -7,26 +7,28 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div>
             <h2 class="text-primary mb-0"><i class="fas fa-search-dollar"></i> Mayor: {{ cuenta.codigo }} — {{ cuenta.nombre }}</h2>
-            <p class="text-muted mb-0">Período {{ periodo.mes }}/{{ periodo.ano }} · Saldo final: <strong>${{ saldo_final|intcomma }}</strong></p>
+            <p class="text-muted mb-0">Acumulado al <strong>{{ corte.fecha_corte|date:"d/m/Y" }}</strong> · Saldo: <strong>${{ saldo_final|intcomma }}</strong></p>
         </div>
-        <a href="{% url 'contabilidad:libro_mayor' %}?mes={{ periodo.mes }}&ano={{ periodo.ano }}" class="btn btn-outline-secondary btn-sm">Volver al Mayor</a>
+        <div class="d-flex gap-2">
+            <form method="GET" class="d-flex gap-2 align-items-end">
+                <input type="date" name="fecha_corte" class="form-control form-control-sm" value="{{ corte.fecha_corte|date:'Y-m-d' }}">
+                <button type="submit" class="btn btn-primary btn-sm">Ver</button>
+            </form>
+            <a href="{% url 'contabilidad:libro_mayor' %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">Volver</a>
+        </div>
     </div>
 
     {% if puede_saldar %}
     <div class="alert alert-success border-0 shadow-sm">
         <i class="fas fa-bolt me-2"></i>
-        {% if es_proveedor %}
-        Selecciona documentos pendientes (Haber) y paga con <strong>Banco</strong> o <strong>Caja</strong> en un clic.
-        {% else %}
-        Selecciona documentos pendientes (Debe) y cobra con <strong>Banco</strong> o <strong>Caja</strong> en un clic.
-        {% endif %}
+        Selecciona movimientos pendientes y {% if es_pago %}paga{% else %}cobra{% endif %} repartiendo el monto entre una o más cuentas (Caja, Banco, etc.).
+        <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="alert-link ms-1">Configurar acciones rápidas</a>
     </div>
     {% endif %}
 
     <form method="POST" id="formSaldar">
         {% csrf_token %}
-        <input type="hidden" name="mes" value="{{ periodo.mes }}">
-        <input type="hidden" name="ano" value="{{ periodo.ano }}">
+        <input type="hidden" name="fecha_corte" value="{{ corte.fecha_corte|date:'Y-m-d' }}">
 
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body p-0">
@@ -71,7 +73,7 @@
                                 {% endif %}
                             </tr>
                             {% empty %}
-                            <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos en el período.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos hasta la fecha de corte.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -82,50 +84,155 @@
         {% if puede_saldar and cuentas_pago %}
         <div class="card border-success shadow-sm position-sticky bottom-0" style="z-index:100">
             <div class="card-body">
-                <div class="row g-3 align-items-end">
+                <div class="row g-3 mb-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-bold">Fecha del {% if es_proveedor %}pago{% else %}cobro{% endif %}</label>
-                        <input type="date" name="fecha_pago" class="form-control" value="{{ periodo.fecha_hasta|date:'Y-m-d' }}" required>
+                        <label class="form-label fw-bold">Fecha del {% if es_pago %}pago{% else %}cobro{% endif %}</label>
+                        <input type="date" name="fecha_pago" class="form-control" value="{{ corte.fecha_corte|date:'Y-m-d' }}" required>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">{% if es_proveedor %}Pagar con{% else %}Cobrar en{% endif %}</label>
-                        <select name="cuenta_medio_id" class="form-select" required>
-                            {% for c in cuentas_pago %}
-                            <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold">Glosa (opcional)</label>
+                        <input type="text" name="glosa" class="form-control" placeholder="{% if es_pago %}Pago {{ cuenta.nombre }}{% else %}Cobro {{ cuenta.nombre }}{% endif %}">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">Glosa (opcional)</label>
-                        <input type="text" name="glosa" class="form-control" placeholder="{% if es_proveedor %}Pago proveedores{% else %}Cobro clientes{% endif %}">
+                        <label class="form-label fw-bold">Acción rápida</label>
+                        <select id="selAccion" class="form-select">
+                            <option value="">— Manual —</option>
+                        </select>
                     </div>
-                    <div class="col-md-2">
-                        <div class="small text-muted mb-1">Total seleccionado</div>
-                        <div class="fs-5 fw-bold text-success" id="totalSeleccionado">$0</div>
-                        <button type="submit" class="btn btn-success w-100 mt-2 fw-bold" id="btnSaldar" disabled>
-                            <i class="fas fa-check me-1"></i> {% if es_proveedor %}Pagar{% else %}Cobrar{% endif %}
+                </div>
+
+                <label class="form-label fw-bold">{% if es_pago %}Pagar con{% else %}Cobrar en{% endif %} (una o más cuentas)</label>
+                <div id="mediosContainer" class="mb-2"></div>
+                <button type="button" class="btn btn-sm btn-outline-success mb-3" id="btnAgregarMedio">
+                    <i class="fas fa-plus"></i> Agregar fila
+                </button>
+
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <div class="small text-muted">Total seleccionado</div>
+                        <div class="fs-5 fw-bold" id="totalSeleccionado">$0</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Total medios</div>
+                        <div class="fs-5 fw-bold text-primary" id="totalMedios">$0</div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-success w-100 fw-bold" id="btnSaldar" disabled>
+                            <i class="fas fa-check me-1"></i> {% if es_pago %}Pagar{% else %}Cobrar{% endif %}
                         </button>
                     </div>
                 </div>
+                <div id="msgCuadre" class="small text-danger mt-2 d-none">Los montos de las filas deben igualar el total seleccionado.</div>
             </div>
         </div>
         {% endif %}
     </form>
 </div>
+
+<select id="tplCuentas" class="d-none">
+    {% for c in cuentas_pago %}
+    <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
+    {% endfor %}
+</select>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function actualizarTotal() {
-    let total = 0;
+const acciones = {{ acciones_json|safe }};
+const sugeridas = {{ sugeridas_json|safe }};
+const tplCuentas = document.getElementById('tplCuentas').innerHTML;
+const fmt = n => '$' + new Intl.NumberFormat('es-CL').format(n);
+
+function totalSeleccionado() {
+    let t = 0;
     document.querySelectorAll('.chk-mov:checked').forEach(chk => {
-        total += parseInt(chk.dataset.monto || '0', 10);
+        t += parseInt(chk.dataset.monto || '0', 10);
     });
-    const fmt = new Intl.NumberFormat('es-CL');
-    document.getElementById('totalSeleccionado').textContent = '$' + fmt.format(total);
-    const btn = document.getElementById('btnSaldar');
-    if (btn) btn.disabled = total <= 0;
+    return t;
 }
-document.querySelectorAll('.chk-mov').forEach(chk => chk.addEventListener('change', actualizarTotal));
+
+function totalMedios() {
+    let t = 0;
+    document.querySelectorAll('.monto-medio').forEach(inp => {
+        t += parseInt(inp.value || '0', 10);
+    });
+    return t;
+}
+
+function actualizarTotales() {
+    const sel = totalSeleccionado();
+    const med = totalMedios();
+    document.getElementById('totalSeleccionado').textContent = fmt(sel);
+    document.getElementById('totalMedios').textContent = fmt(med);
+    const btn = document.getElementById('btnSaldar');
+    const msg = document.getElementById('msgCuadre');
+    const ok = sel > 0 && sel === med;
+    if (btn) btn.disabled = !ok;
+    if (msg) msg.classList.toggle('d-none', ok || sel === 0);
+}
+
+function crearFilaMedio(cuentaId = '', monto = 0) {
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 medio-row';
+    row.innerHTML = `
+        <div class="col-md-7">
+            <select name="cuenta_medio_id[]" class="form-select cuenta-medio" required>
+                <option value="">— Cuenta —</option>
+                ${tplCuentas}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="number" name="monto_medio[]" class="form-control text-end monto-medio" min="0" value="${monto}" placeholder="Monto">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger w-100 btn-quitar-medio"><i class="fas fa-times"></i></button>
+        </div>`;
+    if (cuentaId) row.querySelector('.cuenta-medio').value = cuentaId;
+    row.querySelector('.monto-medio').addEventListener('input', actualizarTotales);
+    row.querySelector('.btn-quitar-medio').addEventListener('click', () => {
+        if (document.querySelectorAll('.medio-row').length > 1) {
+            row.remove();
+            actualizarTotales();
+        }
+    });
+    document.getElementById('mediosContainer').appendChild(row);
+    actualizarTotales();
+}
+
+function cargarAccion(accion) {
+    document.getElementById('mediosContainer').innerHTML = '';
+    if (!accion || !accion.cuentas.length) {
+        crearFilaMedio();
+        return;
+    }
+    accion.cuentas.forEach(c => crearFilaMedio(c.id, 0));
+}
+
+const selAccion = document.getElementById('selAccion');
+if (selAccion) {
+    acciones.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.nombre;
+        selAccion.appendChild(opt);
+    });
+    selAccion.addEventListener('change', () => {
+        const id = parseInt(selAccion.value, 10);
+        const accion = acciones.find(a => a.id === id);
+        cargarAccion(accion);
+    });
+}
+
+document.getElementById('btnAgregarMedio')?.addEventListener('click', () => crearFilaMedio());
+document.querySelectorAll('.chk-mov').forEach(chk => chk.addEventListener('change', actualizarTotales));
+
+if (acciones.length) {
+    selAccion.value = acciones[0].id;
+    cargarAccion(acciones[0]);
+} else if (sugeridas.length) {
+    sugeridas.forEach(c => crearFilaMedio(c.id, 0));
+} else {
+    crearFilaMedio();
+}
 </script>
 {% endblock %}

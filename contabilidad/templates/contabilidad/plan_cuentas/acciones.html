@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="text-primary mb-0"><i class="fas fa-bolt"></i> Acciones rápidas</h2>
+            <p class="text-muted mb-0">
+                <span class="font-monospace fw-bold">{{ cuenta.codigo }}</span> — {{ cuenta.nombre }}
+            </p>
+            <p class="small text-muted mb-0">
+                Define cómo saldar esta cuenta desde el Libro Mayor (medios de pago/cobro predeterminados).
+            </p>
+        </div>
+        <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary btn-sm">Volver al plan</a>
+    </div>
+
+    {% if acciones %}
+    <div class="row g-3 mb-4">
+        {% for accion in acciones %}
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <strong><i class="fas fa-zap text-warning me-1"></i> {{ accion.nombre }}</strong>
+                    <span class="badge bg-secondary">{{ accion.get_tipo_display }}</span>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Pendientes en <strong>{{ accion.get_lado_pendiente_display }}</strong></p>
+                    <ul class="list-unstyled mb-3">
+                        {% for linea in accion.lineas_contrapartida.all %}
+                        <li><i class="fas fa-arrow-right text-success me-1"></i> {{ linea.cuenta.codigo }} — {{ linea.cuenta.nombre }}</li>
+                        {% endfor %}
+                    </ul>
+                    <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar esta acción?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="eliminar">
+                        <input type="hidden" name="accion_id" value="{{ accion.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0 border-start border-success border-4">
+        <div class="card-header bg-white fw-bold"><i class="fas fa-plus-circle text-success me-1"></i> Nueva acción rápida</div>
+        <div class="card-body">
+            <form method="POST" id="formAccion">
+                {% csrf_token %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Nombre</label>
+                        <input type="text" name="nombre" class="form-control" placeholder="Ej: Pago" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tipo</label>
+                        <select name="tipo" class="form-select">
+                            <option value="pago">Pago (saldar pasivo / haber pendiente)</option>
+                            <option value="cobro">Cobro (saldar activo / debe pendiente)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Movimientos pendientes en</label>
+                        <select name="lado_pendiente" class="form-select">
+                            <option value="haber">Haber (ej: proveedores, remuneraciones por pagar)</option>
+                            <option value="debe">Debe (ej: clientes)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label class="form-label fw-bold">Cuentas de contrapartida</label>
+                <p class="small text-muted">Al saldar desde el Mayor, estas cuentas aparecerán como filas sugeridas (Caja, Banco, etc.).</p>
+                <div id="contrapartidas">
+                    <div class="row g-2 mb-2 fila-contra">
+                        <div class="col">
+                            <select name="cuenta_contrapartida[]" class="form-select" required>
+                                <option value="">— Cuenta —</option>
+                                {% for c in todas_cuentas %}
+                                <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-outline-danger btn-quitar" disabled><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success mb-3" id="btnAgregarContra">
+                    <i class="fas fa-plus"></i> Agregar cuenta
+                </button>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i> Guardar acción</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-4 border-0 shadow-sm small">
+        <strong>Ejemplos:</strong>
+        <em>Remuneraciones por Pagar</em> → acción "Pago", pendientes en Haber, contrapartidas Caja + Banco.
+        <em>Impuestos por Pagar</em> → igual. En el Mayor seleccionas movimientos y repartes el monto entre varias filas.
+    </div>
+</div>
+
+<select id="tplCuentas" class="d-none">
+    <option value="">— Cuenta —</option>
+    {% for c in todas_cuentas %}
+    <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
+    {% endfor %}
+</select>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const tpl = document.getElementById('tplCuentas').innerHTML;
+
+function enlazarFila(row) {
+    const btn = row.querySelector('.btn-quitar');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            const filas = document.querySelectorAll('.fila-contra');
+            if (filas.length > 1) row.remove();
+        });
+    }
+}
+
+document.getElementById('btnAgregarContra').addEventListener('click', () => {
+    const div = document.createElement('div');
+    div.className = 'row g-2 mb-2 fila-contra';
+    div.innerHTML = `
+        <div class="col"><select name="cuenta_contrapartida[]" class="form-select" required>${tpl}</select></div>
+        <div class="col-auto"><button type="button" class="btn btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></div>`;
+    document.getElementById('contrapartidas').appendChild(div);
+    enlazarFila(div);
+});
+
+document.querySelectorAll('.fila-contra').forEach(enlazarFila);
+</script>
+{% endblock %}

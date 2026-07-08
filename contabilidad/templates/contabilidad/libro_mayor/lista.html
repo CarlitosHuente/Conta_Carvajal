@@ -7,18 +7,14 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
             <h2 class="text-primary mb-0"><i class="fas fa-book"></i> Libro Mayor</h2>
-            <p class="text-muted mb-0">Movimientos y saldos por cuenta — {{ periodo.mes }}/{{ periodo.ano }}</p>
+            <p class="text-muted mb-0">Saldos acumulados al <strong>{{ corte.fecha_corte|date:"d/m/Y" }}</strong></p>
         </div>
         <form method="GET" class="d-flex gap-2 align-items-end">
             <div>
-                <label class="form-label small mb-0">Mes</label>
-                <input type="number" name="mes" class="form-control form-control-sm" min="1" max="12" value="{{ periodo.mes }}">
+                <label class="form-label small mb-0">Fecha de corte</label>
+                <input type="date" name="fecha_corte" class="form-control form-control-sm" value="{{ corte.fecha_corte|date:'Y-m-d' }}">
             </div>
-            <div>
-                <label class="form-label small mb-0">Año</label>
-                <input type="number" name="ano" class="form-control form-control-sm" min="2000" max="2100" value="{{ periodo.ano }}">
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">Ver período</button>
+            <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
         </form>
     </div>
 
@@ -31,8 +27,8 @@
                         <tr>
                             <th class="ps-4">Código</th>
                             <th>Cuenta</th>
-                            <th class="text-end">Debe</th>
-                            <th class="text-end">Haber</th>
+                            <th class="text-end">Debe acum.</th>
+                            <th class="text-end">Haber acum.</th>
                             <th class="text-end">Saldo</th>
                             <th class="text-center pe-4">Detalle</th>
                         </tr>
@@ -43,15 +39,15 @@
                             <td class="ps-4 font-monospace fw-bold text-primary">{{ fila.cuenta.codigo }}</td>
                             <td>
                                 {{ fila.cuenta.nombre }}
-                                {% if fila.subtipo == 'proveedores' or fila.subtipo == 'clientes' %}
-                                <span class="badge bg-info text-dark ms-1">Cobro/Pago</span>
+                                {% if fila.puede_saldar %}
+                                <span class="badge bg-success ms-1"><i class="fas fa-bolt"></i> Acción rápida</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">${{ fila.debe|intcomma }}</td>
                             <td class="text-end">${{ fila.haber|intcomma }}</td>
                             <td class="text-end fw-bold {% if fila.saldo < 0 %}text-danger{% else %}text-success{% endif %}">${{ fila.saldo|intcomma }}</td>
                             <td class="text-center pe-4">
-                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?mes={{ periodo.mes }}&ano={{ periodo.ano }}" class="btn btn-sm btn-outline-primary">
+                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-search"></i> Mayor
                                 </a>
                             </td>
@@ -61,7 +57,7 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info m-4 text-center">Sin movimientos en este período.</div>
+            <div class="alert alert-info m-4 text-center">Sin movimientos hasta la fecha de corte.</div>
             {% endif %}
         </div>
     </div>

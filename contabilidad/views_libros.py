@@ -1,32 +1,50 @@
-import calendar
+import json
 from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.models import Empresa
 from .cobros_pagos import crear_asiento_manual, registrar_pago_o_cobro, SaldarMovimientosError
-from .libros import balance_ocho_columnas, cuentas_medio_pago, movimientos_cuenta, resumen_cuentas_empresa
-from .models import AsientoContable, CuentaContable, LineaAsiento
+from .libros import (
+    balance_ocho_columnas,
+    config_saldar_cuenta,
+    cuentas_contrapartida_disponibles,
+    cuentas_medio_pago,
+    movimientos_cuenta,
+    resumen_cuentas_empresa,
+)
+from .models import AccionRapidaCuenta, CuentaContable, LineaAsiento
 from .views import _get_empresa_plan
 
 
-def _periodo_desde_request(request):
+def _fecha_corte_desde_request(request):
     hoy = date.today()
-    mes = request.GET.get('mes') or request.POST.get('mes') or hoy.month
-    ano = request.GET.get('ano') or request.POST.get('ano') or hoy.year
+    raw = request.GET.get('fecha_corte') or request.POST.get('fecha_corte') or hoy.isoformat()
     try:
-        mes, ano = int(mes), int(ano)
-    except (TypeError, ValueError):
-        mes, ano = hoy.month, hoy.year
-    ultimo = calendar.monthrange(ano, mes)[1]
-    return {
-        'mes': mes,
-        'ano': ano,
-        'fecha_desde': date(ano, mes, 1),
-        'fecha_hasta': date(ano, mes, ultimo),
-    }
+        partes = str(raw).split('-')
+        fecha = date(int(partes[0]), int(partes[1]), int(partes[2]))
+    except (ValueError, IndexError):
+        fecha = hoy
+    return {'fecha_corte': fecha}
+
+
+def _acciones_json(cuenta):
+    acciones = []
+    for accion in cuenta.acciones_rapidas.filter(activa=True).prefetch_related('lineas_contrapartida__cuenta'):
+        acciones.append({
+            'id': accion.id,
+            'nombre': accion.nombre,
+            'tipo': accion.tipo,
+            'cuentas': [
+                {
+                    'id': l.cuenta_id,
+                    'label': f'{l.cuenta.codigo} — {l.cuenta.nombre}',
+                }
+                for l in accion.lineas_contrapartida.all()
+            ],
+        })
+    return acciones
 
 
 @login_required
@@ -36,12 +54,12 @@ def libro_mayor_view(request):
         messages.warning(request, 'Selecciona una empresa para ver el Libro Mayor.')
         return redirect('core:home')
 
-    periodo = _periodo_desde_request(request)
-    cuentas = resumen_cuentas_empresa(empresa, periodo['fecha_desde'], periodo['fecha_hasta'])
+    corte = _fecha_corte_desde_request(request)
+    cuentas = resumen_cuentas_empresa(empresa, corte['fecha_corte'])
 
     return render(request, 'contabilidad/libro_mayor/lista.html', {
         'cuentas': cuentas,
-        'periodo': periodo,
+        'corte': corte,
     })
 
 
@@ -51,19 +69,32 @@ def libro_mayor_cuenta_view(request, pk):
     if not empresa:
         return redirect('core:home')
 
-    cuenta = get_object_or_404(CuentaContable, pk=pk, empresa=empresa)
-    periodo = _periodo_desde_request(request)
-    movimientos, saldo_final = movimientos_cuenta(cuenta, periodo['fecha_desde'], periodo['fecha_hasta'])
+    cuenta = get_object_or_404(
+        CuentaContable.objects.prefetch_related('acciones_rapidas__lineas_contrapartida__cuenta'),
+        pk=pk,
+        empresa=empresa,
+    )
+    corte = _fecha_corte_desde_request(request)
+    movimientos, saldo_final = movimientos_cuenta(cuenta, corte['fecha_corte'])
 
-    subtipo = cuenta.subtipo_detectado()
-    puede_saldar = cuenta.permite_saldar_operaciones()
-    cuentas_pago = cuentas_medio_pago(empresa) if puede_saldar else []
+    config = config_saldar_cuenta(cuenta)
+    puede_saldar = bool(config)
+    tipo_op = config['tipo'] if config else None
+    cuentas_pago = cuentas_contrapartida_disponibles(empresa) if puede_saldar else []
+    cuentas_sugeridas = cuentas_medio_pago(empresa) if puede_saldar else []
 
     if request.method == 'POST' and puede_saldar:
         linea_ids = request.POST.getlist('linea_ids')
-        cuenta_medio_id = request.POST.get('cuenta_medio_id')
-        fecha_pago = request.POST.get('fecha_pago') or periodo['fecha_hasta']
+        fecha_pago = request.POST.get('fecha_pago') or corte['fecha_corte']
         glosa = request.POST.get('glosa', '').strip()
+        cuenta_medio_ids = request.POST.getlist('cuenta_medio_id[]')
+        montos_medio = request.POST.getlist('monto_medio[]')
+
+        medios = []
+        for c_id, monto in zip(cuenta_medio_ids, montos_medio):
+            if not c_id:
+                continue
+            medios.append({'cuenta_id': c_id, 'monto': monto})
 
         lineas = list(
             LineaAsiento.objects.filter(
@@ -74,7 +105,7 @@ def libro_mayor_cuenta_view(request, pk):
 
         try:
             asiento, monto, tipo = registrar_pago_o_cobro(
-                empresa, cuenta, lineas, cuenta_medio_id, fecha_pago, glosa or None,
+                empresa, cuenta, lineas, medios, fecha_pago, glosa or None,
             )
             accion = 'Pago' if tipo == 'pago' else 'Cobro'
             messages.success(request, f'{accion} registrado: asiento #{asiento.id} por ${monto:,}.')
@@ -86,12 +117,17 @@ def libro_mayor_cuenta_view(request, pk):
         'cuenta': cuenta,
         'movimientos': movimientos,
         'saldo_final': saldo_final,
-        'periodo': periodo,
+        'corte': corte,
         'puede_saldar': puede_saldar,
-        'subtipo': subtipo,
+        'tipo_op': tipo_op,
         'cuentas_pago': cuentas_pago,
-        'es_proveedor': subtipo == 'proveedores',
-        'es_cliente': subtipo == 'clientes',
+        'cuentas_sugeridas': cuentas_sugeridas,
+        'acciones_json': json.dumps(_acciones_json(cuenta)),
+        'sugeridas_json': json.dumps([
+            {'id': c.id, 'label': f'{c.codigo} — {c.nombre}'} for c in cuentas_sugeridas
+        ]),
+        'es_pago': tipo_op == 'pago',
+        'es_cobro': tipo_op == 'cobro',
     })
 
 
@@ -102,8 +138,8 @@ def balance_view(request):
         messages.warning(request, 'Selecciona una empresa para ver el Balance.')
         return redirect('core:home')
 
-    periodo = _periodo_desde_request(request)
-    filas, totales = balance_ocho_columnas(empresa, periodo['fecha_desde'], periodo['fecha_hasta'])
+    corte = _fecha_corte_desde_request(request)
+    filas, totales = balance_ocho_columnas(empresa, corte['fecha_corte'])
 
     grupos = {}
     orden = ['activo', 'pasivo', 'patrimonio', 'ganancia', 'perdida']
@@ -117,7 +153,7 @@ def balance_view(request):
     return render(request, 'contabilidad/balance/lista.html', {
         'balance_grupos': balance_grupos,
         'totales': totales,
-        'periodo': periodo,
+        'corte': corte,
         'cuadra': totales['saldo_deudor'] == totales['saldo_acreedor'],
     })
 

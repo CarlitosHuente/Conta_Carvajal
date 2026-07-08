@@ -7,19 +7,21 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
             <h2 class="text-primary mb-0"><i class="fas fa-balance-scale"></i> Balance de Comprobación</h2>
-            <p class="text-muted mb-0">{{ periodo.mes }}/{{ periodo.ano }}</p>
+            <p class="text-muted mb-0">Saldos acumulados al <strong>{{ corte.fecha_corte|date:"d/m/Y" }}</strong></p>
         </div>
         <form method="GET" class="d-flex gap-2 align-items-end">
-            <div><input type="number" name="mes" class="form-control form-control-sm" min="1" max="12" value="{{ periodo.mes }}"></div>
-            <div><input type="number" name="ano" class="form-control form-control-sm" value="{{ periodo.ano }}"></div>
-            <button type="submit" class="btn btn-primary btn-sm">Ver</button>
+            <div>
+                <label class="form-label small mb-0">Fecha de corte</label>
+                <input type="date" name="fecha_corte" class="form-control form-control-sm" value="{{ corte.fecha_corte|date:'Y-m-d' }}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
         </form>
     </div>
 
     {% if cuadra %}
     <div class="alert alert-success"><i class="fas fa-check-circle"></i> El balance cuadra: saldos deudores = acreedores.</div>
     {% else %}
-    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Los saldos deudores y acreedores no coinciden — revisa los comprobantes del período.</div>
+    <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Los saldos deudores y acreedores no coinciden — revisa los comprobantes.</div>
     {% endif %}
 
     <div class="card shadow-sm border-0">
@@ -45,7 +47,7 @@
                         <tr>
                             <td class="ps-3 font-monospace">{{ fila.cuenta.codigo }}</td>
                             <td>
-                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?mes={{ periodo.mes }}&ano={{ periodo.ano }}">{{ fila.cuenta.nombre }}</a>
+                                <a href="{% url 'contabilidad:libro_mayor_cuenta' fila.cuenta.pk %}?fecha_corte={{ corte.fecha_corte|date:'Y-m-d' }}">{{ fila.cuenta.nombre }}</a>
                             </td>
                             <td class="text-end">${{ fila.debe|intcomma }}</td>
                             <td class="text-end">${{ fila.haber|intcomma }}</td>
@@ -54,7 +56,7 @@
                         </tr>
                         {% endfor %}
                         {% empty %}
-                        <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos.</td></tr>
+                        <tr><td colspan="6" class="text-center py-4 text-muted">Sin movimientos hasta la fecha de corte.</td></tr>
                         {% endfor %}
                     </tbody>
                     <tfoot class="table-light fw-bold border-top border-2">

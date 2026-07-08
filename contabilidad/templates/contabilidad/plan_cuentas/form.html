@@ -45,6 +45,11 @@
                             <button type="submit" class="btn btn-success btn-lg fw-bold">
                                 <i class="fas fa-save me-2"></i> Guardar Cuenta
                             </button>
+                            {% if cuenta %}
+                            <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="btn btn-outline-success mt-2">
+                                <i class="fas fa-bolt me-1"></i> Acciones rápidas de pago/cobro
+                            </a>
+                            {% endif %}
                             <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="btn btn-outline-secondary mt-3">Cancelar y Volver</a>
                         </div>
                     </form>

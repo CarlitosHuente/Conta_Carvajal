@@ -47,7 +47,7 @@
                             <th class="ps-4">Código</th>
                             <th>Nombre de Cuenta</th>
                             <th>Tipo</th>
-                            <th class="text-center pe-4" style="width: 140px;">Acciones</th>
+                            <th class="text-center pe-4" style="width: 200px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -55,8 +55,16 @@
                         <tr>
                             <td class="fw-bold text-primary ps-4 font-monospace">{{ cuenta.codigo }}</td>
                             <td class="fw-bold">{{ cuenta.nombre }}</td>
-                            <td><span class="badge bg-secondary px-3 py-2">{{ cuenta.get_tipo_display }}</span></td>
+                            <td>
+                                <span class="badge bg-secondary px-3 py-2">{{ cuenta.get_tipo_display }}</span>
+                                {% if cuenta.acciones_rapidas.exists %}
+                                <span class="badge bg-success ms-1" title="Tiene acciones rápidas"><i class="fas fa-bolt"></i></span>
+                                {% endif %}
+                            </td>
                             <td class="text-center pe-4 text-nowrap">
+                                <a href="{% url 'contabilidad:plan_cuentas_acciones' cuenta.pk %}" class="btn btn-sm btn-outline-success" title="Acciones rápidas">
+                                    <i class="fas fa-bolt"></i>
+                                </a>
                                 <a href="{% url 'contabilidad:plan_cuentas_editar' cuenta.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>

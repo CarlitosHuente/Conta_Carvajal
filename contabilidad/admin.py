@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     CodigoF29, DeclaracionF29, ReglaValidacion, CuentaContable,
     PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento,
-    AplicacionCobroPago,
+    AplicacionCobroPago, AccionRapidaCuenta, LineaAccionRapida,
 )
 
 admin.site.register(CodigoF29)
@@ -46,3 +46,15 @@ class AsientoContableAdmin(admin.ModelAdmin):
 class AplicacionCobroPagoAdmin(admin.ModelAdmin):
     list_display = ('id', 'tipo', 'monto', 'asiento_pago', 'linea_origen')
     list_filter = ('tipo',)
+
+
+class LineaAccionRapidaInline(admin.TabularInline):
+    model = LineaAccionRapida
+    extra = 1
+
+
+@admin.register(AccionRapidaCuenta)
+class AccionRapidaCuentaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'cuenta', 'tipo', 'lado_pendiente', 'activa')
+    list_filter = ('tipo', 'activa')
+    inlines = [LineaAccionRapidaInline]
