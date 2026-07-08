@@ -85,3 +85,19 @@ def saldo_vacaciones_trabajador(trabajador, hasta_fecha=None):
     ajustes = sum(m.dias for m in movs.filter(tipo='AJUSTE'))
 
     return devengados_auto + devengados_extra - gozados + ajustes
+
+
+def periodo_a_entero(ano, mes):
+    return ano * 12 + mes
+
+
+def iter_periodos(mes_desde, ano_desde, mes_hasta, ano_hasta):
+    """Genera pares (mes, ano) inclusive desde el primer hasta el último período."""
+    m, a = mes_desde, ano_desde
+    fin = periodo_a_entero(ano_hasta, mes_hasta)
+    while periodo_a_entero(a, m) <= fin:
+        yield m, a
+        m += 1
+        if m > 12:
+            m = 1
+            a += 1

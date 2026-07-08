@@ -13,10 +13,10 @@
             <h6 class="m-0 font-weight-bold text-primary">1. Seleccionar Período a Procesar</h6>
         </div>
         <div class="card-body">
-            <form method="post" class="row align-items-end">
+            <form method="post" class="row align-items-end g-3">
                 {% csrf_token %}
                 <input type="hidden" name="accion" value="procesar">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="mes" class="form-label">Mes:</label>
                     <select name="mes" id="mes" class="form-select">
                         {% for mes in meses_opciones %}
@@ -24,7 +24,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="ano" class="form-label">Año:</label>
                     <select name="ano" id="ano" class="form-select">
                         {% for ano in anos_opciones %}
@@ -32,15 +32,70 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <a href="?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}" class="btn btn-outline-secondary w-100">Ver período</a>
+                </div>
+                <div class="col-md-3">
                     <button type="submit" class="btn btn-lg btn-success w-100">
-                        <i class="fas fa-cogs me-2"></i> Procesar Todas las Liquidaciones
+                        <i class="fas fa-cogs me-2"></i> Procesar mes
                     </button>
                 </div>
             </form>
             <p class="text-muted small mt-2">
-                <i class="fas fa-info-circle"></i> Al presionar "Procesar", el sistema calculará la liquidación para <strong>todos</strong> los trabajadores con contrato vigente en la empresa activa. Si una liquidación ya existe para un trabajador en este período, será <strong>reemplazada</strong> con el nuevo cálculo.
+                <i class="fas fa-info-circle"></i> Usa <strong>Ver período</strong> para revisar liquidaciones ya emitidas sin recalcular.
+                <strong>Procesar mes</strong> calcula para todos los trabajadores con contrato vigente (reemplaza si ya existía).
             </p>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4 border-info">
+        <div class="card-header py-3 bg-info-subtle">
+            <h6 class="m-0 fw-bold text-info-emphasis">Regularización: procesar varios meses</h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">
+                Útil cuando incorporas un cliente sin historial en el sistema (ej. 5 meses de atraso).
+                Procesa mes a mes en un solo paso. Máximo 24 meses por operación.
+            </p>
+            <form method="post" class="row g-3 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="procesar_rango">
+                <div class="col-md-2">
+                    <label class="form-label">Desde mes</label>
+                    <select name="mes_desde" class="form-select">
+                        {% for m in meses_opciones %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Desde año</label>
+                    <select name="ano_desde" class="form-select">
+                        {% for a in anos_opciones %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta mes</label>
+                    <select name="mes_hasta" class="form-select">
+                        {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Hasta año</label>
+                    <select name="ano_hasta" class="form-select">
+                        {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="autocompletar_rango" id="autocompletar_rango" checked>
+                        <label class="form-check-label" for="autocompletar_rango">
+                            Autocompletar novedades mínimas en cada mes
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-info w-100" onclick="return confirm('¿Procesar todo el rango de meses seleccionado?');">
+                        <i class="fas fa-layer-group me-1"></i> Procesar rango de meses
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -357,4 +357,6 @@ def centralizar_remuneraciones_view(request):
         'asiento_existente': asiento_existente,
         'mes_seleccionado': mes,
         'ano_seleccionado': ano,
+        'meses_opciones': range(1, 13),
+        'anos_opciones': range(2024, today.year + 2),
     })

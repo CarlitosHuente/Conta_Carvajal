@@ -17,7 +17,62 @@ import calendar
 from .models import RegistroCobro
 from django.db import models
 from core.permissions import require_access, ensure_empresa_operativa
+from .calculos_rrhh import iter_periodos, periodo_a_entero
 
+
+def _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=False):
+    """Procesa liquidaciones de un mes. Devuelve dict con resultado."""
+    contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
+    pendientes = []
+    for contrato in contratos_activos:
+        if not NovedadMensual.objects.filter(
+            trabajador=contrato.trabajador, mes=mes, ano=ano
+        ).exists():
+            pendientes.append(contrato.trabajador)
+
+    if pendientes and not autocompletar_novedades:
+        return {
+            'ok': False,
+            'pendientes': pendientes,
+            'exitos': 0,
+            'fallos': 0,
+            'errores': [],
+        }
+
+    if pendientes and autocompletar_novedades:
+        for trabajador in pendientes:
+            NovedadMensual.objects.get_or_create(
+                trabajador=trabajador,
+                mes=mes,
+                ano=ano,
+                defaults={
+                    'dias_ausencia': 0,
+                    'dias_licencia': 0,
+                    'bono_esporadico': 0,
+                    'descuento_esporadico': 0,
+                    'datos_variables': {},
+                },
+            )
+
+    exitos = 0
+    fallos = 0
+    errores = []
+    for contrato in contratos_activos:
+        try:
+            liq = procesar_liquidacion(contrato, mes, ano)
+            if liq is not None:
+                exitos += 1
+        except Exception as e:
+            fallos += 1
+            errores.append(f"{contrato.trabajador.nombre_completo}: {e}")
+
+    return {
+        'ok': True,
+        'pendientes': [],
+        'exitos': exitos,
+        'fallos': fallos,
+        'errores': errores,
+    }
 
 
 # ... (las otras vistas de liquidación pueden quedar abajo)
@@ -77,27 +132,81 @@ def crear_liquidacion_view(request):
 
     # --- Lógica de Procesamiento (POST) ---
     if request.method == 'POST':
-        mes = int(request.POST.get('mes'))
-        ano = int(request.POST.get('ano'))
         accion = request.POST.get('accion', 'procesar')
 
-        contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
+        if accion == 'procesar_rango':
+            mes_desde = int(request.POST.get('mes_desde'))
+            ano_desde = int(request.POST.get('ano_desde'))
+            mes_hasta = int(request.POST.get('mes_hasta'))
+            ano_hasta = int(request.POST.get('ano_hasta'))
+            autocompletar = request.POST.get('autocompletar_rango') == 'on'
 
-        # Detectamos trabajadores sin novedad mensual para guiar el proceso en vez de fallar.
-        for contrato in contratos_activos:
-            novedad = NovedadMensual.objects.filter(
-                trabajador=contrato.trabajador,
-                mes=mes,
-                ano=ano
-            ).first()
-            if not novedad:
-                pendientes_novedades.append(contrato.trabajador)
+            if periodo_a_entero(ano_desde, mes_desde) > periodo_a_entero(ano_hasta, mes_hasta):
+                messages.error(request, 'El período inicial no puede ser posterior al final.')
+                return redirect('rrhh:crear_liquidacion')
 
-        if pendientes_novedades and accion != 'autocompletar':
+            periodos = list(iter_periodos(mes_desde, ano_desde, mes_hasta, ano_hasta))
+            if len(periodos) > 24:
+                messages.error(request, 'El rango máximo es de 24 meses por operación.')
+                return redirect('rrhh:crear_liquidacion')
+
+            total_exitos = 0
+            total_fallos = 0
+            meses_sin_novedad = []
+            todos_errores = []
+
+            for mes_p, ano_p in periodos:
+                resultado = _procesar_liquidaciones_mes(
+                    empresa, mes_p, ano_p, autocompletar_novedades=autocompletar,
+                )
+                if not resultado['ok']:
+                    meses_sin_novedad.append(f'{mes_p}/{ano_p}')
+                    continue
+                total_exitos += resultado['exitos']
+                total_fallos += resultado['fallos']
+                todos_errores.extend(resultado['errores'])
+
+            if meses_sin_novedad:
+                messages.warning(
+                    request,
+                    f"Sin novedades (no procesados): {', '.join(meses_sin_novedad)}. "
+                    "Marca autocompletar o carga novedades en esos meses.",
+                )
+            if total_exitos:
+                messages.success(
+                    request,
+                    f"Rango procesado: {len(periodos)} mes(es), {total_exitos} liquidación(es) generada(s).",
+                )
+            if total_fallos:
+                messages.error(request, f"Fallos en el rango: {'; '.join(todos_errores[:5])}")
+
+            return redirect(
+                f"{reverse('rrhh:crear_liquidacion')}?mes={mes_hasta}&ano={ano_hasta}"
+            )
+
+        mes = int(request.POST.get('mes'))
+        ano = int(request.POST.get('ano'))
+
+        if accion == 'autocompletar':
+            resultado = _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=True)
+            if resultado['exitos']:
+                messages.success(
+                    request,
+                    f"Proceso finalizado. Se generaron/actualizaron {resultado['exitos']} liquidaciones.",
+                )
+            if resultado['fallos']:
+                messages.error(
+                    request,
+                    f"Fallaron {resultado['fallos']} liquidaciones: {', '.join(resultado['errores'])}",
+                )
+            return redirect(f"{reverse('rrhh:crear_liquidacion')}?mes={mes}&ano={ano}")
+
+        resultado = _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=False)
+        if not resultado['ok']:
             messages.warning(
                 request,
                 "Faltan datos minimos de novedades para algunos trabajadores. "
-                "Completa en el asistente rapido y vuelve a procesar."
+                "Completa en el asistente rapido y vuelve a procesar.",
             )
             context = {
                 'mes_seleccionado': mes,
@@ -107,47 +216,20 @@ def crear_liquidacion_view(request):
                 'liquidaciones_generadas': Liquidacion.objects.filter(
                     contrato__trabajador__empresa=empresa, mes=mes, ano=ano
                 ).select_related('contrato__trabajador').order_by('contrato__trabajador__apellido_paterno'),
-                'pendientes_novedades': pendientes_novedades,
+                'pendientes_novedades': resultado['pendientes'],
             }
             return render(request, 'rrhh/crear_liquidacion.html', context)
 
-        if accion == 'autocompletar' and pendientes_novedades:
-            for trabajador in pendientes_novedades:
-                NovedadMensual.objects.get_or_create(
-                    trabajador=trabajador,
-                    mes=mes,
-                    ano=ano,
-                    defaults={
-                        'dias_ausencia': 0,
-                        'dias_licencia': 0,
-                        'bono_esporadico': 0,
-                        'descuento_esporadico': 0,
-                        'datos_variables': {}
-                    }
-                )
-            messages.info(
+        if resultado['exitos']:
+            messages.success(
                 request,
-                f"Asistente rapido aplicado: {len(pendientes_novedades)} trabajador(es) con datos minimos creados."
+                f"Proceso finalizado. Se generaron/actualizaron {resultado['exitos']} liquidaciones exitosamente.",
             )
-            # Recalcular lista de contratos (sin pendientes) antes de procesar
-            contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
-
-        exitos = 0
-        fallos = 0
-        nombres_fallidos = []
-
-        for contrato in contratos_activos:
-            try:
-                procesar_liquidacion(contrato, mes, ano)
-                exitos += 1
-            except Exception as e:
-                fallos += 1
-                nombres_fallidos.append(f"{contrato.trabajador.nombre_completo} (Error: {e})")
-        
-        if exitos > 0:
-            messages.success(request, f"Proceso finalizado. Se generaron/actualizaron {exitos} liquidaciones exitosamente.")
-        if fallos > 0:
-            messages.error(request, f"Fallaron {fallos} liquidaciones: {', '.join(nombres_fallidos)}")
+        if resultado['fallos']:
+            messages.error(
+                request,
+                f"Fallaron {resultado['fallos']} liquidaciones: {', '.join(resultado['errores'])}",
+            )
 
         return redirect(f"{reverse('rrhh:crear_liquidacion')}?mes={mes}&ano={ano}")
 
