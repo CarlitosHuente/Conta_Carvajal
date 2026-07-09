@@ -80,7 +80,12 @@
                     <td>{{ contrato.fecha_inicio|date:"d/m/Y" }}</td>
                     <td>{% if contrato.fecha_fin %}{{ contrato.fecha_fin|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                     <td>{% if contrato.cargo %}{{ contrato.cargo }}{% else %}—{% endif %}</td>
-                    <td>${{ contrato.sueldo_base|intcomma }}</td>
+                    <td>
+                        ${{ contrato.sueldo_base_efectivo|intcomma }}
+                        {% if contrato.usa_sueldo_minimo %}
+                        <span class="badge text-bg-info ms-1">Sueldo mínimo</span>
+                        {% endif %}
+                    </td>
                     <td>{{ contrato.afp.nombre }} / {{ contrato.sistema_salud.nombre }}</td>
                     <td>{{ contrato.get_tipo_jornada_display }}</td>
                     <td>

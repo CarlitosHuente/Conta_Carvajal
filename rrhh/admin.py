@@ -48,8 +48,8 @@ class TrabajadorAdmin(admin.ModelAdmin):
 # ¡MODIFICADO! El ContratoAdmin ahora muestra sus ítems recurrentes
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
-    list_display = ('trabajador', 'cargo', 'fecha_inicio', 'sueldo_base', 'vigente')
-    list_filter = ('vigente', 'trabajador__empresa')
+    list_display = ('trabajador', 'cargo', 'fecha_inicio', 'sueldo_base', 'usa_sueldo_minimo', 'vigente')
+    list_filter = ('vigente', 'usa_sueldo_minimo', 'trabajador__empresa')
     search_fields = ('trabajador__rut', 'trabajador__nombres')
     
     inlines = [ItemContratoInline] # <--- ¡AQUÍ AGREGAMOS EL INLINE!
@@ -77,7 +77,12 @@ class LiquidacionAdmin(admin.ModelAdmin):
                     contrato = Contrato.objects.get(id=self.contrato_id_for_inlines)
                     initial_data = []
                     # 1. Haberes fijos del Contrato
-                    initial_data.append({'nombre': 'Sueldo Base', 'monto': contrato.sueldo_base, 'tipo': 'HABER', 'es_imponible': True})
+                    initial_data.append({
+                        'nombre': 'Sueldo Base',
+                        'monto': contrato.sueldo_base_efectivo(),
+                        'tipo': 'HABER',
+                        'es_imponible': True,
+                    })
                     if contrato.colacion > 0:
                         initial_data.append({'nombre': 'Colación', 'monto': contrato.colacion, 'tipo': 'HABER', 'es_imponible': False})
                     if contrato.movilizacion > 0:

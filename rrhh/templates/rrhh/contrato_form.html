@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}
     {% if contrato %}
@@ -45,6 +46,16 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">{{ form.sueldo_base.label }}</label>
                         {{ form.sueldo_base }}
+                        <div class="form-check mt-2">
+                            {{ form.usa_sueldo_minimo }}
+                            <label class="form-check-label" for="{{ form.usa_sueldo_minimo.id_for_label }}">
+                                {{ form.usa_sueldo_minimo.label }}
+                            </label>
+                        </div>
+                        <small class="text-muted d-block">{{ form.usa_sueldo_minimo.help_text }}</small>
+                        {% if sueldo_minimo_actual %}
+                        <small class="text-muted d-block">Mínimo vigente: ${{ sueldo_minimo_actual|intcomma }}</small>
+                        {% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">{{ form.cargo.label }}</label>
@@ -167,6 +178,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const sistemaSalud = document.getElementById('id_sistema_salud');
         const planSalud = document.getElementById('id_plan_salud_pactado');
         const monedaSalud = document.getElementById('id_moneda_plan_salud');
+        const usaSueldoMinimo = document.getElementById('id_usa_sueldo_minimo');
+        const sueldoBase = document.getElementById('id_sueldo_base');
+        const sueldoMinimoActual = {{ sueldo_minimo_actual|default:"null" }};
 
         function toggleGratificacionFija() {
             if (!tipoGratificacion || !montoGratificacion) return;
@@ -186,6 +200,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        function toggleSueldoMinimo() {
+            if (!usaSueldoMinimo || !sueldoBase) return;
+            if (usaSueldoMinimo.checked) {
+                if (sueldoMinimoActual !== null) {
+                    sueldoBase.value = sueldoMinimoActual;
+                }
+                sueldoBase.readOnly = true;
+                sueldoBase.classList.add('bg-light');
+            } else {
+                sueldoBase.readOnly = false;
+                sueldoBase.classList.remove('bg-light');
+            }
+        }
+
         if (tipoGratificacion) {
             tipoGratificacion.addEventListener('change', toggleGratificacionFija);
             toggleGratificacionFija();
@@ -193,6 +221,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (sistemaSalud) {
             sistemaSalud.addEventListener('change', togglePlanSalud);
             togglePlanSalud();
+        }
+        if (usaSueldoMinimo) {
+            usaSueldoMinimo.addEventListener('change', toggleSueldoMinimo);
+            toggleSueldoMinimo();
         }
 
         // Los inputs HTML `disabled` no se envían en el POST y Django puede rechazar el formulario.

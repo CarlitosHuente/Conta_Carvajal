@@ -71,6 +71,11 @@ class Contrato(models.Model):
     )
     moneda_plan_salud = models.CharField(max_length=3, choices=MONEDA_CHOICES, default='CLP')
     sueldo_base = models.PositiveIntegerField()
+    usa_sueldo_minimo = models.BooleanField(
+        default=False,
+        verbose_name='Usar sueldo mínimo',
+        help_text='Si está activo, el sueldo base se toma del sueldo mínimo vigente en Indicadores económicos.',
+    )
     colacion = models.PositiveIntegerField(default=0, help_text="Haber no imponible")
     movilizacion = models.PositiveIntegerField(default=0, help_text="Haber no imponible")
     tipo_gratificacion = models.CharField(max_length=5, choices=TIPO_GRATIFICACION_CHOICES, default='LEGAL')
@@ -79,6 +84,17 @@ class Contrato(models.Model):
     horas_semanales = models.PositiveIntegerField(default=45)
     dias_semana = models.PositiveIntegerField(default=5)
     conceptos_variables = models.ManyToManyField('ConceptoVariable', blank=True, verbose_name="Conceptos Variables Aplicables")
+
+    def sueldo_base_efectivo(self, indicador=None):
+        """Sueldo base a usar en cálculos: mínimo legal del período o monto fijo del contrato."""
+        if not self.usa_sueldo_minimo:
+            return self.sueldo_base
+        if indicador is not None:
+            return indicador.sueldo_minimo
+        ind = IndicadorEconomico.objects.order_by('-ano', '-mes').first()
+        if ind:
+            return ind.sueldo_minimo
+        return self.sueldo_base
 
     def __str__(self):
         return f"Contrato de {self.trabajador.nombre_completo} (Inicio: {self.fecha_inicio})"

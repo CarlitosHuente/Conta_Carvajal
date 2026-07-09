@@ -24,7 +24,7 @@ def calcular_indemnizacion_anos_servicio(contrato, fecha_termino, motivo):
     if anos <= 0:
         return 0
     dias_indemnizacion = min(anos * Decimal('30'), Decimal('330'))
-    sueldo_diario = Decimal(contrato.sueldo_base) / Decimal('30')
+    sueldo_diario = Decimal(contrato.sueldo_base_efectivo()) / Decimal('30')
     return int((dias_indemnizacion * sueldo_diario).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
@@ -36,7 +36,7 @@ def calcular_finiquito(contrato, fecha_termino, motivo, incluir_ultimo_mes=False
     dias_vac = saldo_vacaciones_trabajador(trabajador, fecha_termino)
     if dias_vac < 0:
         dias_vac = Decimal('0')
-    sueldo_diario = Decimal(contrato.sueldo_base) / Decimal('30')
+    sueldo_diario = Decimal(contrato.sueldo_base_efectivo()) / Decimal('30')
     monto_vacaciones = int((dias_vac * sueldo_diario).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
     monto_indemnizacion = calcular_indemnizacion_anos_servicio(contrato, fecha_termino, motivo)
     monto_ultimo_sueldo = 0

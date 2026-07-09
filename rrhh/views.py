@@ -20,6 +20,21 @@ from core.permissions import require_access, ensure_empresa_operativa
 from .calculos_rrhh import iter_periodos, periodo_a_entero
 
 
+def _sueldo_minimo_actual():
+    ind = IndicadorEconomico.objects.order_by('-ano', '-mes').first()
+    return ind.sueldo_minimo if ind else None
+
+
+def _sincronizar_contratos_sueldo_minimo(sueldo_minimo=None):
+    """Actualiza sueldo_base de contratos vigentes que usan sueldo mínimo (último indicador)."""
+    ind = IndicadorEconomico.objects.order_by('-ano', '-mes').first()
+    if not ind:
+        return 0
+    return Contrato.objects.filter(usa_sueldo_minimo=True, vigente=True).update(
+        sueldo_base=ind.sueldo_minimo
+    )
+
+
 def _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=False):
     """Procesa liquidaciones de un mes. Devuelve dict con resultado."""
     contratos_activos = Contrato.objects.filter(trabajador__empresa=empresa, vigente=True)
@@ -359,6 +374,7 @@ def contrato_create_view(request, trabajador_pk):
     context = {
         'form': form,
         'trabajador': trabajador,
+        'sueldo_minimo_actual': _sueldo_minimo_actual(),
     }
     return render(request, 'rrhh/contrato_form.html', context)
 
@@ -384,7 +400,12 @@ def contrato_edit_view(request, pk):
     else:
         form = ContratoForm(instance=contrato)
 
-    context = {'form': form, 'trabajador': trabajador, 'contrato': contrato}
+    context = {
+        'form': form,
+        'trabajador': trabajador,
+        'contrato': contrato,
+        'sueldo_minimo_actual': _sueldo_minimo_actual(),
+    }
     return render(request, 'rrhh/contrato_form.html', context)
 
 @login_required
@@ -522,7 +543,13 @@ def indicador_create_view(request):
     if request.method == 'POST':
         form = IndicadorEconomicoForm(request.POST)
         if form.is_valid():
-            form.save()
+            indicador = form.save()
+            actualizados = _sincronizar_contratos_sueldo_minimo()
+            if actualizados:
+                messages.success(
+                    request,
+                    f"Indicadores guardados. {actualizados} contrato(s) con sueldo mínimo actualizado(s)."
+                )
             return redirect('rrhh:indicador_list')
     else:
         # Muestra el formulario, precargado con datos si existen
@@ -544,8 +571,12 @@ def indicador_edit_view(request, pk):
     if request.method == 'POST':
         form = IndicadorEconomicoForm(request.POST, instance=indicador)
         if form.is_valid():
-            form.save()
-            messages.success(request, f"Indicadores de {indicador.mes}/{indicador.ano} actualizados correctamente.")
+            indicador = form.save()
+            actualizados = _sincronizar_contratos_sueldo_minimo()
+            msg = f"Indicadores de {indicador.mes}/{indicador.ano} actualizados correctamente."
+            if actualizados:
+                msg += f" {actualizados} contrato(s) con sueldo mínimo actualizado(s)."
+            messages.success(request, msg)
             return redirect('rrhh:indicador_list')
     else:
         form = IndicadorEconomicoForm(instance=indicador)

@@ -92,14 +92,15 @@ def procesar_liquidacion(contrato, mes, ano):
     total_no_imponible = 0
 
     # A. Sueldo Base Proporcional
-    sueldo_proporcional = round((contrato.sueldo_base / 30) * dias_trabajados)
+    sueldo_base = contrato.sueldo_base_efectivo(indicador)
+    sueldo_proporcional = round((sueldo_base / 30) * dias_trabajados)
     items_a_guardar.append(('Sueldo Base', sueldo_proporcional, 'HABER', True))
     total_imponible += sueldo_proporcional
 
     # A2. Horas extras (50% y 100%)
     if novedad:
         he_total, he_items = calcular_horas_extras(
-            contrato, novedad.horas_extras_50, novedad.horas_extras_100,
+            contrato, novedad.horas_extras_50, novedad.horas_extras_100, indicador,
         )
         for nombre_he, monto_he in he_items:
             items_a_guardar.append((nombre_he, monto_he, 'HABER', True))

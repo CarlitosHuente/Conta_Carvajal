@@ -1,7 +1,7 @@
 """Funciones auxiliares de cálculo RR.HH."""
 
 
-def valor_hora_contrato(contrato):
+def valor_hora_contrato(contrato, indicador=None):
     """Valor hora ordinaria según sueldo mensual y jornada del contrato."""
     horas_semanales = contrato.horas_semanales or 45
     dias_semana = contrato.dias_semana or 5
@@ -10,12 +10,12 @@ def valor_hora_contrato(contrato):
     horas_mes = (horas_semanales / dias_semana) * 30
     if horas_mes <= 0:
         return 0
-    return contrato.sueldo_base / horas_mes
+    return contrato.sueldo_base_efectivo(indicador) / horas_mes
 
 
-def calcular_horas_extras(contrato, horas_50, horas_100):
+def calcular_horas_extras(contrato, horas_50, horas_100, indicador=None):
     """Monto imponible por horas extras 50% y 100%."""
-    valor_hora = valor_hora_contrato(contrato)
+    valor_hora = valor_hora_contrato(contrato, indicador)
     if valor_hora <= 0:
         return 0, []
     items = []

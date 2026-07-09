@@ -133,6 +133,12 @@ class ContratoForm(forms.ModelForm):
             s = s.replace(',', '.')
         return s
 
+    @staticmethod
+    def _sueldo_minimo_vigente():
+        from .models import IndicadorEconomico
+        ind = IndicadorEconomico.objects.order_by('-ano', '-mes').first()
+        return ind.sueldo_minimo if ind else None
+
     def __init__(self, *args, **kwargs):
         if args:
             data = args[0]
@@ -143,6 +149,22 @@ class ContratoForm(forms.ModelForm):
                     data['plan_salud_pactado'] = self._normalizar_decimal_plan_salud(raw)
                 args = (data,) + tuple(args[1:])
         super().__init__(*args, **kwargs)
+        self.fields['usa_sueldo_minimo'].label = 'Usar sueldo mínimo'
+        self.fields['usa_sueldo_minimo'].help_text = (
+            'Se actualizará automáticamente al cambiar el sueldo mínimo en Indicadores.'
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('usa_sueldo_minimo'):
+            minimo = self._sueldo_minimo_vigente()
+            if minimo is None:
+                raise forms.ValidationError(
+                    'No hay indicadores económicos con sueldo mínimo. '
+                    'Crea un período en Indicadores antes de usar esta opción.'
+                )
+            cleaned['sueldo_base'] = minimo
+        return cleaned
 
     class Meta:
         model = Contrato
@@ -164,6 +186,7 @@ class ContratoForm(forms.ModelForm):
             }),
             'moneda_plan_salud': forms.Select(attrs={'class': 'form-select'}),
             'sueldo_base': forms.NumberInput(attrs={'class': 'form-control'}),
+            'usa_sueldo_minimo': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_usa_sueldo_minimo'}),
             'colacion': forms.NumberInput(attrs={'class': 'form-control'}),
             'movilizacion': forms.NumberInput(attrs={'class': 'form-control'}),
             'tipo_gratificacion': forms.Select(attrs={'class': 'form-select'}),
