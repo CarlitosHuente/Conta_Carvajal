@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from .models import Empresa, PermisoAccesoUsuario
 
 
@@ -72,3 +74,14 @@ def empresa_context(request):
             request.session.pop('empresa_activa_id', None)
             
     return {'empresa_activa': empresa_activa, 'permisos_ui': permisos_ui}
+
+
+def ui_theme(request):
+    """Expone flags del tema glass para base.html (reversible vía settings)."""
+    enabled = getattr(settings, 'UI_GLASS_ENABLED', False)
+    blur = getattr(settings, 'UI_GLASS_BLUR', 10)
+    return {
+        'ui_glass_enabled': enabled,
+        'ui_glass_blur': blur,
+        'ui_glass_lite': enabled and blur == 0,
+    }

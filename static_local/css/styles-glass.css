@@ -1,0 +1,163 @@
+/*
+ * Tema glass — capa opcional sobre styles.css (tema clásico intacto).
+ *
+ * Desactivar por completo:
+ *   settings.UI_GLASS_ENABLED = False
+ *   o variable de entorno UI_GLASS_ENABLED=false
+ *
+ * Modo eficiente (sin blur, solo transparencias):
+ *   UI_GLASS_BLUR=0
+ *
+ * Solo aplica con <body class="theme-glass">.
+ */
+
+body.theme-glass {
+    --glass-blur: 10px;
+    --glass-surface: rgba(255, 255, 255, 0.78);
+    --glass-surface-solid: rgba(255, 255, 255, 0.92);
+    --glass-nav: rgba(10, 43, 76, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.35);
+    --glass-shadow: 0 8px 32px rgba(10, 43, 76, 0.08);
+
+    background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(10, 43, 76, 0.12), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(40, 167, 69, 0.06), transparent 50%),
+        linear-gradient(165deg, #e8eef4 0%, #f4f6f9 45%, #eef2f7 100%);
+    background-attachment: fixed;
+}
+
+/* Sin blur: misma estética, menos costo GPU */
+body.theme-glass.theme-glass-lite {
+    --glass-blur: 0px;
+    --glass-surface: rgba(255, 255, 255, 0.94);
+    --glass-nav: rgba(10, 43, 76, 0.94);
+}
+
+/* --- Navbar (único blur “grande”) --- */
+body.theme-glass .navbar-custom {
+    background-color: var(--glass-nav);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body.theme-glass:not(.theme-glass-lite) .navbar-custom {
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        backdrop-filter: blur(var(--glass-blur));
+    }
+}
+
+/* --- Cards y paneles hub --- */
+body.theme-glass .card,
+body.theme-glass .dashboard-card {
+    background: var(--glass-surface);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: var(--glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body.theme-glass:not(.theme-glass-lite) .card,
+    body.theme-glass:not(.theme-glass-lite) .dashboard-card {
+        -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.65));
+        backdrop-filter: blur(calc(var(--glass-blur) * 0.65));
+    }
+}
+
+body.theme-glass .dashboard-card:hover {
+    box-shadow: 0 12px 40px rgba(10, 43, 76, 0.12);
+}
+
+/* --- Dropdowns y modales (pocos en pantalla) --- */
+body.theme-glass .dropdown-menu {
+    background: var(--glass-surface-solid);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body.theme-glass:not(.theme-glass-lite) .dropdown-menu,
+    body.theme-glass:not(.theme-glass-lite) .modal-content {
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        backdrop-filter: blur(var(--glass-blur));
+    }
+}
+
+body.theme-glass .modal-content {
+    background: var(--glass-surface-solid);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* --- Alertas --- */
+body.theme-glass .alert {
+    border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+body.theme-glass .alert-success {
+    background-color: rgba(212, 237, 218, 0.88);
+}
+
+body.theme-glass .alert-danger {
+    background-color: rgba(248, 215, 218, 0.88);
+}
+
+body.theme-glass .alert-warning {
+    background-color: rgba(255, 243, 205, 0.88);
+}
+
+body.theme-glass .alert-info {
+    background-color: rgba(207, 244, 252, 0.88);
+}
+
+/* --- Tablas: SIN blur, fondo casi sólido (RCV, libro mayor, etc.) --- */
+body.theme-glass .table,
+body.theme-glass .table-responsive {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+body.theme-glass .table {
+    --bs-table-bg: var(--glass-surface-solid);
+    background-color: var(--glass-surface-solid);
+}
+
+body.theme-glass .table thead th {
+    background-color: rgba(233, 236, 239, 0.95);
+}
+
+body.theme-glass .card .table {
+    background-color: transparent;
+}
+
+/* --- Formularios en cards --- */
+body.theme-glass .form-control,
+body.theme-glass .form-select {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+body.theme-glass .form-control:focus,
+body.theme-glass .form-select:focus {
+    background-color: #fff;
+}
+
+/* --- Navegadores sin backdrop-filter --- */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body.theme-glass .navbar-custom {
+        background-color: rgba(10, 43, 76, 0.96);
+    }
+
+    body.theme-glass .card,
+    body.theme-glass .dashboard-card {
+        background: rgba(255, 255, 255, 0.96);
+    }
+}
+
+/* --- Accesibilidad: sin animaciones costosas --- */
+@media (prefers-reduced-motion: reduce) {
+    body.theme-glass .navbar-custom,
+    body.theme-glass .card,
+    body.theme-glass .dashboard-card,
+    body.theme-glass .dropdown-menu,
+    body.theme-glass .modal-content {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
+}

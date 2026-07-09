@@ -79,6 +79,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'rrhh.context_processors.indicadores_globales',
                 'core.context_processors.empresa_context', # <-- AÑADIDO
+                'core.context_processors.ui_theme',
             ],
         },
     },
@@ -158,6 +159,12 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # --- FIN SECTOR ESTÁTICOS ---
+
+# --- UI: tema glass (reversible sin tocar templates) ---
+# Desactivar: UI_GLASS_ENABLED=false en entorno, o cambiar a False aquí.
+# Sin blur (más rápido): UI_GLASS_BLUR=0 — mantiene transparencias, sin backdrop-filter.
+UI_GLASS_ENABLED = os.environ.get('UI_GLASS_ENABLED', 'true').lower() in ('1', 'true', 'yes')
+UI_GLASS_BLUR = max(0, min(24, int(os.environ.get('UI_GLASS_BLUR', '10'))))
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'core:home'
