@@ -5,135 +5,55 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- Título de la Página -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Panel de Control: {{ empresa_activa.razon_social }}</h1>
         <span class="badge bg-primary text-white p-2" style="font-size: 1rem;">RUT: {{ empresa_activa.rut }}</span>
     </div>
 
-    <!-- Fila de Módulos Macro -->
-    <div class="row justify-content-center">
-        
-        <!-- MÓDULO: RECURSOS HUMANOS -->
-        <div class="col-xl-5 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-4" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalRRHH" data-toggle="modal" data-target="#modalRRHH">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Gestión y Remuneraciones</div>
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">Recursos Humanos</div>
-                            <p class="text-muted mt-2 mb-0 small">Trabajadores, Contratos, Liquidaciones y Novedades.</p>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-3x text-primary"></i>
-                        </div>
+    <div class="row justify-content-center g-4">
+        {% if empresa_activa.tiene_rrhh and permisos_ui.rrhh_menu_visible %}
+        <div class="col-xl-5 col-md-6">
+            <a href="{% url 'rrhh:hub' %}" class="dashboard-card d-block h-100 p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="text-xs fw-bold text-primary text-uppercase mb-1">Gestión y Remuneraciones</div>
+                        <div class="h4 mb-0 fw-bold">Centro Recursos Humanos</div>
+                        <p class="text-muted mt-2 mb-0 small">Trabajadores, novedades, liquidaciones, Previred y centralización.</p>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-users fa-3x text-primary"></i>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
+        {% endif %}
 
-        <!-- MÓDULO: CONTABILIDAD -->
-        <div class="col-xl-5 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-4" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalContabilidad" data-toggle="modal" data-target="#modalContabilidad">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Impuestos y Libros</div>
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">Contabilidad</div>
-                            <p class="text-muted mt-2 mb-0 small">F29, Libro Diario, Plan de Cuentas y Centralización.</p>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-file-invoice-dollar fa-3x text-info"></i>
-                        </div>
+        {% if empresa_activa.tiene_contabilidad and permisos_ui.contabilidad_menu_visible %}
+        <div class="col-xl-5 col-md-6">
+            <a href="{% url 'contabilidad:hub' %}" class="dashboard-card d-block h-100 p-4">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="text-xs fw-bold text-info text-uppercase mb-1">Impuestos y Libros</div>
+                        <div class="h4 mb-0 fw-bold">Centro Contabilidad</div>
+                        <p class="text-muted mt-2 mb-0 small">F29, RCV compras, libro diario, plan de cuentas y reportes.</p>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-file-invoice-dollar fa-3x text-info"></i>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
+        {% endif %}
     </div>
 
+    {% if not empresa_activa.tiene_rrhh and not empresa_activa.tiene_contabilidad %}
+    <div class="alert alert-warning mt-4 shadow-sm text-center">
+        <i class="fas fa-exclamation-triangle"></i> Esta empresa no tiene módulos activos configurados.
+    </div>
+    {% else %}
     <div class="alert alert-secondary mt-4 shadow-sm text-center">
-        <i class="fas fa-info-circle"></i> Haz clic en uno de los módulos superiores para desplegar sus opciones.
+        <i class="fas fa-info-circle"></i> Elige un centro para ver todas las opciones del módulo.
     </div>
+    {% endif %}
 </div>
-
-<!-- MODAL: RECURSOS HUMANOS -->
-<div class="modal fade" id="modalRRHH" tabindex="-1" role="dialog" aria-labelledby="modalRRHHLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="modalRRHHLabel"><i class="fas fa-users"></i> Menú Recursos Humanos</h5>
-        <button type="button" class="close text-white btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="list-group">
-            <a href="{% url 'rrhh:hub' %}" class="list-group-item list-group-item-action d-flex align-items-center list-group-item-primary">
-                <i class="fas fa-th-large fa-fw text-primary mr-3"></i> <strong>Centro RR.HH.</strong> <small class="ms-auto text-muted">Inicio</small>
-            </a>
-            <a href="{% url 'rrhh:trabajador_list' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-id-badge fa-fw text-primary mr-3"></i> Fichas de Trabajadores y Contratos
-            </a>
-            <a href="{% url 'rrhh:ingresar_novedades' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-calendar-check fa-fw text-primary mr-3"></i> Ingreso de Novedades (Mensual)
-            </a>
-            <a href="{% url 'rrhh:crear_liquidacion' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-file-invoice fa-fw text-primary mr-3"></i> Emisión de Liquidaciones
-            </a>
-            <a href="{% url 'rrhh:libro_remuneraciones' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-book-open fa-fw text-primary mr-3"></i> Libro de Remuneraciones
-            </a>
-            <a href="{% url 'rrhh:export_previred' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-file-csv fa-fw text-primary mr-3"></i> Exportar Previred (CSV)
-            </a>
-            <a href="{% url 'rrhh:centralizar_remuneraciones' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-calculator fa-fw text-primary mr-3"></i> Centralizar en Contabilidad
-            </a>
-            <a href="{% url 'rrhh:finiquito_list' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-file-signature fa-fw text-primary mr-3"></i> Finiquitos
-            </a>
-            {% if user.perfil.rol == 'admin' %}
-            <a href="{% url 'rrhh:concepto_variable_list' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-cogs fa-fw text-primary mr-3"></i> Conceptos Variables (esta empresa)
-            </a>
-            {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: CONTABILIDAD -->
-<div class="modal fade" id="modalContabilidad" tabindex="-1" role="dialog" aria-labelledby="modalContaLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header bg-info text-white">
-        <h5 class="modal-title" id="modalContaLabel"><i class="fas fa-file-invoice-dollar"></i> Menú Contabilidad</h5>
-        <button type="button" class="close text-white btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="list-group">
-            <a href="{% url 'contabilidad:hub' %}" class="list-group-item list-group-item-action d-flex align-items-center fw-bold">
-                <i class="fas fa-home fa-fw text-info mr-3"></i> Centro Contabilidad
-            </a>
-            <a href="{% url 'contabilidad:f29_lista' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-file-pdf fa-fw text-info mr-3"></i> Declaraciones F29
-            </a>
-            <a href="{% url 'contabilidad:libro_diario' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-book fa-fw text-info mr-3"></i> Libro Diario (Asientos)
-            </a>
-            <a href="{% url 'contabilidad:plan_cuentas_lista' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-sitemap fa-fw text-info mr-3"></i> Plan de Cuentas
-            </a>
-            <a href="{% url 'contabilidad:plantilla_lista' %}" class="list-group-item list-group-item-action d-flex align-items-center">
-                <i class="fas fa-calculator fa-fw text-info mr-3"></i> Plantillas de Centralización
-            </a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %}

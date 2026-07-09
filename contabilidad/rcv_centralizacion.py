@@ -1,5 +1,7 @@
 """Generación de asientos contables por documento RCV."""
 
+from datetime import date
+
 from django.db import transaction
 
 from .models import AsientoContable, CuentaContable, LineaAsiento
@@ -8,6 +10,18 @@ from .rcv_sugerencias import registrar_uso_cuenta
 
 class RCVCentralizacionError(Exception):
     pass
+
+
+def fecha_contabilizacion_rcv(documento):
+    """
+    Fecha del asiento según periodo del archivo RCV.
+    Documentos con fecha de emisión en otro mes (ej. dic. recepcionado en ene.)
+    se contabilizan el día 1 del mes del RCV para cuadrar con la centralización.
+    """
+    if documento.fuera_periodo:
+        imp = documento.importacion
+        return date(imp.ano, imp.mes, 1)
+    return documento.fecha_docto
 
 
 def _cuenta_empresa(empresa, codigo, nombre_fallback=None):
@@ -50,9 +64,11 @@ def contabilizar_documento_rcv(documento):
         f'{documento.proveedor.razon_social}'
     )[:255]
 
+    fecha_asiento = fecha_contabilizacion_rcv(documento)
+
     asiento = AsientoContable.objects.create(
         empresa=empresa,
-        fecha=documento.fecha_docto,
+        fecha=fecha_asiento,
         glosa=glosa,
         tipo_asiento='rcv',
         origen_importacion_rcv=documento.importacion,
@@ -84,7 +100,7 @@ def contabilizar_documento_rcv(documento):
     documento.estado = 'contabilizada'
     documento.save(update_fields=['asiento', 'estado'])
 
-    registrar_uso_cuenta(empresa, documento.proveedor, gasto, documento.fecha_docto)
+    registrar_uso_cuenta(empresa, documento.proveedor, gasto, fecha_asiento)
     return asiento
 
 
