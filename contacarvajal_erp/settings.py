@@ -160,10 +160,28 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # --- FIN SECTOR ESTÁTICOS ---
 
+# --- CACHÉ (UF/UTM y datos poco cambiantes) ---
+CACHES = {
+    'default': {
+        'BACKEND': (
+            'django.core.cache.backends.filebased.FileBasedCache'
+            if IN_PRODUCTION
+            else 'django.core.cache.backends.locmem.LocMemCache'
+        ),
+        'LOCATION': os.path.join(BASE_DIR, '.django_cache'),
+        'OPTIONS': {'MAX_ENTRIES': 300},
+    }
+}
+
+# En producción: priorizar BD local; API solo si INDICADORES_USAR_API=true
+INDICADORES_USAR_API = os.environ.get('INDICADORES_USAR_API', 'false').lower() in ('1', 'true', 'yes')
+INDICADORES_API_TIMEOUT = float(os.environ.get('INDICADORES_API_TIMEOUT', '1.5'))
+
 # --- UI: tema glass (reversible sin tocar templates) ---
 # Desactivar: UI_GLASS_ENABLED=false en entorno, o cambiar a False aquí.
 # Sin blur (más rápido): UI_GLASS_BLUR=0 — mantiene transparencias, sin backdrop-filter.
-UI_GLASS_ENABLED = os.environ.get('UI_GLASS_ENABLED', 'true').lower() in ('1', 'true', 'yes')
+_ui_glass_default = 'false' if IN_PRODUCTION else 'true'
+UI_GLASS_ENABLED = os.environ.get('UI_GLASS_ENABLED', _ui_glass_default).lower() in ('1', 'true', 'yes')
 UI_GLASS_BLUR = max(0, min(24, int(os.environ.get('UI_GLASS_BLUR', '10'))))
 
 LOGIN_URL = 'login'

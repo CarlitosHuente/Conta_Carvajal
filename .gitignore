@@ -20,3 +20,4 @@ env/
 Thumbs.db
 
 media/
+.django_cache/

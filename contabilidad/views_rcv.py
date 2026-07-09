@@ -16,7 +16,10 @@ from .models import (
 from .rcv_centralizacion import contabilizar_documentos_rcv
 from .rcv_import import importar_csv_rcv_compra
 from .rcv_parser import inferir_periodo_desde_nombre
-from .rcv_sugerencias import cuentas_gasto_qs, sugerir_cuenta_gasto, sincronizar_inteligencia_proveedores
+from .rcv_sugerencias import (
+    cuentas_gasto_qs, sugerir_cuenta_gasto, sugerir_cuentas_para_proveedores,
+    sincronizar_inteligencia_proveedores,
+)
 from .rcv_sync import (
     eliminar_importacion_rcv,
     reconciliar_documentos_rcv_huérfanos,
@@ -38,9 +41,6 @@ def rcv_lista_view(request):
     empresa, redirect_response = _empresa_rcv(request)
     if redirect_response:
         return redirect_response
-
-    reconciliar_documentos_rcv_huérfanos(empresa_id=empresa.id)
-    sincronizar_inteligencia_proveedores(empresa_id=empresa.id)
 
     importaciones = ImportacionRCVCompra.objects.filter(empresa=empresa).prefetch_related('documentos')
     return render(request, 'contabilidad/rcv/lista.html', {
@@ -109,7 +109,6 @@ def rcv_preview_view(request, pk):
 
     importacion = get_object_or_404(ImportacionRCVCompra, pk=pk, empresa=empresa)
     reconciliar_documentos_rcv_huérfanos(importacion_id=importacion.pk)
-    sincronizar_inteligencia_proveedores(empresa_id=empresa.id)
 
     filtro = request.GET.get('estado', 'pendiente')
     documentos = importacion.documentos.select_related('proveedor', 'cuenta_gasto', 'asiento').order_by(
@@ -126,16 +125,15 @@ def rcv_preview_view(request, pk):
             documentos = documentos.filter(estado='omitida')
 
     cuentas_gasto = cuentas_gasto_qs(empresa)
+    docs_list = list(documentos)
+    pendientes = [d for d in docs_list if d.estado == 'pendiente']
+    sugerencias_por_prov = sugerir_cuentas_para_proveedores(
+        empresa, [d.proveedor_id for d in pendientes],
+    )
     sugerencias = {}
-    for doc in documentos:
-        if doc.estado != 'pendiente':
-            continue
-        cuenta, fuente, detalle = sugerir_cuenta_gasto(empresa, doc.proveedor)
-        sugerencias[doc.id] = {
-            'cuenta': cuenta,
-            'fuente': fuente,
-            'detalle': detalle,
-        }
+    for doc in pendientes:
+        cuenta, fuente, detalle = sugerencias_por_prov.get(doc.proveedor_id, (None, '', ''))
+        sugerencias[doc.id] = {'cuenta': cuenta, 'fuente': fuente, 'detalle': detalle}
 
     if request.method == 'POST':
         accion = request.POST.get('accion')
@@ -190,7 +188,6 @@ def rcv_preview_view(request, pk):
                 messages.error(request, f'Doc {doc.folio}: {err}')
             return redirect('contabilidad:rcv_preview', pk=pk)
 
-    docs_list = list(documentos)
     for doc in docs_list:
         sug = sugerencias.get(doc.id, {})
         doc.sugerencia = sug

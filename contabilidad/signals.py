@@ -13,4 +13,4 @@ def asiento_eliminado_liberar_rcv(sender, instance, **kwargs):
     )
     liberar_documentos_rcv_de_asiento(instance)
     for empresa_id in empresa_ids:
-        sincronizar_inteligencia_proveedores(empresa_id=empresa_id)
+        sincronizar_inteligencia_proveedores(empresa_id=empresa_id, incluir_global=False)

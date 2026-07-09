@@ -81,6 +81,73 @@ def sugerir_cuenta_gasto(empresa, proveedor):
     return None, '', ''
 
 
+def sugerir_cuentas_para_proveedores(empresa, proveedor_ids):
+    """Sugerencias en lote (1–2 consultas en vez de N por fila RCV)."""
+    proveedor_ids = list({int(p) for p in proveedor_ids if p})
+    if not proveedor_ids:
+        return {}
+
+    rows_emp = (
+        _docs_contabilizados_qs(empresa=empresa)
+        .filter(proveedor_id__in=proveedor_ids)
+        .values('proveedor_id', 'cuenta_gasto')
+        .annotate(n=Count('id'))
+        .order_by('proveedor_id', '-n', 'cuenta_gasto')
+    )
+    best_emp = {}
+    for row in rows_emp:
+        pid = row['proveedor_id']
+        if pid not in best_emp:
+            best_emp[pid] = (row['cuenta_gasto'], row['n'])
+
+    faltantes = [p for p in proveedor_ids if p not in best_emp]
+    best_global = {}
+    if faltantes:
+        rows_g = (
+            _docs_contabilizados_qs()
+            .filter(proveedor_id__in=faltantes)
+            .exclude(empresa=empresa)
+            .values('proveedor_id', 'cuenta_gasto')
+            .annotate(n=Count('id'))
+            .order_by('proveedor_id', '-n', 'cuenta_gasto')
+        )
+        for row in rows_g:
+            pid = row['proveedor_id']
+            if pid not in best_global:
+                best_global[pid] = (row['cuenta_gasto'], row['n'])
+
+    cuenta_ids = {cid for cid, _ in best_emp.values()} | {cid for cid, _ in best_global.values()}
+    cuentas = {c.id: c for c in CuentaContable.objects.filter(pk__in=cuenta_ids)}
+
+    vinculos = {
+        v.proveedor_id: v
+        for v in EmpresaProveedor.objects.filter(
+            empresa=empresa, proveedor_id__in=proveedor_ids,
+        ).select_related('cuenta_gasto_habitual')
+    }
+
+    resultado = {}
+    for pid in proveedor_ids:
+        if pid in best_emp:
+            cid, n = best_emp[pid]
+            cuenta = cuentas.get(cid)
+            if cuenta and _es_cuenta_valida(cuenta):
+                v = vinculos.get(pid)
+                if v and v.cuenta_gasto_habitual_id == cid:
+                    resultado[pid] = (cuenta, 'habitual', f'Usada habitualmente en esta empresa ({n} veces)')
+                else:
+                    resultado[pid] = (cuenta, 'empresa', f'Usada {n} veces en esta empresa')
+                continue
+        if pid in best_global:
+            cid, n = best_global[pid]
+            cuenta = cuentas.get(cid)
+            if cuenta and _es_cuenta_valida(cuenta):
+                resultado[pid] = (cuenta, 'estudio', f'Sugerencia del estudio ({n} usos en otros clientes)')
+                continue
+        resultado[pid] = (None, '', '')
+    return resultado
+
+
 def registrar_uso_cuenta(empresa, proveedor, cuenta, fecha_compra):
     """Actualiza caché de inteligencia tras contabilizar (se resincroniza al revertir)."""
     vinculo, _ = EmpresaProveedor.objects.get_or_create(empresa=empresa, proveedor=proveedor)
@@ -101,10 +168,10 @@ def registrar_uso_cuenta(empresa, proveedor, cuenta, fecha_compra):
         stat.save(update_fields=['contador'])
 
 
-def sincronizar_inteligencia_proveedores(*, empresa_id=None):
+def sincronizar_inteligencia_proveedores(*, empresa_id=None, incluir_global=True):
     """
     Reconstruye estadísticas desde documentos RCV realmente contabilizados.
-    Corrige caché obsoleta si se eliminaron asientos fuera del flujo RCV.
+    Solo se invoca al revertir/eliminar lotes o borrar asientos (no en cada vista).
     """
     base = DocumentoCompraRCV.objects.filter(
         estado='contabilizada',
@@ -116,33 +183,43 @@ def sincronizar_inteligencia_proveedores(*, empresa_id=None):
 
     if empresa_id:
         ProveedorCuentaStats.objects.filter(empresa_id=empresa_id).delete()
-        por_empresa = base.filter(empresa_id=empresa_id).values(
-            'proveedor_id', 'cuenta_gasto_id',
-        ).annotate(n=Count('id'))
-        for row in por_empresa:
-            ProveedorCuentaStats.objects.create(
-                proveedor_id=row['proveedor_id'],
-                cuenta_id=row['cuenta_gasto_id'],
-                empresa_id=empresa_id,
-                contador=row['n'],
-            )
+        por_empresa = list(
+            base.filter(empresa_id=empresa_id)
+            .values('proveedor_id', 'cuenta_gasto_id')
+            .annotate(n=Count('id'))
+        )
+        if por_empresa:
+            ProveedorCuentaStats.objects.bulk_create([
+                ProveedorCuentaStats(
+                    proveedor_id=row['proveedor_id'],
+                    cuenta_id=row['cuenta_gasto_id'],
+                    empresa_id=empresa_id,
+                    contador=row['n'],
+                )
+                for row in por_empresa
+            ])
 
-        proveedor_ids = base.filter(empresa_id=empresa_id).values_list(
-            'proveedor_id', flat=True,
-        ).distinct()
-        for prov_id in proveedor_ids:
-            docs = base.filter(empresa_id=empresa_id, proveedor_id=prov_id)
-            resumen = docs.aggregate(
-                total=Count('id'),
-                primera=Min('fecha_docto'),
-                ultima=Max('fecha_docto'),
-            )
-            top = (
-                docs.values('cuenta_gasto_id')
-                .annotate(n=Count('id'))
-                .order_by('-n', 'cuenta_gasto_id')
-                .first()
-            )
+        aggs = list(
+            base.filter(empresa_id=empresa_id)
+            .values('proveedor_id')
+            .annotate(total=Count('id'), primera=Min('fecha_docto'), ultima=Max('fecha_docto'))
+        )
+        top_rows = (
+            base.filter(empresa_id=empresa_id)
+            .values('proveedor_id', 'cuenta_gasto_id')
+            .annotate(n=Count('id'))
+        )
+        top_by_prov = {}
+        for row in top_rows:
+            pid = row['proveedor_id']
+            prev = top_by_prov.get(pid)
+            if not prev or row['n'] > prev[1]:
+                top_by_prov[pid] = (row['cuenta_gasto_id'], row['n'])
+
+        proveedor_ids = [a['proveedor_id'] for a in aggs]
+        for resumen in aggs:
+            prov_id = resumen['proveedor_id']
+            top = top_by_prov.get(prov_id)
             EmpresaProveedor.objects.update_or_create(
                 empresa_id=empresa_id,
                 proveedor_id=prov_id,
@@ -150,23 +227,26 @@ def sincronizar_inteligencia_proveedores(*, empresa_id=None):
                     'veces_contabilizado': resumen['total'] or 0,
                     'primera_compra': resumen['primera'],
                     'ultima_compra': resumen['ultima'],
-                    'cuenta_gasto_habitual_id': top['cuenta_gasto_id'] if top else None,
+                    'cuenta_gasto_habitual_id': top[0] if top else None,
                 },
             )
 
         EmpresaProveedor.objects.filter(empresa_id=empresa_id).exclude(
             proveedor_id__in=proveedor_ids,
-        ).update(
-            veces_contabilizado=0,
-            cuenta_gasto_habitual=None,
-        )
+        ).update(veces_contabilizado=0, cuenta_gasto_habitual=None)
+
+    if not incluir_global:
+        return
 
     ProveedorCuentaStats.objects.filter(empresa__isnull=True).delete()
-    por_global = base.values('proveedor_id', 'cuenta_gasto_id').annotate(n=Count('id'))
-    for row in por_global:
-        ProveedorCuentaStats.objects.create(
-            proveedor_id=row['proveedor_id'],
-            cuenta_id=row['cuenta_gasto_id'],
-            empresa=None,
-            contador=row['n'],
-        )
+    por_global = list(base.values('proveedor_id', 'cuenta_gasto_id').annotate(n=Count('id')))
+    if por_global:
+        ProveedorCuentaStats.objects.bulk_create([
+            ProveedorCuentaStats(
+                proveedor_id=row['proveedor_id'],
+                cuenta_id=row['cuenta_gasto_id'],
+                empresa=None,
+                contador=row['n'],
+            )
+            for row in por_global
+        ])
