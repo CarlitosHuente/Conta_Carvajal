@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize', # Para formatos de números
     'core.apps.CoreConfig', # Apuntamos a la configuración para que cargue las señales
     'rrhh',
-    'contabilidad',
+    'contabilidad.apps.ContabilidadConfig',
 ]
 
 MIDDLEWARE = [

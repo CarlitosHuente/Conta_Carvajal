@@ -17,6 +17,11 @@ from .rcv_centralizacion import contabilizar_documentos_rcv
 from .rcv_import import importar_csv_rcv_compra
 from .rcv_parser import inferir_periodo_desde_nombre
 from .rcv_sugerencias import cuentas_gasto_qs, sugerir_cuenta_gasto
+from .rcv_sync import (
+    eliminar_importacion_rcv,
+    reconciliar_documentos_rcv_huérfanos,
+    revertir_contabilizacion_importacion,
+)
 
 
 def _empresa_rcv(request):
@@ -33,6 +38,8 @@ def rcv_lista_view(request):
     empresa, redirect_response = _empresa_rcv(request)
     if redirect_response:
         return redirect_response
+
+    reconciliar_documentos_rcv_huérfanos(empresa_id=empresa.id)
 
     importaciones = ImportacionRCVCompra.objects.filter(empresa=empresa).prefetch_related('documentos')
     return render(request, 'contabilidad/rcv/lista.html', {
@@ -100,13 +107,21 @@ def rcv_preview_view(request, pk):
         return redirect_response
 
     importacion = get_object_or_404(ImportacionRCVCompra, pk=pk, empresa=empresa)
+    reconciliar_documentos_rcv_huérfanos(importacion_id=importacion.pk)
+
     filtro = request.GET.get('estado', 'pendiente')
     documentos = importacion.documentos.select_related('proveedor', 'cuenta_gasto', 'asiento').order_by(
         'fecha_docto', 'folio',
     )
     if filtro in ('pendiente', 'contabilizada', 'omitida', 'todos'):
-        if filtro != 'todos':
-            documentos = documentos.filter(estado=filtro)
+        if filtro == 'pendiente':
+            documentos = documentos.filter(
+                Q(estado='pendiente') | Q(estado='contabilizada', asiento__isnull=True),
+            )
+        elif filtro == 'contabilizada':
+            documentos = documentos.filter(estado='contabilizada', asiento__isnull=False)
+        elif filtro == 'omitida':
+            documentos = documentos.filter(estado='omitida')
 
     cuentas_gasto = cuentas_gasto_qs(empresa)
     sugerencias = {}
@@ -187,10 +202,45 @@ def rcv_preview_view(request, pk):
         'documentos': docs_list,
         'cuentas_gasto': cuentas_gasto,
         'filtro': filtro,
-        'pendientes': importacion.documentos.filter(estado='pendiente').count(),
-        'contabilizados': importacion.documentos.filter(estado='contabilizada').count(),
+        'pendientes': importacion.pendientes,
+        'contabilizados': importacion.contabilizados,
         'omitidos': importacion.documentos.filter(estado='omitida').count(),
     })
+
+
+@login_required
+@require_access('contabilidad', 'f29', 'crear')
+def rcv_revertir_view(request, pk):
+    empresa, redirect_response = _empresa_rcv(request)
+    if redirect_response:
+        return redirect_response
+
+    importacion = get_object_or_404(ImportacionRCVCompra, pk=pk, empresa=empresa)
+    if request.method != 'POST':
+        return redirect('contabilidad:rcv_preview', pk=pk)
+
+    n = revertir_contabilizacion_importacion(importacion)
+    messages.success(
+        request,
+        f'Se revirtieron {n} contabilización(es). Los documentos quedaron pendientes.',
+    )
+    return redirect('contabilidad:rcv_preview', pk=pk)
+
+
+@login_required
+@require_access('contabilidad', 'f29', 'crear')
+def rcv_eliminar_view(request, pk):
+    empresa, redirect_response = _empresa_rcv(request)
+    if redirect_response:
+        return redirect_response
+
+    importacion = get_object_or_404(ImportacionRCVCompra, pk=pk, empresa=empresa)
+    if request.method != 'POST':
+        return redirect('contabilidad:rcv_lista')
+
+    nombre = eliminar_importacion_rcv(importacion)
+    messages.success(request, f'Importación RCV eliminada: {nombre}.')
+    return redirect('contabilidad:rcv_lista')
 
 
 @login_required

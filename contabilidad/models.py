@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from core.models import Empresa
 
 class CodigoF29(models.Model):
@@ -485,11 +486,13 @@ class ImportacionRCVCompra(models.Model):
 
     @property
     def pendientes(self):
-        return self.documentos.filter(estado='pendiente').count()
+        return self.documentos.filter(
+            Q(estado='pendiente') | Q(estado='contabilizada', asiento__isnull=True)
+        ).count()
 
     @property
     def contabilizados(self):
-        return self.documentos.filter(estado='contabilizada').count()
+        return self.documentos.filter(estado='contabilizada', asiento__isnull=False).count()
 
 
 class DocumentoCompraRCV(models.Model):

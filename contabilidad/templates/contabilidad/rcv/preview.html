@@ -10,9 +10,21 @@
             <h2 class="h4 mb-0">RCV {{ importacion.mes|stringformat:"02d" }}/{{ importacion.ano }}</h2>
             <p class="text-muted small mb-0">{{ importacion.nombre_archivo }}</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <a href="{% url 'contabilidad:rcv_lista' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
             <a href="{% url 'contabilidad:proveedor_empresa_lista' %}" class="btn btn-outline-info btn-sm">Proveedores empresa</a>
+            {% if contabilizados > 0 %}
+            <form action="{% url 'contabilidad:rcv_revertir' importacion.pk %}" method="post" class="d-inline"
+                  onsubmit="return confirm('¿Revertir todas las contabilizaciones de este RCV? Se eliminarán los asientos del libro diario y los documentos quedarán pendientes.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-warning btn-sm">Revertir contabilización</button>
+            </form>
+            {% endif %}
+            <form action="{% url 'contabilidad:rcv_eliminar' importacion.pk %}" method="post" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar este lote RCV completo? Se borrarán documentos y asientos asociados.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar lote</button>
+            </form>
         </div>
     </div>
 

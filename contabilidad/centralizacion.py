@@ -9,12 +9,31 @@ def _evaluar_formula(formula, f29_datos, resultados_cuentas):
         valor = f29_datos.get(cod, 0) or 0
         formula = formula.replace(f'[{cod}]', str(valor))
 
-    codigos_cta = re.findall(r'\[CTA:([0-9\.]+)\]', formula)
+    codigos_cta = re.findall(r'\[CTA:([0-9\.]+)\]', formula, flags=re.IGNORECASE)
     for cod in codigos_cta:
         valor = resultados_cuentas.get(cod, 0)
-        formula = formula.replace(f'[CTA:{cod}]', str(valor))
+        formula = formula.replace(f'[CTA:{cod}]', str(valor), 1)
+        formula = formula.replace(f'[cta:{cod}]', str(valor), 1)
 
-    return round(eval(formula, {"__builtins__": None}, {}))
+    # Alias: [2.01.03] equivale a [CTA:2.01.03] (código con puntos, no código F29)
+    codigos_cta_bare = re.findall(r'\[([0-9]+(?:\.[0-9]+)+)\]', formula)
+    for cod in codigos_cta_bare:
+        valor = resultados_cuentas.get(cod, 0)
+        formula = formula.replace(f'[{cod}]', str(valor), 1)
+
+    if re.search(r'\[[^\]]+\]', formula):
+        raise ValueError(
+            f'Referencia no resuelta en fórmula: «{formula}». '
+            'Use [538] para códigos F29 y [CTA:2.01.03] (o [2.01.03]) para filas ya calculadas arriba.'
+        )
+
+    try:
+        return round(eval(formula, {"__builtins__": None}, {}))
+    except SyntaxError as exc:
+        raise ValueError(
+            f'Sintaxis inválida en fórmula: «{formula}». '
+            'Revise corchetes y operadores; para otras cuentas use [CTA:código].'
+        ) from exc
 
 
 def calcular_asiento_desde_plantilla(plantilla, f29_datos, omitir_cero=True):

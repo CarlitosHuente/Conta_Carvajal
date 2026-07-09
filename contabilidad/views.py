@@ -440,10 +440,13 @@ def contabilidad_hub_view(request):
     cuentas_count = CuentaContable.objects.filter(empresa=empresa_actual).count()
     plantillas_count = PlantillaCentralizacion.objects.filter(empresa=empresa_actual).count()
 
+    from django.db.models import Q
     from .models import ImportacionRCVCompra, DocumentoCompraRCV
     rcv_count = ImportacionRCVCompra.objects.filter(empresa=empresa_actual).count()
     rcv_pendientes = DocumentoCompraRCV.objects.filter(
-        empresa=empresa_actual, estado='pendiente',
+        empresa=empresa_actual,
+    ).filter(
+        Q(estado='pendiente') | Q(estado='contabilizada', asiento__isnull=True),
     ).count()
 
     return render(request, 'contabilidad/hub.html', {
