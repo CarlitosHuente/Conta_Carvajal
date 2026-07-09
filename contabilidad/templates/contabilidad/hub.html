@@ -47,6 +47,18 @@
         </div>
     </div>
 
+    <form method="post" action="{% url 'contabilidad:contabilidad_completa_toggle' %}" class="alert alert-light border shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+        {% csrf_token %}
+        <div>
+            <strong>Contabilidad completa (RCV)</strong>
+            <span class="text-muted small d-block">Activa el módulo de compras por factura desde el CSV del SII. El F29 sigue disponible siempre.</span>
+        </div>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" name="contabilidad_completa" id="sw-rcv" {% if empresa.contabilidad_completa %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label" for="sw-rcv">{% if empresa.contabilidad_completa %}Activada{% else %}Desactivada{% endif %}</label>
+        </div>
+    </form>
+
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="card shadow-sm h-100 border-start border-primary border-4">
@@ -60,6 +72,25 @@
                 </div>
             </div>
         </div>
+
+        {% if empresa.contabilidad_completa %}
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-start border-info border-4">
+                <div class="card-body">
+                    <h5 class="card-title text-info"><i class="fas fa-file-csv me-2"></i>RCV Compras (detalle)</h5>
+                    <p class="text-muted small">Importar CSV del SII, asignar cuenta por factura y contabilizar. {{ rcv_pendientes }} pendiente(s).</p>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'contabilidad:rcv_lista' %}" class="list-group-item list-group-item-action">Historial RCV ({{ rcv_count }})</a>
+                        <a href="{% url 'contabilidad:rcv_subir' %}" class="list-group-item list-group-item-action">Subir CSV compras</a>
+                        <a href="{% url 'contabilidad:proveedor_empresa_lista' %}" class="list-group-item list-group-item-action">Proveedores de esta empresa</a>
+                        {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                        <a href="{% url 'contabilidad:proveedor_global_lista' %}" class="list-group-item list-group-item-action">Catálogo global proveedores</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <div class="col-lg-4">
             <div class="card shadow-sm h-100 border-start border-success border-4">

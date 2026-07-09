@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="h4 mb-0">RCV {{ importacion.mes|stringformat:"02d" }}/{{ importacion.ano }}</h2>
+            <p class="text-muted small mb-0">{{ importacion.nombre_archivo }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'contabilidad:rcv_lista' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
+            <a href="{% url 'contabilidad:proveedor_empresa_lista' %}" class="btn btn-outline-info btn-sm">Proveedores empresa</a>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-auto"><span class="badge bg-warning text-dark">Pendientes: {{ pendientes }}</span></div>
+        <div class="col-auto"><span class="badge bg-success">Contabilizados: {{ contabilizados }}</span></div>
+        <div class="col-auto"><span class="badge bg-secondary">Omitidos: {{ omitidos }}</span></div>
+    </div>
+
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item"><a class="nav-link {% if filtro == 'pendiente' %}active{% endif %}" href="?estado=pendiente">Pendientes</a></li>
+        <li class="nav-item"><a class="nav-link {% if filtro == 'contabilizada' %}active{% endif %}" href="?estado=contabilizada">Contabilizados</a></li>
+        <li class="nav-item"><a class="nav-link {% if filtro == 'omitida' %}active{% endif %}" href="?estado=omitida">Omitidos</a></li>
+        <li class="nav-item"><a class="nav-link {% if filtro == 'todos' %}active{% endif %}" href="?estado=todos">Todos</a></li>
+    </ul>
+
+    <form method="post" id="form-rcv">
+        {% csrf_token %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="sel-todos">
+                    <label class="form-check-label" for="sel-todos">Seleccionar todos</label>
+                </div>
+                <select name="cuenta_masiva" class="form-select form-select-sm" style="max-width:280px" id="cuenta-masiva">
+                    <option value="">Cuenta masiva…</option>
+                    {% for c in cuentas_gasto %}
+                    <option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" name="accion" value="asignar_masivo" class="btn btn-sm btn-outline-primary">Aplicar cuenta</button>
+                <button type="submit" name="accion" value="guardar_cuentas" class="btn btn-sm btn-outline-secondary">Guardar cuentas</button>
+                <button type="submit" name="accion" value="contabilizar" class="btn btn-sm btn-success">Contabilizar seleccionados</button>
+                <button type="submit" name="accion" value="omitir" class="btn btn-sm btn-outline-warning">Omitir seleccionados</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th></th>
+                            <th>Tipo</th>
+                            <th>Folio</th>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th class="text-end">Neto+Ex.</th>
+                            <th class="text-end">IVA</th>
+                            <th class="text-end">Total</th>
+                            <th>Cuenta gasto / existencia</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documentos %}
+                        <tr class="{% if doc.fuera_periodo %}table-warning{% endif %}">
+                            <td>
+                                {% if doc.estado == 'pendiente' %}
+                                <input type="checkbox" class="form-check-input doc-check" name="doc_ids" value="{{ doc.id }}" checked>
+                                {% endif %}
+                            </td>
+                            <td>{{ doc.tipo_doc }}{% if doc.es_nota_credito %} <span class="badge bg-info">NC</span>{% endif %}</td>
+                            <td>{{ doc.folio }}</td>
+                            <td>{{ doc.fecha_docto|date:"d/m/Y" }}</td>
+                            <td>
+                                <div class="fw-semibold small">{{ doc.proveedor.razon_social|truncatechars:35 }}</div>
+                                <div class="text-muted" style="font-size:.75rem">{{ doc.proveedor.rut }}</div>
+                            </td>
+                            <td class="text-end">${{ doc.monto_gasto|intcomma }}</td>
+                            <td class="text-end">${{ doc.monto_iva_recuperable|intcomma }}</td>
+                            <td class="text-end">${{ doc.monto_total|intcomma }}</td>
+                            <td style="min-width:220px">
+                                {% if doc.estado == 'pendiente' %}
+                                <select name="cuenta_{{ doc.id }}" class="form-select form-select-sm cuenta-select">
+                                    <option value="">— Seleccionar —</option>
+                                    {% for c in cuentas_gasto %}
+                                    <option value="{{ c.id }}"
+                                        {% if doc.cuenta_gasto_id == c.id or doc.cuenta_sugerida_id == c.id and not doc.cuenta_gasto_id %}selected{% endif %}>
+                                        {{ c.codigo }} — {{ c.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if doc.sugerencia.fuente %}
+                                <div class="text-muted" style="font-size:.7rem" title="{{ doc.sugerencia.detalle }}">
+                                    {% if doc.sugerencia.fuente == 'estudio' %}<i class="fas fa-lightbulb text-warning"></i>{% endif %}
+                                    {{ doc.sugerencia.detalle|truncatechars:50 }}
+                                </div>
+                                {% endif %}
+                                {% elif doc.cuenta_gasto %}
+                                {{ doc.cuenta_gasto.codigo }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if doc.estado == 'contabilizada' %}
+                                <a href="{% url 'contabilidad:asiento_detalle' doc.asiento_id %}" class="badge bg-success text-decoration-none">#{{ doc.asiento_id }}</a>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ doc.get_estado_display }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="10" class="text-center text-muted py-4">Sin documentos en este filtro.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('sel-todos')?.addEventListener('change', function() {
+    document.querySelectorAll('.doc-check').forEach(cb => { cb.checked = this.checked; });
+});
+</script>
+{% endblock %}

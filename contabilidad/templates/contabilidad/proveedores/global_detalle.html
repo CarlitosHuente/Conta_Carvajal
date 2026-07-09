@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <a href="{% url 'contabilidad:proveedor_global_lista' %}" class="btn btn-sm btn-outline-secondary mb-2">← Catálogo global</a>
+    <h2 class="h4">{{ proveedor.razon_social }}</h2>
+    <p class="text-muted">{{ proveedor.rut }}</p>
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <form method="post" class="card shadow-sm">
+                <div class="card-header">Datos del proveedor</div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Razón social</label>
+                        <input type="text" name="razon_social" class="form-control" value="{{ proveedor.razon_social }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rubro</label>
+                        <select name="rubro" class="form-select">
+                            {% for val, label in proveedor.RUBRO_CHOICES %}
+                            <option value="{{ val }}" {% if proveedor.rubro == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notas (análisis contador)</label>
+                        <textarea name="notas" class="form-control" rows="4">{{ proveedor.notas }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">Empresas que compran a este proveedor</div>
+                <ul class="list-group list-group-flush">
+                    {% for v in vinculos %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ v.empresa.razon_social }}</span>
+                        <span class="text-muted small">
+                            {% if v.cuenta_gasto_habitual %}{{ v.cuenta_gasto_habitual.codigo }}{% else %}—{% endif %}
+                            · {{ v.veces_contabilizado }} contab.
+                        </span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted">Sin vínculos aún.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-header">Cuentas más usadas (estadísticas)</div>
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Cuenta</th><th>Ámbito</th><th>Usos</th></tr></thead>
+                    <tbody>
+                        {% for s in stats %}
+                        <tr>
+                            <td>{{ s.cuenta.codigo }} — {{ s.cuenta.nombre }}</td>
+                            <td>{% if s.empresa %}{{ s.empresa.razon_social }}{% else %}Global estudio{% endif %}</td>
+                            <td>{{ s.contador }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-muted">Sin historial de cuentas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

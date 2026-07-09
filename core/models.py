@@ -25,6 +25,11 @@ class Empresa(models.Model):
     # ¡NUEVO! Interruptores de Módulos (Por defecto los activamos para no romper lo actual)
     tiene_rrhh = models.BooleanField(default=True, verbose_name="¿Módulo RRHH Activo?")
     tiene_contabilidad = models.BooleanField(default=False, verbose_name="¿Módulo Contabilidad Activo?")
+    contabilidad_completa = models.BooleanField(
+        default=True,
+        verbose_name="Contabilidad completa (RCV)",
+        help_text="Muestra el módulo de compras RCV. Desactívalo para usar solo F29 simplificado.",
+    )
     tiene_cobranza = models.BooleanField(default=True, verbose_name="¿Módulo Cobranza Activo?")
 
     def __str__(self):

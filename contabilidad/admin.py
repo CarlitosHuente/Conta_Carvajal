@@ -3,6 +3,7 @@ from .models import (
     CodigoF29, DeclaracionF29, ReglaValidacion, CuentaContable,
     PlantillaCentralizacion, LineaPlantilla, AsientoContable, LineaAsiento,
     AplicacionCobroPago, AccionRapida, LineaAccionRapida, CuentaAccionRapida,
+    ProveedorGlobal, EmpresaProveedor, ImportacionRCVCompra, DocumentoCompraRCV,
 )
 
 admin.site.register(CodigoF29)
@@ -63,3 +64,21 @@ class AccionRapidaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'empresa', 'tipo', 'lado_pendiente', 'activa')
     list_filter = ('tipo', 'activa', 'empresa')
     inlines = [LineaAccionRapidaInline, CuentaAccionRapidaInline]
+
+
+@admin.register(ProveedorGlobal)
+class ProveedorGlobalAdmin(admin.ModelAdmin):
+    list_display = ('rut', 'razon_social', 'rubro', 'activo')
+    search_fields = ('rut', 'razon_social')
+
+
+@admin.register(ImportacionRCVCompra)
+class ImportacionRCVCompraAdmin(admin.ModelAdmin):
+    list_display = ('empresa', 'mes', 'ano', 'filas_nuevas', 'creado')
+    list_filter = ('ano', 'mes', 'empresa')
+
+
+@admin.register(DocumentoCompraRCV)
+class DocumentoCompraRCVAdmin(admin.ModelAdmin):
+    list_display = ('folio', 'tipo_doc', 'proveedor', 'empresa', 'monto_total', 'estado')
+    list_filter = ('estado', 'tipo_doc', 'empresa')

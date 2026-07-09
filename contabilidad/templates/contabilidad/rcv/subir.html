@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    {% include 'contabilidad/_nav_contabilidad.html' %}
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-file-csv"></i> Cargar RCV Compras (SII)</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">Sube el CSV de <strong>Registro de Compra</strong> descargado desde el SII. El período se detecta del nombre del archivo (<code>_YYYYMM.csv</code>).</p>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Archivo CSV</label>
+                            <input class="form-control" type="file" name="archivo_csv" accept=".csv" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label">Mes (opcional si está en el nombre)</label>
+                                <input class="form-control" type="number" name="mes" min="1" max="12" placeholder="Ej: 1">
+                            </div>
+                            <div class="col">
+                                <label class="form-label">Año</label>
+                                <input class="form-control" type="number" name="ano" min="2020" placeholder="Ej: 2026">
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">Importar y revisar</button>
+                            <a href="{% url 'contabilidad:rcv_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

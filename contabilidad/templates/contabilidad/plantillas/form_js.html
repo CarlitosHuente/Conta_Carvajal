@@ -21,6 +21,7 @@
                         <label class="form-label fw-bold">Origen de los Datos</label>
                         <select name="tipo_origen" class="form-select border-primary" required>
                             <option value="f29" {% if plantilla.tipo_origen == 'f29' %}selected{% endif %}>Formulario 29 (Simplificada)</option>
+                            <option value="rcv" {% if plantilla.tipo_origen == 'rcv' %}selected{% endif %}>RCV Compras (futuro resumen)</option>
                         </select>
                     </div>
                 </div>

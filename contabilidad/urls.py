@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.generic import RedirectView
-from . import views, views_libros
+from . import views, views_libros, views_rcv
 
 app_name = 'contabilidad'
 
@@ -15,6 +15,15 @@ urlpatterns = [
     path('f29/<int:pk>/recalcular/', views.f29_recalcular_view, name='f29_recalcular'),
     path('f29/<int:pk>/editar/', views.f29_editar_view, name='f29_editar'),
     path('f29/<int:pk>/centralizar/', views.f29_centralizar_view, name='f29_centralizar'),
+
+    # --- RCV COMPRAS (contabilidad completa) ---
+    path('rcv-compras/', views_rcv.rcv_lista_view, name='rcv_lista'),
+    path('rcv-compras/subir/', views_rcv.rcv_subir_view, name='rcv_subir'),
+    path('rcv-compras/<int:pk>/', views_rcv.rcv_preview_view, name='rcv_preview'),
+    path('contabilidad-completa-toggle/', views_rcv.contabilidad_completa_toggle_view, name='contabilidad_completa_toggle'),
+    path('proveedores/', views_rcv.proveedor_empresa_lista_view, name='proveedor_empresa_lista'),
+    path('proveedores/global/', views_rcv.proveedor_global_lista_view, name='proveedor_global_lista'),
+    path('proveedores/global/<int:pk>/', views_rcv.proveedor_global_detalle_view, name='proveedor_global_detalle'),
 
     # --- PLAN DE CUENTAS ---
     path('plan-cuentas/', views.plan_cuentas_lista_view, name='plan_cuentas_lista'),

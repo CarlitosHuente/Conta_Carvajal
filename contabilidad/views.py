@@ -440,12 +440,20 @@ def contabilidad_hub_view(request):
     cuentas_count = CuentaContable.objects.filter(empresa=empresa_actual).count()
     plantillas_count = PlantillaCentralizacion.objects.filter(empresa=empresa_actual).count()
 
+    from .models import ImportacionRCVCompra, DocumentoCompraRCV
+    rcv_count = ImportacionRCVCompra.objects.filter(empresa=empresa_actual).count()
+    rcv_pendientes = DocumentoCompraRCV.objects.filter(
+        empresa=empresa_actual, estado='pendiente',
+    ).count()
+
     return render(request, 'contabilidad/hub.html', {
         'empresa': empresa_actual,
         'f29_count': f29_count,
         'asientos_count': asientos_count,
         'cuentas_count': cuentas_count,
         'plantillas_count': plantillas_count,
+        'rcv_count': rcv_count,
+        'rcv_pendientes': rcv_pendientes,
     })
 
 
