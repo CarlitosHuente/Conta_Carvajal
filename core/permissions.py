@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 
 from .models import PermisoAccesoUsuario
+from .vista import usuario_para_permisos, vista_es_admin_ui
 
 
 def get_empresa_operativa_id(request):
@@ -30,12 +31,13 @@ def ensure_empresa_operativa(request):
     return empresa_id, None
 
 
-def _usuario_tiene_permiso(user, empresa_id, modulo, submodulo, accion):
+def _usuario_tiene_permiso(user, empresa_id, modulo, submodulo, accion, admin_bypass=False):
     if not hasattr(user, 'perfil'):
         return False
 
-    if user.is_superuser or user.perfil.rol == 'admin':
-        return True
+    if admin_bypass:
+        if user.is_superuser or user.perfil.rol == 'admin':
+            return True
 
     permisos = PermisoAccesoUsuario.objects.filter(
         user=user,
@@ -60,7 +62,9 @@ def require_access(modulo, submodulo='', accion='ver'):
                 messages.warning(request, "Debes seleccionar una empresa para continuar.")
                 return redirect('core:home')
 
-            if not _usuario_tiene_permiso(request.user, empresa_id, modulo, submodulo, accion):
+            user_perm = usuario_para_permisos(request)
+            admin_bypass = vista_es_admin_ui(request)
+            if not _usuario_tiene_permiso(user_perm, empresa_id, modulo, submodulo, accion, admin_bypass):
                 messages.error(request, "No tienes permiso para acceder a esta funcionalidad.")
                 return redirect('core:empresa_dashboard')
 

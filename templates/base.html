@@ -120,7 +120,7 @@
                                         {% if permisos_ui.rrhh_liquidaciones_ver %}
                                         <li><a class="dropdown-item" href="{% url 'rrhh:libro_remuneraciones' %}"><i class="fas fa-book-open me-2"></i>Libro de Remuneraciones</a></li>
                                         {% endif %}
-                                        {% if user.perfil.rol == 'admin' %}
+                                        {% if vista_es_admin %}
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header text-primary fw-bold">Config. empresa</h6></li>
                                         <li><a class="dropdown-item" href="{% url 'rrhh:concepto_variable_list' %}"><i class="fas fa-cogs me-2 text-secondary"></i>Conceptos variables</a></li>
@@ -128,7 +128,7 @@
                                     </ul>
                                 </li>
                                 {% endif %}
-                                {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                {% if vista_es_admin %}
                                 <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
                                     <a class="btn btn-sm btn-danger rounded-pill shadow-sm px-3" href="{% url 'core:salir_empresa' %}">
                                         <i class="fas fa-arrow-left me-1"></i> Cambiar Empresa
@@ -136,7 +136,7 @@
                                 </li>
                                 {% endif %}
                             {% else %}
-                                {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                {% if vista_es_admin %}
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="navbarGlobalRRHH" role="button" data-bs-toggle="dropdown">
                                         <i class="fas fa-globe-americas me-1"></i>Parámetros nacionales
@@ -162,8 +162,34 @@
                                     <i class="fas fa-user-circle me-1"></i>{{ user.username }}
                                 </a>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                    {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                                    {% if vista_es_admin %}
                                     <li><a class="dropdown-item" href="/admin" target="_blank"><i class="fas fa-cog me-2"></i>Panel Técnico</a></li>
+                                    {% endif %}
+                                    {% if vista_es_admin and empresa_activa %}
+                                    <li>
+                                        <form action="{% url 'core:toggle_vista_cliente' %}" method="post" class="px-3 py-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.path }}">
+                                            <input type="hidden" name="modo" value="cliente">
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100 text-start">
+                                                <i class="fas fa-eye me-2"></i>Ver como cliente
+                                                <small class="d-block text-muted">{{ empresa_activa.razon_social }}</small>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% elif vista_cliente_activa and empresa_activa %}
+                                    <li>
+                                        <form action="{% url 'core:toggle_vista_cliente' %}" method="post" class="px-3 py-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.path }}">
+                                            <input type="hidden" name="modo" value="admin">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                                <i class="fas fa-user-shield me-2"></i>Volver a vista administrador
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    {% if vista_es_admin or vista_cliente_activa %}
                                     <li><hr class="dropdown-divider"></li>
                                     {% endif %}
                                     <li>
@@ -207,6 +233,17 @@
     </div>
 
     <main class="container mt-5 pt-4">
+        {% if vista_cliente_activa and empresa_activa %}
+        <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <span><i class="fas fa-eye me-2"></i><strong>Vista cliente:</strong> estás viendo el sistema como <em>{{ empresa_activa.razon_social }}</em>.</span>
+            <form action="{% url 'core:toggle_vista_cliente' %}" method="post" class="mb-0">
+                {% csrf_token %}
+                <input type="hidden" name="modo" value="admin">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="btn btn-sm btn-outline-dark">Volver a administrador</button>
+            </form>
+        </div>
+        {% endif %}
         <!-- ZONA DE ALERTAS Y MENSAJES DEL SISTEMA -->
         {% if messages %}
             <div class="mb-4">

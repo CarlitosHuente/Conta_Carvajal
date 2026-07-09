@@ -21,7 +21,7 @@
                     <div class="list-group list-group-flush">
                         <a href="{% url 'rrhh:trabajador_list' %}" class="list-group-item list-group-item-action">Fichas y contratos</a>
                         <a href="{% url 'rrhh:finiquito_list' %}" class="list-group-item list-group-item-action">Finiquitos emitidos</a>
-                        {% if user.perfil.rol == 'admin' %}
+                        {% if vista_es_admin %}
                         <a href="{% url 'rrhh:trabajador_create' %}" class="list-group-item list-group-item-action">Nuevo trabajador</a>
                         <a href="{% url 'rrhh:concepto_variable_list' %}" class="list-group-item list-group-item-action">Conceptos variables</a>
                         {% endif %}

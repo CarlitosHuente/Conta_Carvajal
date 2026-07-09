@@ -83,7 +83,7 @@
                         <a href="{% url 'contabilidad:rcv_lista' %}" class="list-group-item list-group-item-action">Historial RCV ({{ rcv_count }})</a>
                         <a href="{% url 'contabilidad:rcv_subir' %}" class="list-group-item list-group-item-action">Subir CSV compras</a>
                         <a href="{% url 'contabilidad:proveedor_empresa_lista' %}" class="list-group-item list-group-item-action">Proveedores de esta empresa</a>
-                        {% if user.perfil.rol == 'admin' or user.is_superuser %}
+                        {% if vista_es_admin %}
                         <a href="{% url 'contabilidad:proveedor_global_lista' %}" class="list-group-item list-group-item-action">Catálogo global proveedores</a>
                         {% endif %}
                     </div>

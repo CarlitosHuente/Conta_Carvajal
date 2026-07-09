@@ -11,4 +11,5 @@ urlpatterns = [
     path('empresa/dashboard/', views.empresa_dashboard_view, name='empresa_dashboard'),
     path('empresa/seleccionar/<int:empresa_id>/', views.seleccionar_empresa_view, name='seleccionar_empresa'),
     path('empresa/salir/', views.salir_empresa_view, name='salir_empresa'),
+    path('empresa/vista/', views.toggle_vista_cliente_view, name='toggle_vista_cliente'),
 ]
