@@ -1,6 +1,7 @@
 """Cálculos de Libro Mayor y Balance."""
 
 from django.db.models import Sum, Q
+from .auxiliares import aux_desde_linea, etiqueta_auxiliar
 from .models import CuentaContable, LineaAsiento, CuentaAccionRapida
 
 
@@ -135,6 +136,8 @@ def movimientos_cuenta(cuenta, fecha_corte=None, accion=None):
             'seleccionable': bool(lado_operacion and linea.monto_pendiente > 0),
             'lado_operacion': lado_operacion,
             'esta_saldada': linea.esta_saldada if lado_operacion else None,
+            'auxiliar': aux_desde_linea(linea),
+            'auxiliar_label': etiqueta_auxiliar(linea),
         })
 
     return movimientos, saldo_acum

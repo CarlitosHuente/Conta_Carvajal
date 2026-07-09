@@ -197,15 +197,21 @@ def asiento_crear_view(request):
         cuenta_ids = request.POST.getlist('cuenta_id[]')
         debes = request.POST.getlist('debe[]')
         haberes = request.POST.getlist('haber[]')
+        aux_ruts = request.POST.getlist('auxiliar_rut[]')
+        aux_docs = request.POST.getlist('auxiliar_doc[]')
+        centros = request.POST.getlist('centro_costo[]')
 
         lineas_data = []
-        for c_id, d, h in zip(cuenta_ids, debes, haberes):
+        for c_id, d, h, rut, doc, cc in zip(cuenta_ids, debes, haberes, aux_ruts, aux_docs, centros):
             if not c_id:
                 continue
             lineas_data.append({
                 'cuenta_id': c_id,
                 'debe': d or 0,
                 'haber': h or 0,
+                'auxiliar_rut': rut.strip(),
+                'auxiliar_doc': doc.strip(),
+                'centro_costo': cc.strip(),
             })
 
         try:
@@ -215,7 +221,13 @@ def asiento_crear_view(request):
         except SaldarMovimientosError as e:
             messages.error(request, str(e))
 
+    cuentas_aux = {
+        str(c.id): c.requiere_auxiliar
+        for c in CuentaContable.objects.filter(empresa=empresa)
+    }
+
     return render(request, 'contabilidad/libro_diario/crear.html', {
         'cuentas': cuentas,
         'fecha_hoy': hoy,
+        'cuentas_aux_json': json.dumps(cuentas_aux),
     })

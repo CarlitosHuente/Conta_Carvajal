@@ -46,6 +46,7 @@
                                 <th>Fecha</th>
                                 <th>Asiento</th>
                                 <th>Glosa</th>
+                                {% if cuenta.requiere_auxiliar %}<th>Auxiliar</th>{% endif %}
                                 <th class="text-end text-success">Debe</th>
                                 <th class="text-end text-danger">Haber</th>
                                 <th class="text-end">Saldo acum.</th>
@@ -69,6 +70,11 @@
                                     <a href="{% url 'contabilidad:asiento_detalle' mov.asiento.id %}">#{{ mov.asiento.id }}</a>
                                 </td>
                                 <td>{{ mov.glosa|truncatechars:50 }}</td>
+                                {% if cuenta.requiere_auxiliar %}
+                                <td class="small text-muted">
+                                    {% if mov.auxiliar_label %}{{ mov.auxiliar_label }}{% else %}—{% endif %}
+                                </td>
+                                {% endif %}
                                 <td class="text-end">{% if mov.debe %}${{ mov.debe|intcomma }}{% endif %}</td>
                                 <td class="text-end">{% if mov.haber %}${{ mov.haber|intcomma }}{% endif %}</td>
                                 <td class="text-end fw-bold">${{ mov.saldo_acumulado|intcomma }}</td>
@@ -79,7 +85,7 @@
                                 {% endif %}
                             </tr>
                             {% empty %}
-                            <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos hasta la fecha de corte.</td></tr>
+                            <tr><td colspan="{% if cuenta.requiere_auxiliar %}9{% else %}8{% endif %}" class="text-center text-muted py-4">Sin movimientos hasta la fecha de corte.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

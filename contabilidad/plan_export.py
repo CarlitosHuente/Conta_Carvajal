@@ -39,6 +39,7 @@ def serializar_plan_empresa(empresa):
             'nombre': cuenta.nombre,
             'tipo': cuenta.tipo,
             'subtipo_operacion': cuenta.subtipo_operacion or 'general',
+            'requiere_auxiliar': cuenta.requiere_auxiliar,
         })
 
     return payload

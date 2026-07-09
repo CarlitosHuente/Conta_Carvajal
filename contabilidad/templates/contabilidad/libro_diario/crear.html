@@ -31,30 +31,39 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Cuenta</th>
-                                <th style="width:18%">Debe</th>
-                                <th style="width:18%">Haber</th>
-                                <th style="width:5%"></th>
+                                <th class="col-aux" style="width:10%">RUT</th>
+                                <th class="col-aux" style="width:10%">Doc</th>
+                                <th class="col-aux" style="width:10%">CC</th>
+                                <th style="width:12%">Debe</th>
+                                <th style="width:12%">Haber</th>
+                                <th style="width:4%"></th>
                             </tr>
                         </thead>
                         <tbody id="tbodyLineas">
                             <tr>
                                 <td>
-                                    <select name="cuenta_id[]" class="form-select" required>
+                                    <select name="cuenta_id[]" class="form-select sel-cuenta" required>
                                         <option value="">— Cuenta —</option>
                                         {% for c in cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
                                     </select>
                                 </td>
+                                <td class="col-aux"><input type="text" name="auxiliar_rut[]" class="form-control form-control-sm campo-aux" placeholder="RUT" disabled></td>
+                                <td class="col-aux"><input type="text" name="auxiliar_doc[]" class="form-control form-control-sm campo-aux" placeholder="N° doc" disabled></td>
+                                <td class="col-aux"><input type="text" name="centro_costo[]" class="form-control form-control-sm campo-aux" placeholder="CC" disabled></td>
                                 <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
                                 <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
                                 <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar" disabled><i class="fas fa-times"></i></button></td>
                             </tr>
                             <tr>
                                 <td>
-                                    <select name="cuenta_id[]" class="form-select" required>
+                                    <select name="cuenta_id[]" class="form-select sel-cuenta" required>
                                         <option value="">— Cuenta —</option>
                                         {% for c in cuentas %}<option value="{{ c.id }}">{{ c.codigo }} — {{ c.nombre }}</option>{% endfor %}
                                     </select>
                                 </td>
+                                <td class="col-aux"><input type="text" name="auxiliar_rut[]" class="form-control form-control-sm campo-aux" placeholder="RUT" disabled></td>
+                                <td class="col-aux"><input type="text" name="auxiliar_doc[]" class="form-control form-control-sm campo-aux" placeholder="N° doc" disabled></td>
+                                <td class="col-aux"><input type="text" name="centro_costo[]" class="form-control form-control-sm campo-aux" placeholder="CC" disabled></td>
                                 <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
                                 <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
                                 <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></td>
@@ -62,7 +71,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td class="text-end">Totales:</td>
+                                <td colspan="4" class="text-end">Totales:</td>
                                 <td class="text-end text-success" id="totalDebe">$0</td>
                                 <td class="text-end text-danger" id="totalHaber">$0</td>
                                 <td></td>
@@ -70,6 +79,11 @@
                         </tfoot>
                     </table>
                 </div>
+
+                <p class="small text-muted mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    RUT, documento y centro de costo se habilitan solo en cuentas marcadas con auxiliar en el plan.
+                </p>
 
                 <button type="button" class="btn btn-sm btn-success mb-3" id="btnAgregarLinea"><i class="fas fa-plus"></i> Agregar línea</button>
 
@@ -92,8 +106,18 @@
 {% block extra_js %}
 <script>
 const tplCuentas = document.getElementById('tplCuentas').innerHTML;
+const cuentasAux = {{ cuentas_aux_json|safe }};
 
 function fmt(n) { return '$' + new Intl.NumberFormat('es-CL').format(n); }
+
+function toggleAuxFila(tr) {
+    const cuentaId = tr.querySelector('.sel-cuenta').value;
+    const usaAux = cuentaId && cuentasAux[cuentaId];
+    tr.querySelectorAll('.campo-aux').forEach(inp => {
+        inp.disabled = !usaAux;
+        if (!usaAux) inp.value = '';
+    });
+}
 
 function recalcular() {
     let d = 0, h = 0;
@@ -106,6 +130,9 @@ function recalcular() {
 
 function enlazarFila(tr) {
     tr.querySelectorAll('.campo-debe, .campo-haber').forEach(i => i.addEventListener('input', recalcular));
+    const sel = tr.querySelector('.sel-cuenta');
+    if (sel) sel.addEventListener('change', () => toggleAuxFila(tr));
+    toggleAuxFila(tr);
     const btn = tr.querySelector('.btn-quitar');
     if (btn) btn.addEventListener('click', () => {
         if (document.querySelectorAll('#tbodyLineas tr').length > 2) {
@@ -118,7 +145,10 @@ function enlazarFila(tr) {
 document.getElementById('btnAgregarLinea').addEventListener('click', () => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><select name="cuenta_id[]" class="form-select" required>${tplCuentas}</select></td>
+        <td><select name="cuenta_id[]" class="form-select sel-cuenta" required>${tplCuentas}</select></td>
+        <td class="col-aux"><input type="text" name="auxiliar_rut[]" class="form-control form-control-sm campo-aux" placeholder="RUT" disabled></td>
+        <td class="col-aux"><input type="text" name="auxiliar_doc[]" class="form-control form-control-sm campo-aux" placeholder="N° doc" disabled></td>
+        <td class="col-aux"><input type="text" name="centro_costo[]" class="form-control form-control-sm campo-aux" placeholder="CC" disabled></td>
         <td><input type="number" name="debe[]" class="form-control text-end campo-debe" min="0" value="0"></td>
         <td><input type="number" name="haber[]" class="form-control text-end campo-haber" min="0" value="0"></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger btn-quitar"><i class="fas fa-times"></i></button></td>`;

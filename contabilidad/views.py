@@ -20,6 +20,7 @@ from .models import (
     LineaPlantilla, AsientoContable, LineaAsiento, AccionRapida, LineaAccionRapida,
     CuentaAccionRapida,
 )
+from .auxiliares import aux_desde_linea, etiqueta_auxiliar
 from .forms import CuentaContableForm
 from core.models import Empresa
 from core.permissions import require_access
@@ -743,6 +744,7 @@ def plan_cuentas_cargar_base_view(request):
                     nombre=cuenta_base['nombre'],
                     tipo=cuenta_base['tipo'],
                     subtipo_operacion=cuenta_base.get('subtipo', 'general'),
+                    requiere_auxiliar=cuenta_base.get('requiere_auxiliar', False),
                 )
                 cuentas_creadas += 1
 
@@ -978,7 +980,15 @@ def asiento_detalle_view(request, pk):
     )
     total_debe = sum(linea.debe for linea in asiento.lineas.all())
     total_haber = sum(linea.haber for linea in asiento.lineas.all())
-    aplicaciones = list(asiento.aplicaciones.all()) if asiento.tipo_asiento in ('pago', 'cobro') else []
+    aplicaciones = []
+    if asiento.tipo_asiento in ('pago', 'cobro'):
+        for app in asiento.aplicaciones.all():
+            aux = aux_desde_linea(app.linea_origen)
+            aplicaciones.append({
+                'app': app,
+                'aux': aux,
+                'aux_label': etiqueta_auxiliar(app.linea_origen),
+            })
     lineas_saldadas = [l for l in asiento.lineas.all() if l.monto_aplicado > 0]
     
     return render(request, 'contabilidad/libro_diario/detalle.html', {

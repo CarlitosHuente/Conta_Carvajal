@@ -5,6 +5,7 @@ from datetime import date
 from django.db import transaction
 
 from .models import AsientoContable, CuentaContable, LineaAsiento
+from .auxiliares import aux_rcv_documento, crear_linea_asiento
 from .rcv_sugerencias import registrar_uso_cuenta
 
 
@@ -65,6 +66,7 @@ def contabilizar_documento_rcv(documento):
     )[:255]
 
     fecha_asiento = fecha_contabilizacion_rcv(documento)
+    aux_prov = aux_rcv_documento(documento)
 
     asiento = AsientoContable.objects.create(
         empresa=empresa,
@@ -76,7 +78,7 @@ def contabilizar_documento_rcv(documento):
 
     if documento.es_nota_credito:
         if total > 0:
-            LineaAsiento.objects.create(asiento=asiento, cuenta=cuentas['proveedores'], debe=total, haber=0)
+            crear_linea_asiento(asiento, cuentas['proveedores'], debe=total, haber=0, aux=aux_prov)
         if monto_gasto > 0:
             LineaAsiento.objects.create(asiento=asiento, cuenta=gasto, debe=0, haber=monto_gasto)
         if iva > 0:
@@ -87,7 +89,7 @@ def contabilizar_documento_rcv(documento):
         if iva > 0:
             LineaAsiento.objects.create(asiento=asiento, cuenta=cuentas['iva_cf'], debe=iva, haber=0)
         if total > 0:
-            LineaAsiento.objects.create(asiento=asiento, cuenta=cuentas['proveedores'], debe=0, haber=total)
+            crear_linea_asiento(asiento, cuentas['proveedores'], debe=0, haber=total, aux=aux_prov)
 
     total_debe = sum(l.debe for l in asiento.lineas.all())
     total_haber = sum(l.haber for l in asiento.lineas.all())

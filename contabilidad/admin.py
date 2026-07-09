@@ -17,8 +17,8 @@ class ReglaValidacionAdmin(admin.ModelAdmin):
 
 @admin.register(CuentaContable)
 class CuentaContableAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre', 'tipo', 'subtipo_operacion', 'empresa')
-    list_filter = ('tipo', 'subtipo_operacion', 'empresa')
+    list_display = ('codigo', 'nombre', 'tipo', 'subtipo_operacion', 'requiere_auxiliar', 'empresa')
+    list_filter = ('tipo', 'subtipo_operacion', 'requiere_auxiliar', 'empresa')
     search_fields = ('codigo', 'nombre')
 
 class LineaPlantillaInline(admin.TabularInline):
@@ -34,6 +34,7 @@ class PlantillaCentralizacionAdmin(admin.ModelAdmin):
 class LineaAsientoInline(admin.TabularInline):
     model = LineaAsiento
     extra = 2
+    fields = ('cuenta', 'debe', 'haber', 'auxiliar_rut', 'auxiliar_doc', 'centro_costo')
 
 @admin.register(AsientoContable)
 class AsientoContableAdmin(admin.ModelAdmin):

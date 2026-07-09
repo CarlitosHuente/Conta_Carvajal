@@ -154,6 +154,11 @@ class CuentaContable(models.Model):
         max_length=20, choices=SUBTIPO_CHOICES, default='general', blank=True,
         verbose_name='Subtipo operativo',
     )
+    requiere_auxiliar = models.BooleanField(
+        default=False,
+        verbose_name='Usa auxiliar (RUT / Doc / CC)',
+        help_text='Habilita RUT, documento y centro de costo en las líneas del mayor.',
+    )
 
     class Meta:
         verbose_name = "Cuenta Contable"
@@ -344,6 +349,9 @@ class LineaAsiento(models.Model):
     cuenta = models.ForeignKey(CuentaContable, on_delete=models.PROTECT) # PROTECT: Evita borrar la cuenta si ya tiene asientos
     debe = models.BigIntegerField(default=0, verbose_name="Debe")
     haber = models.BigIntegerField(default=0, verbose_name="Haber")
+    auxiliar_rut = models.CharField(max_length=12, blank=True, default='', verbose_name='RUT auxiliar')
+    auxiliar_doc = models.CharField(max_length=50, blank=True, default='', verbose_name='N° documento')
+    centro_costo = models.CharField(max_length=50, blank=True, default='', verbose_name='Centro de costo')
 
     class Meta:
         verbose_name = "Línea de Asiento"

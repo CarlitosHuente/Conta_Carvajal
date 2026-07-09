@@ -44,6 +44,7 @@
                                 <tr>
                                     <th class="ps-4">Código</th>
                                     <th>Cuenta Contable</th>
+                                    <th>Auxiliar</th>
                                     <th class="text-end text-success">Debe</th>
                                     <th class="text-end text-danger pe-4">Haber</th>
                                 </tr>
@@ -53,6 +54,13 @@
                                 <tr class="border-bottom">
                                     <td class="ps-4 text-muted">{{ linea.cuenta.codigo }}</td>
                                     <td class="fw-bold">{{ linea.cuenta.nombre }}</td>
+                                    <td class="small text-muted">
+                                        {% if linea.auxiliar_rut or linea.auxiliar_doc or linea.centro_costo %}
+                                            {% if linea.auxiliar_rut %}{{ linea.auxiliar_rut }}{% endif %}
+                                            {% if linea.auxiliar_doc %}{% if linea.auxiliar_rut %} · {% endif %}{{ linea.auxiliar_doc }}{% endif %}
+                                            {% if linea.centro_costo %}<br><span class="badge bg-light text-dark border">CC: {{ linea.centro_costo }}</span>{% endif %}
+                                        {% else %}—{% endif %}
+                                    </td>
                                     <td class="text-end">{% if linea.debe > 0 %}${{ linea.debe|intcomma }}{% endif %}</td>
                                     <td class="text-end pe-4">{% if linea.haber > 0 %}${{ linea.haber|intcomma }}{% endif %}</td>
                                 </tr>
@@ -60,7 +68,7 @@
                             </tbody>
                             <tfoot class="bg-light border-top border-2 border-primary">
                                 <tr>
-                                    <td colspan="2" class="text-end fw-bold py-3">TOTALES:</td>
+                                    <td colspan="3" class="text-end fw-bold py-3">TOTALES:</td>
                                     <td class="text-end fw-bold text-success fs-5 py-3">${{ total_debe|intcomma }}</td>
                                     <td class="text-end fw-bold text-danger pe-4 fs-5 py-3">${{ total_haber|intcomma }}</td>
                                 </tr>
@@ -80,14 +88,17 @@
                             <i class="fas fa-link me-2"></i> Movimientos {% if asiento.tipo_asiento == 'pago' %}pagados{% else %}cobrados{% endif %}
                         </div>
                         <ul class="list-group list-group-flush">
-                            {% for app in aplicaciones %}
+                            {% for item in aplicaciones %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <span>
                                     Asiento origen
-                                    <a href="{% url 'contabilidad:asiento_detalle' app.linea_origen.asiento_id %}">#{{ app.linea_origen.asiento_id }}</a>
-                                    · {{ app.linea_origen.cuenta.nombre }}
+                                    <a href="{% url 'contabilidad:asiento_detalle' item.app.linea_origen.asiento_id %}">#{{ item.app.linea_origen.asiento_id }}</a>
+                                    · {{ item.app.linea_origen.cuenta.nombre }}
+                                    {% if item.aux_label %}
+                                    <br><small class="text-muted">{{ item.aux_label }}</small>
+                                    {% endif %}
                                 </span>
-                                <span class="badge bg-success">${{ app.monto|intcomma }}</span>
+                                <span class="badge bg-success">${{ item.app.monto|intcomma }}</span>
                             </li>
                             {% endfor %}
                         </ul>
