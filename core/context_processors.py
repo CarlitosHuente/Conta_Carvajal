@@ -69,7 +69,7 @@ def empresa_context(request):
                 permisos_ui['contabilidad_libro_diario_ver'],
                 permisos_ui['contabilidad_plan_cuentas_ver'],
                 permisos_ui['contabilidad_plantillas_ver'],
-            ])
+            ]) or (hasattr(request.user, 'perfil') and request.user.perfil.rol == 'admin') or request.user.is_superuser
         except Empresa.DoesNotExist:
             request.session.pop('empresa_activa_id', None)
             

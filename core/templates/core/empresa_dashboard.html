@@ -11,7 +11,7 @@
     </div>
 
     <div class="row justify-content-center g-4">
-        {% if empresa_activa.tiene_rrhh and permisos_ui.rrhh_menu_visible %}
+        {% if empresa_activa.tiene_rrhh %}
         <div class="col-xl-5 col-md-6">
             <a href="{% url 'rrhh:hub' %}" class="dashboard-card d-block h-100 p-4">
                 <div class="d-flex align-items-center">
@@ -28,7 +28,7 @@
         </div>
         {% endif %}
 
-        {% if empresa_activa.tiene_contabilidad and permisos_ui.contabilidad_menu_visible %}
+        {% if empresa_activa.tiene_contabilidad %}
         <div class="col-xl-5 col-md-6">
             <a href="{% url 'contabilidad:hub' %}" class="dashboard-card d-block h-100 p-4">
                 <div class="d-flex align-items-center">
