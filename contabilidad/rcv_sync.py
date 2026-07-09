@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from .models import AsientoContable, DocumentoCompraRCV, ImportacionRCVCompra
+from .rcv_sugerencias import sincronizar_inteligencia_proveedores
 
 
 def reconciliar_documentos_rcv_huérfanos(*, empresa_id=None, importacion_id=None):
@@ -35,6 +36,7 @@ def revertir_contabilizacion_importacion(importacion):
     if asiento_ids:
         AsientoContable.objects.filter(pk__in=asiento_ids).delete()
     reconciliar_documentos_rcv_huérfanos(importacion_id=importacion.pk)
+    sincronizar_inteligencia_proveedores(empresa_id=importacion.empresa_id)
     return len(docs)
 
 
@@ -46,7 +48,11 @@ def eliminar_importacion_rcv(importacion):
     )
     if asiento_ids:
         AsientoContable.objects.filter(pk__in=asiento_ids).delete()
+    if asiento_ids:
+        AsientoContable.objects.filter(pk__in=asiento_ids).delete()
     reconciliar_documentos_rcv_huérfanos(importacion_id=importacion.pk)
+    empresa_id = importacion.empresa_id
     nombre = str(importacion)
     importacion.delete()
+    sincronizar_inteligencia_proveedores(empresa_id=empresa_id)
     return nombre

@@ -2,10 +2,13 @@
 
 from django.test import TestCase
 
-from contabilidad.models import AsientoContable, DocumentoCompraRCV
+from contabilidad.models import (
+    AsientoContable, CuentaContable, DocumentoCompraRCV, EmpresaProveedor,
+    ImportacionRCVCompra, ProveedorCuentaStats, ProveedorGlobal,
+)
+from contabilidad.rcv_sugerencias import sincronizar_inteligencia_proveedores, sugerir_cuenta_gasto
 from contabilidad.rcv_sync import reconciliar_documentos_rcv_huérfanos
 from core.models import Empresa
-from contabilidad.models import ImportacionRCVCompra, ProveedorGlobal
 
 
 class RCVSyncTests(TestCase):
@@ -14,6 +17,9 @@ class RCVSyncTests(TestCase):
             rut='11111111-1', razon_social='Test', correo_contacto='t@test.cl',
         )
         self.proveedor = ProveedorGlobal.objects.create(rut='22222222-2', razon_social='Prov')
+        self.cuenta = CuentaContable.objects.create(
+            empresa=self.empresa, codigo='5.01.01', nombre='Gasto', tipo='perdida',
+        )
         self.importacion = ImportacionRCVCompra.objects.create(
             empresa=self.empresa, mes=1, ano=2026, filas_nuevas=1,
         )
@@ -34,6 +40,16 @@ class RCVSyncTests(TestCase):
             monto_total=1000,
             estado='contabilizada',
             asiento=self.asiento,
+            cuenta_gasto=self.cuenta,
+        )
+        EmpresaProveedor.objects.create(
+            empresa=self.empresa,
+            proveedor=self.proveedor,
+            cuenta_gasto_habitual=self.cuenta,
+            veces_contabilizado=5,
+        )
+        ProveedorCuentaStats.objects.create(
+            proveedor=self.proveedor, cuenta=self.cuenta, empresa=self.empresa, contador=5,
         )
 
     def test_eliminar_asiento_deja_documento_pendiente(self):
@@ -49,3 +65,11 @@ class RCVSyncTests(TestCase):
         self.assertEqual(n, 1)
         self.documento.refresh_from_db()
         self.assertEqual(self.documento.estado, 'pendiente')
+
+    def test_sugerencia_no_usa_cache_sin_asiento(self):
+        self.asiento.delete()
+        self.documento.refresh_from_db()
+        sincronizar_inteligencia_proveedores(empresa_id=self.empresa.id)
+        cuenta, fuente, _ = sugerir_cuenta_gasto(self.empresa, self.proveedor)
+        self.assertIsNone(cuenta)
+        self.assertEqual(fuente, '')

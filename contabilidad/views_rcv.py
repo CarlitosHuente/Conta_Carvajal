@@ -16,7 +16,7 @@ from .models import (
 from .rcv_centralizacion import contabilizar_documentos_rcv
 from .rcv_import import importar_csv_rcv_compra
 from .rcv_parser import inferir_periodo_desde_nombre
-from .rcv_sugerencias import cuentas_gasto_qs, sugerir_cuenta_gasto
+from .rcv_sugerencias import cuentas_gasto_qs, sugerir_cuenta_gasto, sincronizar_inteligencia_proveedores
 from .rcv_sync import (
     eliminar_importacion_rcv,
     reconciliar_documentos_rcv_huérfanos,
@@ -40,6 +40,7 @@ def rcv_lista_view(request):
         return redirect_response
 
     reconciliar_documentos_rcv_huérfanos(empresa_id=empresa.id)
+    sincronizar_inteligencia_proveedores(empresa_id=empresa.id)
 
     importaciones = ImportacionRCVCompra.objects.filter(empresa=empresa).prefetch_related('documentos')
     return render(request, 'contabilidad/rcv/lista.html', {
@@ -108,6 +109,7 @@ def rcv_preview_view(request, pk):
 
     importacion = get_object_or_404(ImportacionRCVCompra, pk=pk, empresa=empresa)
     reconciliar_documentos_rcv_huérfanos(importacion_id=importacion.pk)
+    sincronizar_inteligencia_proveedores(empresa_id=empresa.id)
 
     filtro = request.GET.get('estado', 'pendiente')
     documentos = importacion.documentos.select_related('proveedor', 'cuenta_gasto', 'asiento').order_by(
