@@ -1,0 +1,143 @@
+<div class="modal fade invergesal-scope" id="modalInvergesalAyuda" tabindex="-1" aria-labelledby="modalInvergesalAyudaLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="modalInvergesalAyudaLabel"><i class="fas fa-circle-question me-2"></i>Cómo funciona Invergesal</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <h6 class="fw-bold">Qué muestra</h6>
+        <p>Estadísticas de carga (cajas) agrupadas por <strong>marca</strong> y <strong>consignatario</strong>, por semana ISO. No depende de la empresa activa del ERP: usa el login de ContaCarvajal.</p>
+
+        <h6 class="fw-bold">De dónde sale la información</h6>
+        <p class="mb-2">Carpeta de Google Drive con Excel semanales. Al pulsar <strong>Actualizar Reporte</strong> el sistema:</p>
+        <ol class="small">
+          <li>Lee todos los <code>.xlsx</code> de esa carpeta (excepto <code>Reporte_Consolidado.xlsx</code>).</li>
+          <li>Espera <strong>exactamente 12 columnas</strong>, en este orden: NAVE, FECHA, NAVIERA, PUERTO_CARGA, EXPORTADOR, CAJAS, N.N, REEFER, TIPO_DE_REEFER, MARCA, PUERTO_DESCARGA, CONSIGNATARIO.</li>
+          <li>Arma la semana con la fecha (año de 2 dígitos + semana ISO, ej. 2628).</li>
+          <li>Guarda el consolidado otra vez en Drive y refresca esta pantalla.</li>
+        </ol>
+
+        <h6 class="fw-bold">Filtros al abrir</h6>
+        <p>Por defecto: <strong>últimas 10 semanas</strong> y puertos <strong>SAN ANTONIO</strong> y <strong>VALPARAISO</strong>. Otros puertos o semanas existen en el Excel, pero no se ven hasta que los marques y pulses Aplicar Filtros.</p>
+
+        <h6 class="fw-bold">Exportar</h6>
+        <ul class="small mb-2">
+          <li><strong>PDF Ejecutivo</strong>: la tabla filtrada, en otra pestaña.</li>
+          <li><strong>Excel Completo</strong>: el consolidado de Drive (todas las filas).</li>
+          <li><strong>Excel Filtrado</strong>: solo lo que coincida con los filtros actuales.</li>
+        </ul>
+
+        <h6 class="fw-bold">Si un dato “no aparece”</h6>
+        <p class="mb-0">El triángulo lista alertas por puerto. Pulsa <em>Ver detalle</em> solo en el puerto que te interesa: ahí se busca el Excel de origen (puede tardar la primera vez).</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade invergesal-scope" id="modalInvergesalAlertas" tabindex="-1" aria-labelledby="modalInvergesalAlertasLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title" id="modalInvergesalAlertasLabel"><i class="fas fa-triangle-exclamation me-2"></i>Datos omitidos o dudosos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        {% if calidad.tiene_alertas %}
+        <p class="small text-dark mb-3">
+          {{ calidad.total_alertas }} alerta{{ calidad.total_alertas|pluralize }}
+          · {{ calidad.filas_afectadas }} archivo(s)/fila(s) citados.
+          Esto no cambia los totales: son filas o archivos que el sistema ya no incorporaba.
+        </p>
+        {% csrf_token %}
+        <div class="mb-3">
+          <input type="search" id="invergesal-filtro-alertas" class="form-control" style="max-width: 340px" placeholder="Filtrar: archivo, nave, puerto..." autocomplete="off">
+        </div>
+        <p class="small mb-3">Pulsa <em>Ver detalle</em> en un puerto para ver el Excel de origen y si conviene corregirlo. La primera búsqueda puede tardar.</p>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle table-invergesal" id="tabla-alertas-invergesal">
+            <thead>
+              <tr>
+                <th>Archivo</th>
+                <th>Fecha</th>
+                <th>Qué pasó</th>
+                <th class="text-end">Cantidad</th>
+                <th>Puertos</th>
+              </tr>
+            </thead>
+            {% for item in calidad.items %}
+            <tbody class="alerta-item" x-data="invergesalDetallePuerto()">
+              <tr>
+                <td class="fw-semibold">{{ item.archivo }}</td>
+                <td>{{ item.fecha }}</td>
+                <td>{{ item.motivo }}</td>
+                <td class="text-end">{{ item.cantidad }}</td>
+                <td>
+                  {% if item.puertos %}
+                    {% for puerto in item.puertos %}
+                    <button type="button"
+                            class="btn btn-sm mb-1 me-1"
+                            :class="abierto === $el.dataset.puerto ? 'btn-primary' : 'btn-outline-primary'"
+                            data-puerto="{% if puerto.nombre %}{{ puerto.nombre }}{% else %}{{ puerto }}{% endif %}"
+                            @click="toggle($el.dataset.puerto)">
+                      {% if puerto.nombre %}{{ puerto.nombre }} ({{ puerto.cantidad }}){% else %}{{ puerto }}{% endif %}
+                      · Ver detalle
+                    </button>
+                    {% endfor %}
+                  {% else %}
+                    <span>{{ item.detalle }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr x-show="abierto !== ''" x-cloak>
+                <td colspan="5" class="bg-white">
+                  <div class="small fw-semibold mb-2">Detalle por día — <span x-text="abierto"></span></div>
+                  <p class="small mb-2" x-show="cargando">Buscando el Excel de origen en Drive (puede tardar un minuto la primera vez)…</p>
+                  <p class="small text-danger mb-2" x-show="error" x-text="error"></p>
+                  <p class="small mb-2" x-show="!cargando && !error && archivos.length">
+                    Archivo(s) de origen: <strong x-text="archivos.join(', ')"></strong>
+                  </p>
+                  <table class="table table-sm table-bordered table-invergesal mb-0" x-show="!cargando && !error && filas.length">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Nave</th>
+                        <th>Puerto</th>
+                        <th>Archivo</th>
+                        <th>CAJAS leído como</th>
+                        <th>¿Corregir el Excel?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(fila, idx) in filas" :key="idx">
+                        <tr>
+                          <td x-text="fila.fecha"></td>
+                          <td x-text="fila.nave"></td>
+                          <td x-text="fila.puerto"></td>
+                          <td class="fw-semibold" x-text="fila.archivo"></td>
+                          <td x-text="fila.cajas"></td>
+                          <td x-text="fila.recomendacion"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                  <p class="small mt-2 mb-0" x-show="!cargando && !error && filas.length === 0">No se encontró el Excel de origen para este puerto.</p>
+                </td>
+              </tr>
+            </tbody>
+            {% endfor %}
+          </table>
+        </div>
+        {% else %}
+        <p class="mb-0 text-muted">No hay alertas en este momento. Si actualizas el reporte y un Excel cambia de formato, aparecerán aquí con el nombre del archivo.</p>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

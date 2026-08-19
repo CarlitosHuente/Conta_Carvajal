@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Invergesal · Error de Datos{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'invergesal/css/estilos.css' %}">
+<div class="invergesal-scope">
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between mb-4 gap-2 flex-wrap">
+    <h1 class="h3 mb-0">Error al Cargar los Datos</h1>
+    <span class="d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalInvergesalAyuda" title="Cómo funciona Invergesal">
+        <i class="fas fa-circle-question me-1"></i>Ayuda
+      </button>
+      {% if calidad.tiene_alertas %}
+      <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalInvergesalAlertas" title="Hay datos omitidos o dudosos">
+        <i class="fas fa-triangle-exclamation me-1"></i>Alertas
+        <span class="badge bg-dark">{{ calidad.total_alertas }}</span>
+      </button>
+      {% endif %}
+    </span>
+  </div>
+  <div class="alert alert-danger">
+    <p>No se pudieron cargar los datos para el reporte.</p>
+    <hr>
+    <p class="mb-0"><strong>Mensaje:</strong> {{ message }}</p>
+  </div>
+  <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary">Intentar generar reporte</a>
+  <a href="{% url 'core:home' %}" class="btn btn-outline-secondary">Volver al inicio</a>
+</div>
+{% include 'invergesal/_modales_calidad.html' %}
+</div>
+{% endblock %}

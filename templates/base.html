@@ -19,14 +19,15 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark navbar-custom fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{% url 'core:home' %}">
-                <i class="fas fa-chart-line me-2"></i>ContaCarvajal ERP
+            <a class="navbar-brand fw-bold" href="{% if solo_invergesal_ui %}{% url 'invergesal:estadisticas' %}{% else %}{% url 'core:home' %}{% endif %}">
+                <i class="fas fa-chart-line me-2"></i>{% if solo_invergesal_ui %}Invergesal{% else %}ContaCarvajal ERP{% endif %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
+                {% if not solo_invergesal_ui %}
                 <!-- Sección Central: Indicadores Económicos -->
                 <div class="navbar-nav mx-auto text-white d-none d-lg-flex align-items-center">
                     <button class="btn btn-link text-decoration-none p-0 d-flex align-items-center text-white" 
@@ -41,16 +42,26 @@
                         </div>
                     </button>
                 </div>
+                {% endif %}
 
                 <!-- Menú Principal -->
                 <div class="navbar-nav ms-auto align-items-center">
                     {% if user.is_authenticated %}
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-center">
+                            {% if not solo_invergesal_ui %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'core:home' %}"><i class="fas fa-home me-1"></i>Inicio</a>
                             </li>
+                            {% endif %}
+                            {% if puede_invergesal_ui %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'invergesal:estadisticas' %}">
+                                    <i class="fas fa-ship me-1"></i>Invergesal
+                                </a>
+                            </li>
+                            {% endif %}
                             
-                            {% if empresa_activa %}
+                            {% if empresa_activa and not solo_invergesal_ui %}
                                 <li class="nav-item d-none d-lg-block mx-2">
                                     <a href="{% url 'core:empresa_dashboard' %}" class="text-decoration-none" title="Volver al Panel de Control de la Empresa">
                                         <span class="badge bg-light text-dark py-2 px-3 border border-secondary shadow-sm">

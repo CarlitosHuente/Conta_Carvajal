@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from invergesal.permissions import usuario_solo_invergesal
+
 from .models import Empresa
 from .vista import es_admin_real, limpiar_vista_cliente
 
@@ -11,12 +13,16 @@ from .vista import es_admin_real, limpiar_vista_cliente
 def home_view(request):
     """
     Controlador de tráfico principal.
+    - Cliente solo-Invergesal: entra directo a /invergesal.
     - Si es admin, muestra el selector de empresas.
     - Si es cliente, selecciona su empresa y lo redirige al dashboard.
     """
     if 'empresa_activa_id' in request.session:
         del request.session['empresa_activa_id']
     limpiar_vista_cliente(request.session)
+
+    if usuario_solo_invergesal(request.user):
+        return redirect('invergesal:estadisticas')
 
     if request.user.perfil.rol == 'admin':
         empresas = Empresa.objects.all()
@@ -53,6 +59,8 @@ def salir_empresa_view(request):
 @login_required
 def empresa_dashboard_view(request):
     """Dashboard principal para la empresa que está activa en la sesión."""
+    if usuario_solo_invergesal(request.user):
+        return redirect('invergesal:estadisticas')
     if not request.session.get('empresa_activa_id'):
         return redirect('core:home')
     return render(request, 'core/empresa_dashboard.html')

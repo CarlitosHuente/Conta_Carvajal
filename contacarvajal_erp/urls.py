@@ -15,6 +15,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('rrhh/', include('rrhh.urls')),
     path('contabilidad/', include('contabilidad.urls')), # <--- Agregamos el nuevo módulo
+    path('invergesal/', include('invergesal.urls')),
 ]
 
 # Permite a Django mostrar los PDFs temporales y logos en modo de desarrollo (DEBUG = True)

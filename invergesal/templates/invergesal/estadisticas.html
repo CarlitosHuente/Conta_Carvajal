@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% load static %}
+{% load invergesal_extras %}
+
+{% block title %}Invergesal · Estadísticas de Carga{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'invergesal/css/estilos.css' %}">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<div class="invergesal-scope">
+
+<div id="invergesal-loading-overlay">
+  <div class="invergesal-spinner"></div>
+  <p class="mt-3">Actualizando todos los datos, por favor espere...</p>
+</div>
+
+<div class="container-fluid">
+    <h1 class="h3 mb-4">Estadísticas de Carga</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                {% if cache_info.modifiedTimeLocal %}
+                    <span class="text-muted">Datos del reporte actualizado el: <strong>{{ cache_info.modifiedTimeLocal }} (Hora Local Chile)</strong></span>
+                {% endif %}
+            </div>
+            <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary" onclick="return confirmarActualizacion();">Actualizar Reporte</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 card-invergesal-filtros">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <span>Filtros y Acciones</span>
+            <span class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-link text-white p-0 invergesal-icono-ayuda" data-bs-toggle="modal" data-bs-target="#modalInvergesalAyuda" title="Cómo funciona Invergesal">
+                    <i class="fas fa-circle-question fa-lg"></i>
+                </button>
+                {% if calidad.tiene_alertas %}
+                <button type="button" class="btn btn-sm btn-link text-warning p-0 invergesal-icono-alerta" data-bs-toggle="modal" data-bs-target="#modalInvergesalAlertas" title="Hay datos omitidos o dudosos">
+                    <i class="fas fa-triangle-exclamation fa-lg"></i>
+                    <span class="badge bg-warning text-dark">{{ calidad.total_alertas }}</span>
+                </button>
+                {% endif %}
+            </span>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'invergesal:estadisticas' %}">
+                {% csrf_token %}
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="semanas" class="form-label">Semanas</label>
+                            <select name="semanas" id="semanas" class="form-select" multiple size="5">
+                                {% for semana in all_semanas %}
+                                <option value="{{ semana }}" {% if semana in semanas_seleccionadas %}selected{% endif %}>Semana {{ semana }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="puertos" class="form-label">Puerto Descarga</label>
+                            <select name="puertos" id="puertos" class="form-select" multiple size="5">
+                                {% for puerto in all_puertos %}
+                                <option value="{{ puerto }}" {% if puerto in puertos_seleccionados %}selected{% endif %}>{{ puerto }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="naviera" class="form-label">Naviera</label>
+                            <select name="naviera" id="naviera" class="form-select">
+                                <option value="TODAS" {% if naviera_seleccionada == 'TODAS' %}selected{% endif %}>-- TODAS --</option>
+                                {% for naviera in all_navieras %}
+                                <option value="{{ naviera }}" {% if naviera == naviera_seleccionada %}selected{% endif %}>{{ naviera }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="consignatario_search" class="form-label">Consignatario (contiene...)</label>
+                            <input type="text" id="consignatario_search" name="consignatario_search" list="consignatarios-list" class="form-control" placeholder="Escribe para buscar..." value="{{ consignatario_busqueda }}">
+                            <datalist id="consignatarios-list">
+                                {% for consig in all_consignatarios %}<option value="{{ consig }}">{% endfor %}
+                            </datalist>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <div class="row">
+                    <div class="col-12 d-flex justify-content-end gap-2 flex-wrap">
+                        <button type="submit" formaction="{% url 'invergesal:descargar_reporte_pdf' %}" formtarget="_blank" class="btn btn-outline-danger">PDF Ejecutivo</button>
+                        <a href="{% url 'invergesal:descargar_reporte' %}" class="btn btn-outline-success">Excel Completo</a>
+                        <button type="submit" formaction="{% url 'invergesal:descargar_filtrado' %}" class="btn btn-outline-warning">Excel Filtrado</button>
+                        <button type="submit" class="btn btn-info px-4">Aplicar Filtros</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-sm table-invergesal">
+            <thead>
+                <tr>
+                    <th>Marca / Consignatario</th>
+                    {% for semana in semanas_columnas %}<th class="text-center">{{ semana }}</th>{% endfor %}
+                </tr>
+                <tr class="fila-gran-total">
+                    <th scope="row">GRAN TOTAL</th>
+                    {% for semana in semanas_columnas %}
+                    <th class="text-end">{{ tabla_final.gran_total|dict_get:semana|formato_cajas }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            {% if tabla_final.marcas %}
+                {% for marca_data in tabla_final.marcas %}
+                    <tbody x-data="{ open: false }">
+                        <tr @click="open = !open" class="fila-marca">
+                            <td><span class="icono-desplegar" x-text="open ? '▼' : '►'"></span>{{ marca_data.nombre }}</td>
+                            {% for semana in semanas_columnas %}
+                            <td class="text-end">{{ marca_data.total_marca|dict_get:semana|formato_cajas }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% for consignatario_data in marca_data.consignatarios %}
+                            <tr x-show="open" x-transition class="fila-consignatario">
+                                <td class="ps-4">{{ consignatario_data.nombre }}</td>
+                                {% for semana in semanas_columnas %}
+                                <td class="text-end">{{ consignatario_data.cajas_por_semana|dict_get:semana|formato_cajas }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                {% endfor %}
+            {% else %}
+            <tbody>
+                <tr>
+                    <td colspan="{{ semanas_columnas|length|add:1 }}" class="text-center text-muted p-5">No se encontraron datos con los filtros seleccionados.</td>
+                </tr>
+            </tbody>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<script>
+function confirmarActualizacion() {
+  if (!confirm('Esto recargará los datos desde Google Drive. ¿Continuar?')) {
+    return false;
+  }
+  var overlay = document.getElementById('invergesal-loading-overlay');
+  var texto = overlay && overlay.querySelector('p');
+  if (texto) texto.textContent = 'Actualizando todos los datos, por favor espere...';
+  if (overlay) overlay.style.display = 'flex';
+  return true;
+}
+</script>
+{% include 'invergesal/_modales_calidad.html' %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function invergesalDetallePuerto() {
+  return {
+    abierto: '',
+    cargando: false,
+    error: '',
+    filas: [],
+    cache: {},
+    get archivos() {
+      var vistos = [];
+      this.filas.forEach(function (fila) {
+        if (fila.archivo && vistos.indexOf(fila.archivo) === -1) {
+          vistos.push(fila.archivo);
+        }
+      });
+      return vistos;
+    },
+    csrf: function () {
+      var el = document.querySelector('#modalInvergesalAlertas [name=csrfmiddlewaretoken]')
+        || document.querySelector('[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    },
+    toggle: async function (puerto) {
+      if (this.abierto === puerto) {
+        this.abierto = '';
+        return;
+      }
+      this.abierto = puerto;
+      this.error = '';
+      if (this.cache[puerto]) {
+        this.filas = this.cache[puerto];
+        this.cargando = false;
+        return;
+      }
+      this.cargando = true;
+      this.filas = [];
+      try {
+        var resp = await fetch('{% url "invergesal:detalle_puerto" %}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.csrf()
+          },
+          body: JSON.stringify({ puerto: puerto })
+        });
+        var data = await resp.json();
+        if (this.abierto !== puerto) return;
+        if (!resp.ok) {
+          this.error = data.error || 'No se pudo buscar el archivo de origen.';
+          this.filas = [];
+        } else {
+          this.filas = data.filas || [];
+          this.cache[puerto] = this.filas;
+        }
+      } catch (err) {
+        if (this.abierto !== puerto) return;
+        this.error = err.message || 'No se pudo buscar el archivo de origen.';
+      } finally {
+        if (this.abierto === puerto) this.cargando = false;
+      }
+    }
+  };
+}
+(function () {
+  var filtro = document.getElementById('invergesal-filtro-alertas');
+  var tabla = document.getElementById('tabla-alertas-invergesal');
+  if (filtro && tabla) {
+    filtro.addEventListener('input', function () {
+      var q = filtro.value.toLowerCase();
+      tabla.querySelectorAll('tbody.alerta-item').forEach(function (tb) {
+        tb.style.display = tb.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

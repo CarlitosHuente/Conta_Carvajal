@@ -46,9 +46,10 @@ class PermisoAccesoUsuarioAdminForm(forms.ModelForm):
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('user', 'rol', 'empresa')
-    list_filter = ('rol', 'empresa')
+    list_display = ('user', 'rol', 'empresa', 'puede_invergesal')
+    list_filter = ('rol', 'empresa', 'puede_invergesal')
     search_fields = ('user__username', 'user__email')
+    fields = ('user', 'rol', 'empresa', 'puede_invergesal')
 
 
 @admin.register(PermisoAccesoUsuario)

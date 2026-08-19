@@ -21,3 +21,4 @@ Thumbs.db
 
 media/
 .django_cache/
+credenciales_google.json

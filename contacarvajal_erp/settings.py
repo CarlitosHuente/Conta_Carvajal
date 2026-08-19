@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig', # Apuntamos a la configuración para que cargue las señales
     'rrhh',
     'contabilidad.apps.ContabilidadConfig',
+    'invergesal.apps.InvergesalConfig',
 ]
 
 MIDDLEWARE = [
@@ -187,6 +188,20 @@ UI_GLASS_BLUR = max(0, min(24, int(os.environ.get('UI_GLASS_BLUR', '10'))))
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'core:home'
 LOGOUT_REDIRECT_URL = 'login'
+
+# --- INVERGESAL (Google Drive, independiente de empresa activa) ---
+INVERGESAL_GDRIVE_FOLDER_ID = os.environ.get(
+    'GDRIVE_FOLDER_ID',
+    '1ETgMvLZMJPAXB0_izkHjPtZha8HwoiPx',
+)
+INVERGESAL_GOOGLE_CREDENTIALS_FILE = os.environ.get(
+    'GOOGLE_APPLICATION_CREDENTIALS_FILE',
+    str(BASE_DIR / 'credenciales_google.json'),
+)
+INVERGESAL_GOOGLE_CREDENTIALS_JSON = os.environ.get(
+    'GOOGLE_APPLICATION_CREDENTIALS_JSON',
+    '',
+)
 
 # --- SEGURIDAD ---
 # Permite que los PDFs se previsualicen en la pantalla dividida (iframes/embeds)

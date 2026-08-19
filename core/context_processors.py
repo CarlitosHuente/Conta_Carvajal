@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from invergesal.permissions import usuario_puede_invergesal, usuario_solo_invergesal
+
 from .models import Empresa, PermisoAccesoUsuario
 from .vista import usuario_para_permisos, vista_cliente_activa, vista_es_admin_ui
 
@@ -82,6 +84,8 @@ def empresa_context(request):
         'permisos_ui': permisos_ui,
         'vista_cliente_activa': vista_cliente_activa(request),
         'vista_es_admin': admin_bypass,
+        'puede_invergesal_ui': usuario_puede_invergesal(request.user),
+        'solo_invergesal_ui': usuario_solo_invergesal(request.user) if request.user.is_authenticated else False,
     }
 
 

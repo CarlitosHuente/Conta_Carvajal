@@ -1,0 +1,148 @@
+.table-invergesal {
+  --inv-navy: #0A2B4C;
+  --inv-navy-mid: #123a63;
+  --inv-marca: #c5d8eb;
+  --inv-marca-hover: #aec9e0;
+  --inv-consig-alt: #eef3f8;
+  --inv-border: #8aa0b5;
+  --inv-red: #D80000;
+  border-color: var(--inv-border);
+  font-variant-numeric: tabular-nums;
+}
+.table-invergesal > :not(caption) > * > * {
+  border-color: var(--inv-border);
+}
+.table-invergesal thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--inv-navy) !important;
+  color: #fff !important;
+  border-color: var(--inv-navy) !important;
+  font-weight: 600;
+}
+.table-invergesal .fila-gran-total th {
+  background-color: var(--inv-red) !important;
+  color: #fff !important;
+  border-color: #b00000 !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.table-invergesal .fila-marca {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--inv-navy);
+  background-color: var(--inv-marca) !important;
+}
+.table-invergesal .fila-marca:hover {
+  background-color: var(--inv-marca-hover) !important;
+}
+.table-invergesal .fila-consignatario {
+  color: #1a1a1a;
+  background-color: #fff;
+}
+.table-invergesal .fila-consignatario:nth-of-type(even) {
+  background-color: var(--inv-consig-alt);
+}
+.table-invergesal .fila-consignatario td:first-child {
+  padding-left: 2.5rem !important;
+}
+.icono-desplegar {
+  display: inline-block;
+  width: 20px;
+  color: var(--inv-navy);
+}
+.card-invergesal-filtros .card-header {
+  background-color: #0A2B4C;
+  color: #fff;
+  font-weight: 600;
+}
+.invergesal-icono-ayuda,
+.invergesal-icono-alerta {
+  text-decoration: none !important;
+  line-height: 1;
+}
+.invergesal-icono-ayuda:hover,
+.invergesal-icono-alerta:hover {
+  opacity: 0.85;
+}
+#invergesal-loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #fff;
+}
+.invergesal-spinner {
+  width: 48px;
+  height: 48px;
+  border: 5px solid #fff;
+  border-top-color: #d80000;
+  border-radius: 50%;
+  animation: invergesal-spin 1s linear infinite;
+}
+@keyframes invergesal-spin {
+  to { transform: rotate(360deg); }
+}
+[x-cloak] { display: none !important; }
+
+/* Contraste forzado: el tema glass del ERP deja thead blanco sobre gris claro. */
+.invergesal-scope,
+.invergesal-scope .card,
+.invergesal-scope .card-body,
+.invergesal-scope .modal-content,
+.invergesal-scope .modal-body {
+  color: #1a1a1a;
+}
+body.theme-glass .invergesal-scope .card,
+body.theme-glass .invergesal-scope .modal-content {
+  background: #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body.theme-glass .invergesal-scope .table,
+.invergesal-scope .table {
+  --bs-table-bg: #fff;
+  --bs-table-color: #1a1a1a;
+  --bs-table-striped-bg: #eef3f8;
+  --bs-table-striped-color: #1a1a1a;
+  background-color: #fff !important;
+  color: #1a1a1a !important;
+}
+body.theme-glass .invergesal-scope .table thead th,
+.invergesal-scope .table thead th,
+.invergesal-scope .table-invergesal thead th {
+  background-color: #0A2B4C !important;
+  color: #fff !important;
+  border-color: #0A2B4C !important;
+}
+body.theme-glass .invergesal-scope .table-invergesal .fila-gran-total th,
+.invergesal-scope .table-invergesal .fila-gran-total th {
+  background-color: #D80000 !important;
+  color: #fff !important;
+  border-color: #b00000 !important;
+}
+.invergesal-scope .table tbody td,
+.invergesal-scope .table tbody th {
+  color: #1a1a1a !important;
+  background-color: #fff;
+}
+.invergesal-scope .table-invergesal tbody tr.fila-marca td {
+  background-color: #c5d8eb !important;
+  color: #0A2B4C !important;
+}
+.invergesal-scope .table-invergesal tbody tr.fila-consignatario:nth-of-type(even) td {
+  background-color: #eef3f8 !important;
+}
+.invergesal-scope .modal-header.bg-dark {
+  background-color: #0A2B4C !important;
+  color: #fff !important;
+}
+.invergesal-scope .modal-header.bg-warning {
+  background-color: #f0ad4e !important;
+  color: #1a1a1a !important;
+}

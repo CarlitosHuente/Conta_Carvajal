@@ -40,6 +40,14 @@ class PerfilUsuario(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     rol = models.CharField(max_length=20, choices=ROLES, default='cliente')
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, help_text="Asignar solo si el rol es Cliente")
+    puede_invergesal = models.BooleanField(
+        default=False,
+        verbose_name='Puede ver Invergesal',
+        help_text=(
+            'Clientes autorizados. Admin y superuser entran siempre. '
+            'Si el usuario es Cliente y no tiene otros permisos ERP, al entrar va directo a Invergesal.'
+        ),
+    )
 
     def __str__(self):
         return f"{self.user.username} ({self.get_rol_display()})"
