@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 from datetime import datetime
@@ -5,7 +6,7 @@ from pathlib import Path
 
 import pytz
 from django.contrib import messages
-from django.http import FileResponse, HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods, require_POST
@@ -28,6 +29,27 @@ from invergesal.services.reports import (
 )
 
 
+def _logo_data_uri():
+    logo_path = Path(__file__).resolve().parent / 'static' / 'invergesal' / 'img' / 'logo.png'
+    if not logo_path.exists():
+        return ''
+    b64 = base64.b64encode(logo_path.read_bytes()).decode('ascii')
+    return f'data:image/png;base64,{b64}'
+
+
+def _excel_response(buffer, filename):
+    """HttpResponse en memoria: FileResponse+BytesIO revienta Passenger (Internal Error)."""
+    if hasattr(buffer, 'seek'):
+        buffer.seek(0)
+    payload = buffer.getvalue() if hasattr(buffer, 'getvalue') else buffer
+    response = HttpResponse(
+        payload,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
 def _render_pdf(html, base_url=None):
     try:
         from weasyprint import HTML
@@ -36,7 +58,7 @@ def _render_pdf(html, base_url=None):
         try:
             from xhtml2pdf import pisa
             output = io.BytesIO()
-            pisa.CreatePDF(html, dest=output)
+            pisa.CreatePDF(src=html, dest=output, encoding='utf-8')
             output.seek(0)
             return output.read(), 'application/pdf', 'inline; filename=reporte_carga.pdf'
         except Exception:
@@ -143,12 +165,7 @@ def descargar_reporte(request):
         messages.error(request, 'No se pudo descargar el archivo desde Google Drive.')
         return redirect('invergesal:estadisticas')
 
-    return FileResponse(
-        file_bytes,
-        as_attachment=True,
-        filename=CONSOLIDATED_FILENAME,
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
+    return _excel_response(file_bytes, CONSOLIDATED_FILENAME)
 
 
 @invergesal_required
@@ -165,15 +182,14 @@ def descargar_reporte_pdf(request):
         df, filtros['semanas'], filtros['puertos'], filtros['naviera'], filtros['consignatario']
     )
     tabla_final = construir_tabla(df_filtrado, filtros['semanas'])
-    logo_path = Path(__file__).resolve().parent / 'static' / 'invergesal' / 'img' / 'logo.png'
     html = render_to_string('invergesal/reporte_pdf.html', {
         'tabla_final': tabla_final,
         'semanas_columnas': filtros['semanas'],
         'cache_info': get_cache_info(),
-        'logo_path': logo_path.as_uri() if logo_path.exists() else '',
+        'logo_data_uri': _logo_data_uri(),
         'fecha_generacion': datetime.now(pytz.timezone('America/Santiago')).strftime('%d/%m/%Y %H:%M:%S'),
     })
-    payload, content_type, disposition = _render_pdf(html, base_url=str(logo_path.parent))
+    payload, content_type, disposition = _render_pdf(html)
     response = HttpResponse(payload, content_type=content_type)
     response['Content-Disposition'] = disposition
     return response
@@ -194,11 +210,5 @@ def descargar_filtrado(request):
     )
     output_buffer = io.BytesIO()
     df_filtrado.to_excel(output_buffer, index=False, sheet_name='Datos Filtrados')
-    output_buffer.seek(0)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    return FileResponse(
-        output_buffer,
-        as_attachment=True,
-        filename=f'Reporte_Filtrado_{timestamp}.xlsx',
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
+    return _excel_response(output_buffer, f'Reporte_Filtrado_{timestamp}.xlsx')

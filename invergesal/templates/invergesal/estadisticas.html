@@ -10,11 +10,6 @@
 
 <div class="invergesal-scope">
 
-<div id="invergesal-loading-overlay">
-  <div class="invergesal-spinner"></div>
-  <p class="mt-3">Actualizando todos los datos, por favor espere...</p>
-</div>
-
 <div class="container-fluid">
     <h1 class="h3 mb-4">Estadísticas de Carga</h1>
 
@@ -25,7 +20,7 @@
                     <span class="text-muted">Datos del reporte actualizado el: <strong>{{ cache_info.modifiedTimeLocal }} (Hora Local Chile)</strong></span>
                 {% endif %}
             </div>
-            <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary" onclick="return confirmarActualizacion();">Actualizar Reporte</a>
+            <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary" data-no-loading onclick="return confirmarActualizacion();">Actualizar Reporte</a>
         </div>
     </div>
 
@@ -148,10 +143,9 @@ function confirmarActualizacion() {
   if (!confirm('Esto recargará los datos desde Google Drive. ¿Continuar?')) {
     return false;
   }
-  var overlay = document.getElementById('invergesal-loading-overlay');
-  var texto = overlay && overlay.querySelector('p');
-  if (texto) texto.textContent = 'Actualizando todos los datos, por favor espere...';
-  if (overlay) overlay.style.display = 'flex';
+  if (window.mostrarTrabajando) {
+    window.mostrarTrabajando('Actualizando todos los datos, por favor espere...');
+  }
   return true;
 }
 </script>
@@ -196,6 +190,9 @@ function invergesalDetallePuerto() {
       }
       this.cargando = true;
       this.filas = [];
+      if (window.mostrarTrabajando) {
+        window.mostrarTrabajando('Buscando el Excel de origen en Drive. Puede tardar un minuto...');
+      }
       try {
         var resp = await fetch('{% url "invergesal:detalle_puerto" %}', {
           method: 'POST',
@@ -219,6 +216,7 @@ function invergesalDetallePuerto() {
         this.error = err.message || 'No se pudo buscar el archivo de origen.';
       } finally {
         if (this.abierto === puerto) this.cargando = false;
+        if (window.ocultarTrabajando) window.ocultarTrabajando();
       }
     }
   };

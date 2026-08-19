@@ -5,67 +5,74 @@
     <meta charset="UTF-8">
     <title>Reporte de Carga</title>
     <style>
-        @page { size: A4 landscape; margin: 1.5cm; }
-        body { font-family: Arial, sans-serif; font-size: 9pt; color: #333; }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #D80000;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+        @page { size: A4 landscape; margin: 1.2cm; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #333333; }
+        h1 { margin: 0 0 4px 0; font-size: 20pt; color: #2c2c2c; }
+        .meta { font-size: 8pt; color: #666666; }
+        .linea-roja { border: 0; border-top: 2px solid #D80000; margin: 8px 0 12px 0; }
+        table.datos { width: 100%; border-collapse: collapse; }
+        table.datos th, table.datos td {
+            border: 1px solid #cccccc;
+            padding: 5px 6px;
+            vertical-align: middle;
         }
-        .header img { width: 150px; }
-        .header h1 { margin: 0; font-size: 24pt; color: #2c2c2c; }
-        .report-info { text-align: right; font-size: 8pt; color: #666; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-        thead th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
-        .text-end { text-align: right !important; }
-        .fila-marca { font-weight: bold; background-color: #e9e9e9; }
-        .fila-consignatario td:first-child { padding-left: 25px !important; }
-        .gran-total th, .gran-total td { background-color: #333; color: #fff; font-weight: bold; font-size: 10pt; }
+        table.datos th.col-nombre, table.datos td.col-nombre { width: 38%; text-align: left; }
+        table.datos th.num, table.datos td.num { text-align: right; }
+        .encabezado { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+        .gran-total { background-color: #333333; color: #ffffff; font-weight: bold; font-size: 9pt; }
+        .marca { background-color: #e9e9e9; font-weight: bold; }
+        .consignatario { background-color: #ffffff; }
     </style>
 </head>
 <body>
-    <div class="header">
-        {% if logo_path %}<img src="{{ logo_path }}" alt="Logo">{% endif %}
-        <h1>Reporte de Carga</h1>
-    </div>
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td width="28%" valign="middle">
+                {% if logo_data_uri %}
+                <img src="{{ logo_data_uri }}" width="130" alt="Logo">
+                {% endif %}
+            </td>
+            <td width="72%" valign="middle" align="right">
+                <h1>Reporte de Carga</h1>
+                <div class="meta">
+                    <strong>Fecha del Reporte:</strong> {{ fecha_generacion }}<br>
+                    <strong>Última Actualización de Datos:</strong> {{ cache_info.modifiedTimeLocal|default:"N/A" }}
+                </div>
+            </td>
+        </tr>
+    </table>
+    <hr class="linea-roja">
 
-    <div class="report-info">
-        <strong>Fecha del Reporte:</strong> {{ fecha_generacion }}<br>
-        <strong>Última Actualización de Datos:</strong> {{ cache_info.modifiedTimeLocal|default:"N/A" }}
-    </div>
-
-    <table>
+    <table class="datos" cellpadding="4" cellspacing="0">
         <thead>
             <tr>
-                <th>Marca / Consignatario</th>
-                {% for semana in semanas_columnas %}<th>{{ semana }}</th>{% endfor %}
-            </tr>
-            <tr class="gran-total">
-                <th>GRAN TOTAL</th>
+                <th class="encabezado col-nombre" bgcolor="#f2f2f2">Marca / Consignatario</th>
                 {% for semana in semanas_columnas %}
-                    <td class="text-end">{{ tabla_final.gran_total|dict_get:semana|formato_cajas }}</td>
+                <th class="encabezado num" bgcolor="#f2f2f2">{{ semana }}</th>
+                {% endfor %}
+            </tr>
+            <tr>
+                <th class="gran-total col-nombre" bgcolor="#333333"><font color="#ffffff">GRAN TOTAL</font></th>
+                {% for semana in semanas_columnas %}
+                <th class="gran-total num" bgcolor="#333333"><font color="#ffffff">{{ tabla_final.gran_total|dict_get:semana|formato_cajas }}</font></th>
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for marca_data in tabla_final.marcas %}
-                <tr class="fila-marca">
-                    <td>{{ marca_data.nombre }}</td>
+                <tr>
+                    <td class="marca col-nombre" bgcolor="#e9e9e9"><b>{{ marca_data.nombre }}</b></td>
                     {% for semana in semanas_columnas %}
-                        <td class="text-end">{{ marca_data.total_marca|dict_get:semana|formato_cajas }}</td>
+                    <td class="marca num" bgcolor="#e9e9e9"><b>{{ marca_data.total_marca|dict_get:semana|formato_cajas }}</b></td>
                     {% endfor %}
                 </tr>
                 {% for consignatario_data in marca_data.consignatarios %}
-                    <tr class="fila-consignatario">
-                        <td>{{ consignatario_data.nombre }}</td>
-                        {% for semana in semanas_columnas %}
-                            <td class="text-end">{{ consignatario_data.cajas_por_semana|dict_get:semana|formato_cajas }}</td>
-                        {% endfor %}
-                    </tr>
+                <tr>
+                    <td class="consignatario col-nombre" bgcolor="#ffffff">&nbsp;&nbsp;&nbsp;&nbsp;{{ consignatario_data.nombre }}</td>
+                    {% for semana in semanas_columnas %}
+                    <td class="consignatario num" bgcolor="#ffffff">{{ consignatario_data.cajas_por_semana|dict_get:semana|formato_cajas }}</td>
+                    {% endfor %}
+                </tr>
                 {% endfor %}
             {% endfor %}
         </tbody>

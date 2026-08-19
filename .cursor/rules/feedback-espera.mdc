@@ -1,0 +1,15 @@
+---
+description: Si una acción no es inmediata, mostrar Cargando y bloquear la pantalla.
+alwaysApply: true
+---
+
+# Feedback de espera (obligatorio)
+
+Si algo puede tardar más de un instante (Drive, Excel, PDF, detalle de alertas, entrar a Invergesal, actualizar reporte, filtros), el usuario debe ver que el sistema está trabajando. Nunca dejar la pantalla quieta.
+
+- Mostrar overlay a pantalla completa con texto claro (`Cargando...`, `Preparando descarga...`, `Buscando en Drive...`).
+- Bloquear clics mientras dura la espera (`#ui-trabajando` + `mostrarTrabajando` / `ocultarTrabajando` en `templates/base.html`).
+- En navegación completa el overlay se va solo al cargar la página.
+- En descargas o pestaña nueva, usar `autoOcultarMs` para no dejarlo pegado.
+- En `fetch` (ej. Ver detalle), mostrar al empezar y ocultar en `finally`.
+- Si el usuario puede cancelar (confirm), no mostrar el overlay hasta que acepte. Usar `data-no-loading` en ese enlace.

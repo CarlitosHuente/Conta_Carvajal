@@ -14,6 +14,33 @@
     {% if ui_glass_enabled %}
     <link href="{% static 'css/styles-glass.css' %}" rel="stylesheet">
     {% endif %}
+    <style>
+      #ui-trabajando {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.78);
+        z-index: 20000;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #fff;
+        font-family: system-ui, sans-serif;
+        text-align: center;
+        padding: 1.5rem;
+      }
+      #ui-trabajando.is-visible { display: flex; }
+      #ui-trabajando p { margin: 1rem 0 0; font-size: 1.05rem; }
+      .ui-trabajando-spinner {
+        width: 48px;
+        height: 48px;
+        border: 5px solid #fff;
+        border-top-color: #d80000;
+        border-radius: 50%;
+        animation: ui-trabajando-spin 1s linear infinite;
+      }
+      @keyframes ui-trabajando-spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body{% if ui_glass_enabled %} class="theme-glass{% if ui_glass_lite %} theme-glass-lite{% endif %}" style="--glass-blur: {{ ui_glass_blur }}px;"{% endif %}>
 
@@ -271,7 +298,57 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div id="ui-trabajando" aria-live="assertive" aria-busy="true">
+        <div class="ui-trabajando-spinner"></div>
+        <p id="ui-trabajando-texto">Cargando, por favor espere...</p>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    (function () {
+      var overlay = document.getElementById('ui-trabajando');
+      var textoEl = document.getElementById('ui-trabajando-texto');
+      var hideTimer = null;
+      window.mostrarTrabajando = function (mensaje, opts) {
+        opts = opts || {};
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        if (textoEl) textoEl.textContent = mensaje || 'Cargando, por favor espere...';
+        if (overlay) overlay.classList.add('is-visible');
+        if (opts.autoOcultarMs) {
+          hideTimer = setTimeout(function () { window.ocultarTrabajando(); }, opts.autoOcultarMs);
+        }
+      };
+      window.ocultarTrabajando = function () {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        if (overlay) overlay.classList.remove('is-visible');
+      };
+      document.addEventListener('click', function (e) {
+        if (e.defaultPrevented) return;
+        var a = e.target.closest('a');
+        if (!a || a.hasAttribute('data-no-loading')) return;
+        if (a.getAttribute('target') === '_blank') return;
+        var href = a.getAttribute('href') || '';
+        if (href.indexOf('/invergesal/') === -1) return;
+        if (href.indexOf('descargar') !== -1) {
+          window.mostrarTrabajando('Preparando descarga...', { autoOcultarMs: 20000 });
+        } else {
+          window.mostrarTrabajando('Cargando Invergesal...');
+        }
+      });
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        var submitter = e.submitter;
+        var action = ((submitter && submitter.getAttribute('formaction')) || form.getAttribute('action') || '');
+        if (action.indexOf('/invergesal/') === -1 && !(form.getAttribute('action') || '').includes('/invergesal/')) return;
+        var blank = (submitter && submitter.getAttribute('formtarget') === '_blank') || form.getAttribute('target') === '_blank';
+        if (action.indexOf('descargar') !== -1 || blank) {
+          window.mostrarTrabajando('Preparando archivo...', { autoOcultarMs: 25000 });
+        } else {
+          window.mostrarTrabajando('Procesando, por favor espere...');
+        }
+      });
+    })();
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -25,7 +25,7 @@
     <hr>
     <p class="mb-0"><strong>Mensaje:</strong> {{ message }}</p>
   </div>
-  <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary">Intentar generar reporte</a>
+  <a href="{% url 'invergesal:generar_reporte' %}" class="btn btn-primary" data-no-loading onclick="if(window.mostrarTrabajando){window.mostrarTrabajando('Generando reporte, por favor espere...');} return true;">Intentar generar reporte</a>
   <a href="{% url 'core:home' %}" class="btn btn-outline-secondary">Volver al inicio</a>
 </div>
 {% include 'invergesal/_modales_calidad.html' %}
