@@ -309,6 +309,21 @@
       var overlay = document.getElementById('ui-trabajando');
       var textoEl = document.getElementById('ui-trabajando-texto');
       var hideTimer = null;
+
+      function esUrlDescarga(url) {
+        return (url || '').indexOf('/invergesal/descargar') !== -1;
+      }
+
+      function nombreDesdeCabecera(resp, fallback) {
+        var cd = resp.headers.get('Content-Disposition') || '';
+        var star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+        if (star) {
+          try { return decodeURIComponent(star[1]); } catch (err) { return star[1]; }
+        }
+        var plain = cd.match(/filename="?([^";]+)"?/i);
+        return (plain && plain[1]) || fallback || 'archivo';
+      }
+
       window.mostrarTrabajando = function (mensaje, opts) {
         opts = opts || {};
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -322,28 +337,70 @@
         if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
         if (overlay) overlay.classList.remove('is-visible');
       };
+      window.descargarConFetch = async function (url, options) {
+        options = options || {};
+        window.mostrarTrabajando(options.mensaje || 'Preparando archivo...');
+        try {
+          var resp = await fetch(url, {
+            method: options.method || 'GET',
+            body: options.body || null,
+            credentials: 'same-origin',
+            headers: options.headers || {}
+          });
+          var tipo = (resp.headers.get('Content-Type') || '').toLowerCase();
+          if (!resp.ok || tipo.indexOf('text/html') !== -1) {
+            window.ocultarTrabajando();
+            alert('No se pudo preparar el archivo. Si el problema continúa, recarga la página.');
+            return;
+          }
+          var blob = await resp.blob();
+          var objectUrl = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = nombreDesdeCabecera(resp, options.filename || 'archivo');
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 1500);
+        } catch (err) {
+          alert(err.message || 'No se pudo preparar el archivo.');
+        } finally {
+          window.ocultarTrabajando();
+        }
+      };
+
       document.addEventListener('click', function (e) {
         if (e.defaultPrevented) return;
         var a = e.target.closest('a');
         if (!a || a.hasAttribute('data-no-loading')) return;
         if (a.getAttribute('target') === '_blank') return;
         var href = a.getAttribute('href') || '';
-        if (href.indexOf('/invergesal/') === -1) return;
-        if (href.indexOf('descargar') !== -1) {
-          window.mostrarTrabajando('Preparando descarga...', { autoOcultarMs: 20000 });
-        } else {
+        if (esUrlDescarga(href)) {
+          e.preventDefault();
+          window.descargarConFetch(href, { mensaje: 'Preparando Excel...' });
+          return;
+        }
+        if (href.indexOf('/invergesal/') !== -1) {
           window.mostrarTrabajando('Cargando Invergesal...');
         }
       });
+
       document.addEventListener('submit', function (e) {
         var form = e.target;
         var submitter = e.submitter;
         var action = ((submitter && submitter.getAttribute('formaction')) || form.getAttribute('action') || '');
-        if (action.indexOf('/invergesal/') === -1 && !(form.getAttribute('action') || '').includes('/invergesal/')) return;
-        var blank = (submitter && submitter.getAttribute('formtarget') === '_blank') || form.getAttribute('target') === '_blank';
-        if (action.indexOf('descargar') !== -1 || blank) {
-          window.mostrarTrabajando('Preparando archivo...', { autoOcultarMs: 25000 });
-        } else {
+        if (esUrlDescarga(action)) {
+          e.preventDefault();
+          var esPdf = action.indexOf('pdf') !== -1;
+          window.descargarConFetch(action, {
+            method: 'POST',
+            body: new FormData(form),
+            mensaje: esPdf ? 'Preparando PDF...' : 'Preparando Excel...',
+            filename: esPdf ? 'reporte_carga.pdf' : 'Reporte_Filtrado.xlsx'
+          });
+          return;
+        }
+        if (action.indexOf('/invergesal/') !== -1 || (form.getAttribute('action') || '').indexOf('/invergesal/') !== -1) {
           window.mostrarTrabajando('Procesando, por favor espere...');
         }
       });

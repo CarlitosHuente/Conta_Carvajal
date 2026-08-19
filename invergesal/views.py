@@ -53,14 +53,14 @@ def _excel_response(buffer, filename):
 def _render_pdf(html, base_url=None):
     try:
         from weasyprint import HTML
-        return HTML(string=html, base_url=base_url).write_pdf(), 'application/pdf', 'inline; filename=reporte_carga.pdf'
+        return HTML(string=html, base_url=base_url).write_pdf(), 'application/pdf', 'attachment; filename=reporte_carga.pdf'
     except Exception:
         try:
             from xhtml2pdf import pisa
             output = io.BytesIO()
             pisa.CreatePDF(src=html, dest=output, encoding='utf-8')
             output.seek(0)
-            return output.read(), 'application/pdf', 'inline; filename=reporte_carga.pdf'
+            return output.read(), 'application/pdf', 'attachment; filename=reporte_carga.pdf'
         except Exception:
             return html.encode('utf-8'), 'text/html; charset=utf-8', 'inline; filename=reporte_carga.html'
 
