@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% load static %}
+{% load invergesal_extras %}
+
+{% block title %}Invergesal · Proyección{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'invergesal/css/estilos.css' %}">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{{ simulacion.colores|json_script:"proyeccion-colores" }}
+<script>
+function configProyeccion() {
+  var tramos = JSON.parse(document.getElementById('proyeccion-colores').textContent).map(function (item) {
+    return { hasta: item.hasta, color: item.color };
+  });
+  return {
+    dia: null,
+    buque: '',
+    marca: '',
+    paramsAbierto: false,
+    avanzado: false,
+    tramos: tramos,
+    fmtCajas: function (numero) {
+      return Math.round(Number(numero) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    },
+    esIntermedio: function (indice) {
+      return indice > 0 && indice < this.tramos.length - 1;
+    },
+    etiquetaTramo: function (indice) {
+      if (indice === 0) return '0 cajas';
+      var desde = Number(this.tramos[indice - 1].hasta) + 1;
+      if (indice === this.tramos.length - 1) return this.fmtCajas(desde) + ' o más';
+      return this.fmtCajas(desde) + ' a';
+    },
+    agregarTramo: function () {
+      var prev = this.tramos[this.tramos.length - 2];
+      var base = Number(prev && prev.hasta != null ? prev.hasta : 0);
+      this.tramos.splice(this.tramos.length - 1, 0, { hasta: base + 50000, color: '#fecaca' });
+    },
+    quitarTramo: function (indice) {
+      if (indice <= 0 || indice >= this.tramos.length - 1) return;
+      if (this.tramos.length <= 2) return;
+      this.tramos.splice(indice, 1);
+    }
+  };
+}
+</script>
+
+<div class="invergesal-scope">
+<div class="container-fluid" x-data="configProyeccion()" @keydown.escape.window="marca = ''; buque = ''; dia = null; paramsAbierto = false">
+    {% include 'invergesal/_pestanas.html' with pestana='escalas' %}
+    <h1 class="h3 mb-3">Proyección · San Antonio y Valparaíso</h1>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="text-muted">
+                    Viaje genérico:
+                    <strong>SA {{ simulacion.dias_viaje.dias_san_antonio }} días</strong>
+                    ·
+                    <strong>Valparaíso {{ simulacion.dias_viaje.dias_valparaiso }} días</strong>
+                    {% if simulacion.dias_viaje.dias_buques %}
+                    · {{ simulacion.dias_viaje.dias_buques|length }} buque(s) con días propios
+                    {% endif %}
+                </span>
+                {% if cache_info.modifiedTimeLocal %}
+                <span class="d-block small text-muted mt-1">Excel consolidado: {{ cache_info.modifiedTimeLocal }}</span>
+                {% endif %}
+            </div>
+            <button type="button" class="btn btn-engranaje" @click="paramsAbierto = true" title="Configurar proyección">
+                <i class="fas fa-gear"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-tc-fondo" x-show="paramsAbierto" x-cloak x-transition.opacity @click.self="paramsAbierto = false">
+        <div class="modal-tc-panel escala-config-panel" @click.stop>
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Configuración de proyección</h2>
+                    <p class="mb-0 small text-muted">Los días se suman a la FECHA del Excel (zarpe Ecuador). Los buques sin día propio usan el genérico del puerto.</p>
+                </div>
+                <button type="button" class="btn-close" @click="paramsAbierto = false" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'invergesal:guardar_dias_viaje' %}">
+                {% csrf_token %}
+                <input type="hidden" name="mes" value="{{ simulacion.mes_clave }}">
+
+                <h3 class="h6">Días de viaje genéricos</h3>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label" for="dias_san_antonio">San Antonio</label>
+                        <input class="form-control" type="number" min="1" max="40" name="dias_san_antonio" id="dias_san_antonio" value="{{ simulacion.dias_viaje.dias_san_antonio }}" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="dias_valparaiso">Valparaíso</label>
+                        <input class="form-control" type="number" min="1" max="40" name="dias_valparaiso" id="dias_valparaiso" value="{{ simulacion.dias_viaje.dias_valparaiso }}" required>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary w-100 mb-2" @click="avanzado = !avanzado">
+                    <span x-text="avanzado ? '▼' : '►'"></span> Avanzado: días por buque
+                </button>
+                <div class="escala-buques-caja mb-3" x-show="avanzado" x-cloak>
+                    {% if simulacion.buques %}
+                    <p class="small text-muted mb-2">Vacío = usa el genérico del puerto.</p>
+                    <div class="escala-buques-lista">
+                        {% for buque_cfg in simulacion.buques %}
+                        <div class="escala-buque-fila">
+                            <label class="form-label mb-0" for="buque-dias-{{ forloop.counter0 }}">{{ buque_cfg.nombre }}</label>
+                            <input type="hidden" name="buque_nombre" value="{{ buque_cfg.nombre }}">
+                            <input class="form-control form-control-sm"
+                                   type="number" min="1" max="40"
+                                   name="buque_dias"
+                                   id="buque-dias-{{ forloop.counter0 }}"
+                                   value="{{ buque_cfg.dias|default_if_none:'' }}"
+                                   placeholder="genérico">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="small text-muted mb-0">No hay buques de San Antonio o Valparaíso en el Excel.</p>
+                    {% endif %}
+                </div>
+
+                <h3 class="h6">Colores por cajas del día</h3>
+                <p class="small text-muted">El primero es 0. El último es “o más”. Agrega un tramo si necesitas una alerta, por ejemplo sobre 100.000.</p>
+                <div class="escala-colores-caja mb-2">
+                    <div class="escala-color-fila escala-color-cabeza">
+                        <span>Tramo</span>
+                        <span>Color</span>
+                        <span></span>
+                    </div>
+                    <template x-for="(tramo, indice) in tramos" :key="'tramo-' + indice">
+                        <div class="escala-color-fila">
+                            <div class="escala-color-rango">
+                                <span class="escala-color-label" x-text="etiquetaTramo(indice)"></span>
+                                <input class="form-control form-control-sm escala-input-tope"
+                                       type="number" min="1"
+                                       x-show="esIntermedio(indice)"
+                                       x-model.number="tramo.hasta">
+                            </div>
+                            <input type="hidden" name="color_hasta" :value="indice === 0 ? 0 : (indice === tramos.length - 1 ? '' : tramo.hasta)">
+                            <label class="escala-color-swatch" :style="'background:' + tramo.color" title="Elegir color">
+                                <input type="color" name="color_hex" x-model="tramo.color" :aria-label="'Color del tramo ' + etiquetaTramo(indice)">
+                            </label>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger escala-color-quitar"
+                                    :class="esIntermedio(indice) ? '' : 'is-oculto'"
+                                    :disabled="!esIntermedio(indice)"
+                                    @click="quitarTramo(indice)"
+                                    title="Quitar tramo">×</button>
+                        </div>
+                    </template>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mb-3" @click="agregarTramo()">Agregar tramo</button>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" @click="paramsAbierto = false">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        Esto es una <strong>simulación de mercado</strong>, no una confirmación de atraque del puerto.
+        La <strong>FECHA del Excel</strong> se toma como zarpe en Ecuador; la llegada a Chile es esa fecha más los días de viaje.
+        Pulsa un día para ver los buques.
+    </div>
+
+    {% if not simulacion.hay_en_mes %}
+    <div class="alert alert-warning">
+        No hay llegadas simuladas en {{ simulacion.primer_dia|date:'F Y' }}.
+        {% if simulacion.fecha_excel_min %}
+        Las FECHA del Excel van del {{ simulacion.fecha_excel_min|date:'d/m/Y' }} al {{ simulacion.fecha_excel_max|date:'d/m/Y' }}.
+        {% endif %}
+        {% if simulacion.meses_con_llegadas %}
+        <span class="d-block mt-2">Meses con llegadas:
+            {% for item in simulacion.meses_con_llegadas %}
+            <a href="{% url 'invergesal:calendario_escalas' %}?mes={{ item.clave }}">{{ item.fecha|date:'F Y' }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </span>
+        {% elif not simulacion.fecha_excel_min %}
+        No hay filas de San Antonio o Valparaíso con FECHA usable en el consolidado.
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="escala-mes-nav mb-3">
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'invergesal:calendario_escalas' %}?mes={{ simulacion.mes_anterior }}"
+                   title="Mes anterior">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <h2 class="h4 mb-0 text-capitalize">{{ simulacion.primer_dia|date:'F Y' }}</h2>
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'invergesal:calendario_escalas' %}?mes={{ simulacion.mes_siguiente }}"
+                   title="Mes siguiente">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3 small mb-3">
+                {% for tramo in simulacion.colores %}
+                <span><span class="escala-chip" style="background: {{ tramo.color }}">&nbsp;</span> {{ tramo.etiqueta }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="escala-mes-head">
+                <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+            </div>
+            <div class="escala-calendario escala-mes">
+                {% for celda in simulacion.celdas %}
+                <button type="button"
+                        class="escala-dia {% if celda.es_hoy %}is-hoy{% endif %} {% if not celda.en_mes %}is-fuera{% endif %} {% if celda.texto_claro %}is-oscuro{% endif %}"
+                        style="background: {{ celda.color }}"
+                        :class="dia === '{{ celda.iso }}' ? 'is-activo' : ''"
+                        @click="dia = '{{ celda.iso }}'; buque = ''; marca = ''"
+                        title="{{ celda.fecha|date:'d/m/Y' }}">
+                    <div class="escala-dia-num">{{ celda.fecha|date:'j' }}</div>
+                    {% if celda.total_naves %}
+                    <div class="escala-dia-cajas">{{ celda.total_cajas|formato_cajas }}</div>
+                    <div class="escala-dia-naves">{{ celda.total_naves }} nave{{ celda.total_naves|pluralize }}</div>
+                    <div class="escala-dia-puertos">
+                        {% if celda.san_antonio %}<span class="badge bg-primary">SA {{ celda.san_antonio|length }}</span>{% endif %}
+                        {% if celda.valparaiso %}<span class="badge bg-info text-dark">Valpo {{ celda.valparaiso|length }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-tc-fondo" x-show="dia" x-cloak x-transition.opacity @click.self="dia = null; buque = ''; marca = ''">
+        <div class="modal-tc-panel escala-detalle-panel" @click.stop>
+            {% for celda in simulacion.celdas %}
+            <div x-show="dia === '{{ celda.iso }}'" x-cloak>
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1 text-capitalize">{{ celda.fecha|date:'l j' }} de {{ celda.fecha|date:'F' }}</h2>
+                        <p class="mb-0 small text-muted">{{ celda.total_naves }} buque(s) · {{ celda.total_cajas|formato_cajas }} cajas</p>
+                        <p class="mb-0 small text-muted">Pulsa el buque para ver la marca, y la marca para ver el consignatario.</p>
+                    </div>
+                    <button type="button" class="btn-close" @click="dia = null; buque = ''; marca = ''" aria-label="Cerrar"></button>
+                </div>
+                {% if celda.total_naves %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 table-invergesal">
+                        <thead>
+                            <tr>
+                                <th>Buque</th>
+                                <th>Puerto</th>
+                                <th>FECHA Excel (zarpe)</th>
+                                <th class="text-end">Días</th>
+                                <th>ETA simulada</th>
+                                <th class="text-end">Cajas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% include 'invergesal/_proyeccion_naves.html' with naves=celda.san_antonio puerto='San Antonio' badge='bg-primary' %}
+                            {% include 'invergesal/_proyeccion_naves.html' with naves=celda.valparaiso puerto='Valparaíso' badge='bg-info text-dark' %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Ningún buque simulado llega este día.</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

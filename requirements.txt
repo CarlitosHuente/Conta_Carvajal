@@ -15,5 +15,7 @@ google-auth-httplib2
 google-auth-oauthlib
 python-dotenv
 pytz
+requests
 WeasyPrint
 xhtml2pdf
+websocket-client

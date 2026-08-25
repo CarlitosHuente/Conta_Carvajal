@@ -1,0 +1,46 @@
+{% load invergesal_extras %}
+{% for nave in naves %}
+<tr class="fila-marca"
+    role="button"
+    title="Ver marcas de {{ nave.nave }}"
+    @click="buque = (buque === '{{ nave.id }}' ? '' : '{{ nave.id }}'); marca = ''">
+    <td>
+        <span class="icono-desplegar" x-text="buque === '{{ nave.id }}' ? '▼' : '►'"></span>
+        {{ nave.nave }}
+        {% if nave.naviera %}<div class="small fw-normal text-muted">{{ nave.naviera }}</div>{% endif %}
+    </td>
+    <td><span class="badge {{ badge }}">{{ puerto }}</span></td>
+    <td>
+        {{ nave.fecha_excel|date:'d/m/Y' }}
+        {% if nave.varias_fechas %}<div class="small fw-normal text-muted">varias fechas Excel</div>{% endif %}
+    </td>
+    <td class="text-end">
+        {{ nave.dias_viaje }}
+        {% if nave.dias_personalizado %}<div class="small fw-normal text-muted">específico</div>{% endif %}
+    </td>
+    <td>{{ nave.eta|date:'d/m/Y' }}</td>
+    <td class="text-end">{{ nave.cajas|formato_cajas }}</td>
+</tr>
+{% for item_marca in nave.marcas %}
+<tr class="fila-escala-marca"
+    role="button"
+    title="Ver consignatarios de {{ item_marca.marca }}"
+    x-show="buque === '{{ nave.id }}'"
+    x-cloak
+    @click.stop="marca = (marca === '{{ item_marca.id }}' ? '' : '{{ item_marca.id }}')">
+    <td colspan="5">
+        <span class="icono-desplegar" x-text="marca === '{{ item_marca.id }}' ? '▼' : '►'"></span>
+        {{ item_marca.marca }}
+    </td>
+    <td class="text-end">{{ item_marca.cajas|formato_cajas }}</td>
+</tr>
+{% for item_consig in item_marca.consignatarios %}
+<tr class="fila-consignatario"
+    x-show="marca === '{{ item_marca.id }}'"
+    x-cloak>
+    <td colspan="5">{{ item_consig.consignatario }}</td>
+    <td class="text-end">{{ item_consig.cajas|formato_cajas }}</td>
+</tr>
+{% endfor %}
+{% endfor %}
+{% endfor %}

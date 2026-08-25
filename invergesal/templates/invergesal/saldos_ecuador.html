@@ -1,0 +1,828 @@
+{% extends "base.html" %}
+{% load static %}
+{% load invergesal_extras %}
+
+{% block title %}Invergesal · Saldos Ecuador{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'invergesal/css/estilos.css' %}">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<div class="invergesal-scope">
+<div class="container-fluid">
+    {% include 'invergesal/_pestanas.html' with pestana='saldos_ecuador' %}
+    {% if fuente == 'liquidacion' and liquidacion %}
+    <h1 class="h3 mb-3">Liquidacion {{ liquidacion.codigo }}</h1>
+    {% else %}
+    <h1 class="h3 mb-3">Saldos Ecuador</h1>
+    {% endif %}
+
+    <ul class="nav nav-pills invergesal-marcas mb-4">
+        {% for item in fuentes %}
+        <li class="nav-item">
+            <a class="nav-link {% if item.id == fuente %}active{% endif %}"
+               href="{% url 'invergesal:saldos_ecuador' %}?fuente={{ item.id }}{% if anio_seleccionado %}&anio={{ anio_seleccionado }}{% endif %}{% if item.id == 'liquidacion' and semana_seleccionada %}&semana={{ semana_seleccionada }}{% endif %}">
+                {{ item.nombre }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="card shadow-sm mb-4" x-data="conexionesSaldos()" @keydown.escape.window="abierto = false">
+        {% if conexiones_saldos %}
+        {{ conexiones_saldos|json_script:"liq-conexiones-data" }}
+        {% endif %}
+        {% csrf_token %}
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                {% if cache_info.modifiedTimeLocal %}
+                    <span class="text-muted">Datos actualizados el: <strong>{{ cache_info.modifiedTimeLocal }} (Hora Local Chile)</strong></span>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-engranaje" @click="abierto = true" title="Conexión a planillas BANAGREEN y CORPROBAN">
+                    <i class="fas fa-link"></i>
+                </button>
+                <a href="{% url 'invergesal:actualizar_saldos_ecuador' %}?fuente={{ fuente }}{% if anio_seleccionado %}&anio={{ anio_seleccionado }}{% endif %}{% if semana_seleccionada %}&semana={{ semana_seleccionada }}{% endif %}"
+                   class="btn btn-primary"
+                   data-no-loading
+                   onclick="return confirmarActualizacionSaldos();">Actualizar</a>
+            </div>
+        </div>
+        <div class="modal-tc-fondo" x-show="abierto" x-cloak x-transition.opacity @click.self="abierto = false">
+            <div class="modal-tc-panel modal-params-panel" @click.stop>
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Conexión de planillas</h2>
+                        <p class="mb-0 small text-muted">BANAGREEN y CORPROBAN se leen desde estas URLs (CSV publicado, mismo formato). Al guardar se vuelve a bajar la información.</p>
+                    </div>
+                    <button type="button" class="btn-close" @click="abierto = false" aria-label="Cerrar"></button>
+                </div>
+                <div class="alert alert-danger" x-show="error" x-cloak x-text="error"></div>
+                <div class="mb-3">
+                    <label class="form-label" for="url-banagreen">BANAGREEN</label>
+                    <input id="url-banagreen" type="url" class="form-control" x-model="banagreen" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&output=csv">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="url-corproban">CORPROBAN</label>
+                    <input id="url-corproban" type="url" class="form-control" x-model="corproban" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&output=csv">
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-primary" @click="guardar()">Guardar y actualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error_carga %}
+    <div class="alert alert-danger">{{ error_carga }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4 card-invergesal-filtros" {% if fuente == 'liquidacion' %}x-data="parametrosGastos()" @keydown.escape.window="abierto = false"{% endif %}>
+        <div class="card-header">Filtros</div>
+        <div class="card-body">
+            {% if parametros_gastos %}
+            {{ parametros_gastos|json_script:"liq-params-data" }}
+            {% csrf_token %}
+            {% endif %}
+            <form method="get" action="{% url 'invergesal:saldos_ecuador' %}" class="row g-3 align-items-end">
+                <input type="hidden" name="fuente" value="{{ fuente }}">
+                <div class="col-sm-4 col-md-3">
+                    <label for="anio" class="form-label">Año</label>
+                    <select name="anio" id="anio" class="form-select" onchange="this.form.submit()">
+                        {% for anio in anios %}
+                        <option value="{{ anio }}" {% if anio == anio_seleccionado %}selected{% endif %}>{{ anio }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if fuente == 'liquidacion' %}
+                <div class="col-sm-4 col-md-3">
+                    <label for="semana" class="form-label">Semana de embarque</label>
+                    <select name="semana" id="semana" class="form-select" onchange="this.form.submit()">
+                        {% for sem in semanas %}
+                        <option value="{{ sem.numero }}" {% if sem.numero == semana_seleccionada %}selected{% endif %}>
+                            Semana {{ sem.numero }} — Liquidacion {{ sem.codigo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-info">Aplicar</button>
+                </div>
+                {% if fuente == 'liquidacion' %}
+                <div class="col-auto">
+                    <button type="button" class="btn btn-engranaje" @click="abierto = true" title="Parámetros de Flete Terrestre, Servicio de Frío y Despacho">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+        {% if fuente == 'liquidacion' %}
+        <div class="modal-tc-fondo" x-show="abierto" x-cloak x-transition.opacity @click.self="abierto = false">
+            <div class="modal-tc-panel modal-params-panel" @click.stop>
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Parámetros de gastos</h2>
+                        <p class="mb-0 small text-muted">Periodos por semana de embarque. El mismo concepto no puede repetir una semana.</p>
+                    </div>
+                    <button type="button" class="btn-close" @click="abierto = false" aria-label="Cerrar"></button>
+                </div>
+                <div class="alert alert-danger white-space-pre" x-show="error" x-cloak x-text="error"></div>
+                <template x-for="concepto in conceptos" :key="concepto.id">
+                    <section class="bloque-parametro mb-4">
+                        <h3 class="h6 mb-2 d-flex align-items-center">
+                            <span x-text="concepto.nombre"></span>
+                            <button type="button" class="ayuda-concepto" :title="concepto.regla" :aria-label="concepto.regla">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </button>
+                        </h3>
+                        <p class="small mb-2" x-show="concepto.vigente">
+                            Esta semana usa
+                            <strong x-text="concepto.vigente && (concepto.vigente.desde_txt + ' a ' + concepto.vigente.hasta_txt)"></strong>
+                            (valor <strong x-text="concepto.vigente && fmtNum(concepto.vigente.valor)"></strong>).
+                        </p>
+                        <p class="small text-warning mb-2" x-show="!concepto.vigente">
+                            No hay un periodo que cubra esta semana.
+                        </p>
+                        <div class="table-responsive mb-2">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Desde</th>
+                                        <th>Hasta</th>
+                                        <th class="text-end">Valor</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="periodo in concepto.periodos" :key="periodo.id">
+                                        <tr>
+                                            <td x-text="periodo.desde_txt"></td>
+                                            <td x-text="periodo.hasta_txt"></td>
+                                            <td class="text-end" x-text="fmtNum(periodo.valor)"></td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" @click="eliminar(periodo.id)">Quitar</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="!concepto.periodos.length">
+                                        <td colspan="4" class="text-muted">Sin periodos. Agrega el primero abajo.</td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <input type="number" min="2000" max="2100" class="form-control form-control-sm input-anio" x-model="nuevos[concepto.id].anio_desde" placeholder="Año">
+                                                <input type="number" min="1" max="53" class="form-control form-control-sm input-semana" x-model="nuevos[concepto.id].semana_desde" placeholder="Sem">
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <input type="number" min="2000" max="2100" class="form-control form-control-sm input-anio" x-model="nuevos[concepto.id].anio_hasta" placeholder="Año">
+                                                <input type="number" min="1" max="53" class="form-control form-control-sm input-semana" x-model="nuevos[concepto.id].semana_hasta" placeholder="Sem">
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm text-end" x-model="nuevos[concepto.id].valor" placeholder="Ej. 390.000">
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-primary" @click="agregar(concepto.id)">Agregar</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </template>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if fuente == 'liquidacion' %}
+    {% if liquidacion %}
+    {{ liquidacion.tc_panel|json_script:"liq-tc-data" }}
+    {% csrf_token %}
+    <div class="row g-4 liquidacion-layout" x-data="liquidacionTc()" @keydown.escape.window="abierto = false">
+        <div class="col-lg-6">
+            <table class="table table-bordered table-sm tabla-liquidacion mb-0">
+                <thead>
+                    <tr><th colspan="5" class="text-center">EMBARQUE</th></tr>
+                    <tr>
+                        <th>PROVEEDOR</th>
+                        <th class="text-end">CONT</th>
+                        <th class="text-end">CAJAS</th>
+                        <th class="text-end">V/UN</th>
+                        <th class="text-end">VALOR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linea in liquidacion.embarque %}
+                    <tr>
+                        <td>{{ linea.proveedor }}</td>
+                        <td class="text-end {% if linea.alerta_cont %}texto-alerta{% endif %}">{{ linea.cont }}</td>
+                        <td class="text-end">{{ linea.cajas|formato_cajas }}</td>
+                        <td class="text-end">{{ linea.vunit|formato_usd }}</td>
+                        <td class="text-end">{{ linea.valor|formato_usd }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="fila-subtotal">
+                        <th>{{ liquidacion.subtotal.proveedor }}</th>
+                        <th class="text-end">{{ liquidacion.subtotal.cont }}</th>
+                        <th class="text-end">{{ liquidacion.subtotal.cajas|formato_cajas }}</th>
+                        <th class="text-end">{{ liquidacion.subtotal.vunit|formato_usd }}</th>
+                        <th class="text-end">{{ liquidacion.subtotal.valor|formato_usd }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="col-lg-5">
+            <table class="table table-bordered table-sm tabla-liquidacion mb-0">
+                <thead>
+                    <tr><th colspan="3" class="text-center">GASTOS</th></tr>
+                    <tr>
+                        <th>CONCEPTO</th>
+                        <th class="text-end">VALOR</th>
+                        <th class="text-end">T/CAM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in liquidacion.gastos_tc %}
+                    <tr>
+                        <td>{{ item.concepto }}</td>
+                        {% if item.es_tc_fob %}
+                        <td class="text-end" x-text="fmtEntero(fob)">{% if item.valor %}{{ item.valor|formato_entero }}{% endif %}</td>
+                        <td class="text-end texto-alerta">
+                            <button type="button" class="btn-tc-detalle" @click="abierto = true" title="Ver cómo se arma el T/Cambio">
+                                <span x-text="fmtUsd(tc)">{% if item.tc %}{{ item.tc|formato_usd }}{% endif %}</span>
+                            </button>
+                        </td>
+                        {% else %}
+                        <td class="text-end">{% if item.valor %}{{ item.valor|formato_entero }}{% endif %}</td>
+                        <td class="text-end {% if item.tc_alerta %}texto-alerta{% endif %}">{% if item.tc %}{{ item.tc|formato_usd }}{% endif %}</td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    <tr class="fila-encabezado-interno">
+                        <th>CONCEPTO</th>
+                        <th class="text-end">VALOR</th>
+                        <th>FACTURA</th>
+                    </tr>
+                    {% for item in liquidacion.gastos_fact %}
+                    <tr>
+                        <td>{{ item.concepto }}</td>
+                        <td class="text-end">{% if item.valor != None %}{{ item.valor|formato_entero }}{% endif %}</td>
+                        <td>{% if item.factura %}{{ item.factura }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="small text-muted mt-2 mb-0">El T/Cambio en rojo se arma con los abonos de esta semana. Haz clic para ver el desglose y agregar tramos solo para esta sesión.</p>
+        </div>
+
+        <div class="modal-tc-fondo" x-show="abierto" x-cloak x-transition.opacity @click.self="abierto = false">
+            <div class="modal-tc-panel" @click.stop>
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">T/Cambio · Liquidacion <span x-text="codigo"></span></h2>
+                        <p class="mb-0 small text-muted">T/C = Σ (USD × T/C pagado) / Total embarque. Solo esta semana. Los ajustes extra no se graban en el CSV; duran hasta Actualizar o cerrar sesión.</p>
+                    </div>
+                    <button type="button" class="btn-close" @click="abierto = false" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm tabla-liquidacion mb-0">
+                        <thead>
+                            <tr>
+                                <th>Origen</th>
+                                <th>Marca / nota</th>
+                                <th>Nave</th>
+                                <th class="text-end">USD</th>
+                                <th class="text-end">T/C</th>
+                                <th class="text-end">USD × T/C</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(tramo, idx) in tramosCsv" :key="'csv-'+idx">
+                                <tr>
+                                    <td>Planilla</td>
+                                    <td x-text="tramo.marca"></td>
+                                    <td x-text="tramo.nave"></td>
+                                    <td class="text-end" x-text="fmtUsd(tramo.usd)"></td>
+                                    <td class="text-end" x-text="fmtUsd(tramo.tc)"></td>
+                                    <td class="text-end" x-text="fmtUsd(tramo.usd * tramo.tc)"></td>
+                                    <td></td>
+                                </tr>
+                            </template>
+                            <template x-for="(tramo, idx) in extras" :key="'ex-'+idx">
+                                <tr>
+                                    <td>Ajuste</td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" x-model="tramo.marca" @change="persistir()">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" x-model="tramo.nave" placeholder="opcional" @change="persistir()">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm text-end" x-model="tramo.usdTxt" @change="actualizarExtra(idx)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm text-end" x-model="tramo.tcTxt" @change="actualizarExtra(idx)">
+                                    </td>
+                                    <td class="text-end" x-text="fmtUsd(num(tramo.usdTxt) * num(tramo.tcTxt))"></td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @click="quitar(idx)">Quitar</button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr>
+                                <td>Nuevo</td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" x-model="nuevo.marca" placeholder="AJUSTE">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" x-model="nuevo.nave" placeholder="nota">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm text-end" x-model="nuevo.usd" placeholder="20.000,00">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm text-end" x-model="nuevo.tc" placeholder="927,11">
+                                </td>
+                                <td></td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-primary" @click="agregar()">Agregar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="fila-subtotal">
+                                <th colspan="3">Cubierto / Embarque</th>
+                                <th class="text-end" x-text="fmtUsd(usdCubierto) + ' / ' + fmtUsd(embarque)"></th>
+                                <th class="text-end" x-text="fmtUsd(tc)"></th>
+                                <th class="text-end" x-text="fmtUsd(numerador)"></th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <p class="small mb-0" x-show="usdFalta > 0.01">
+                    Faltan <strong x-text="fmtUsd(usdFalta)"></strong> USD para cubrir el embarque. Puedes agregarlos aquí para mostrarle al cliente cómo se llegó al T/C.
+                </p>
+                <p class="small mb-0" x-show="usdFalta < -0.01">
+                    Los tramos superan el embarque en <strong x-text="fmtUsd(-usdFalta)"></strong> USD.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-sm table-invergesal" id="tabla-saldos-ecuador">
+            <thead>
+                <tr>
+                    <th class="th-orden" data-sort="di" data-tipo="num">DI</th>
+                    <th class="th-orden is-desc" data-sort="semana" data-tipo="num">Semana</th>
+                    <th class="th-orden" data-sort="nave" data-tipo="text">Nave</th>
+                    <th class="th-orden" data-sort="naviera" data-tipo="text">Naviera</th>
+                    <th class="th-orden text-end" data-sort="contenedores" data-tipo="num">Contenedores</th>
+                    <th class="th-orden text-end" data-sort="cajas" data-tipo="num">Cajas</th>
+                    <th class="th-orden text-end" data-sort="total" data-tipo="num">Total USD</th>
+                </tr>
+                <tr class="fila-gran-total">
+                    <th scope="row">{{ totales.dis }} DI</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th class="text-end">{{ totales.contenedores }}</th>
+                    <th class="text-end">{{ totales.cajas|formato_cajas }}</th>
+                    <th class="text-end">{{ totales.total|formato_usd }}</th>
+                </tr>
+            </thead>
+            {% if grupos %}
+                {% for grupo in grupos %}
+                <tbody
+                    class="grupo-di"
+                    x-data="{ open: false }"
+                    data-di="{{ grupo.di }}"
+                    data-semana="{{ grupo.semana_max }}"
+                    data-nave="{{ grupo.naves_txt }}"
+                    data-naviera="{{ grupo.navieras_txt }}"
+                    data-contenedores="{{ grupo.num_contenedores }}"
+                    data-cajas="{{ grupo.cajas }}"
+                    data-total="{{ grupo.total }}"
+                >
+                    <tr @click="open = !open" class="fila-marca" role="button" title="Ver contenedores de la DI {{ grupo.di }}">
+                        <td><span class="icono-desplegar" x-text="open ? '▼' : '►'"></span>{{ grupo.di }}</td>
+                        <td>{{ grupo.semanas_txt }}</td>
+                        <td>{{ grupo.naves_txt }}</td>
+                        <td>{{ grupo.navieras_txt }}</td>
+                        <td class="text-end">{{ grupo.num_contenedores }}</td>
+                        <td class="text-end">{{ grupo.cajas|formato_cajas }}</td>
+                        <td class="text-end">{{ grupo.total|formato_usd }}</td>
+                    </tr>
+                    <tr x-show="open" x-cloak x-transition class="fila-detalle-di">
+                        <td colspan="7" class="p-0">
+                            <table class="table table-sm table-bordered mb-0 table-invergesal-detalle">
+                                <thead>
+                                    <tr>
+                                        <th>Sem</th>
+                                        <th>Año</th>
+                                        <th>Nave</th>
+                                        <th>Naviera</th>
+                                        <th>N° B/L</th>
+                                        <th>Contenedor</th>
+                                        <th class="text-end">Cajas</th>
+                                        <th class="text-end">Valor unit</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fila in grupo.filas %}
+                                    <tr class="fila-consignatario">
+                                        <td>{{ fila.sem }}</td>
+                                        <td>{{ fila.ano }}</td>
+                                        <td>{{ fila.nave }}</td>
+                                        <td>{{ fila.naviera }}</td>
+                                        <td>{{ fila.bl }}</td>
+                                        <td>{{ fila.contenedor }}</td>
+                                        <td class="text-end">{{ fila.cajas|formato_cajas }}</td>
+                                        <td class="text-end">{{ fila.valor_unit|formato_usd }}</td>
+                                        <td class="text-end">{{ fila.total|formato_usd }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fila-total-di">
+                                        <th colspan="6">Total DI {{ grupo.di }}</th>
+                                        <th class="text-end">{{ grupo.cajas|formato_cajas }}</th>
+                                        <th></th>
+                                        <th class="text-end">{{ grupo.total|formato_usd }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+                {% endfor %}
+            {% else %}
+            <tbody>
+                <tr>
+                    <td colspan="7" class="text-center text-muted p-5">
+                        {% if error_carga %}
+                            No se pudieron cargar los saldos.
+                        {% else %}
+                            No hay declaraciones de ingreso para el año seleccionado.
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+            {% endif %}
+        </table>
+    </div>
+    {% endif %}
+</div>
+</div>
+
+<script>
+function conexionesSaldos() {
+  var nodo = document.getElementById('liq-conexiones-data');
+  var data = nodo ? JSON.parse(nodo.textContent) : {};
+  function csrf() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+  return {
+    abierto: false,
+    error: '',
+    banagreen: data.banagreen || '',
+    corproban: data.corproban || '',
+    guardar: function () {
+      this.error = '';
+      if (window.mostrarTrabajando) {
+        window.mostrarTrabajando('Cargando Saldos Ecuador...');
+      }
+      var self = this;
+      fetch('{% url "invergesal:guardar_conexiones_saldos" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf(),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          banagreen: this.banagreen,
+          corproban: this.corproban
+        })
+      }).then(function (resp) {
+        return resp.json().then(function (data) {
+          return { ok: resp.ok && data.ok, data: data };
+        });
+      }).then(function (res) {
+        if (!res.ok) {
+          if (window.ocultarTrabajando) window.ocultarTrabajando();
+          self.error = res.data.error || 'No se pudo guardar.';
+          return;
+        }
+        window.location.reload();
+      }).catch(function () {
+        if (window.ocultarTrabajando) window.ocultarTrabajando();
+        self.error = 'No se pudo guardar. Inténtalo de nuevo.';
+      });
+    }
+  };
+}
+
+function parametrosGastos() {
+  var nodo = document.getElementById('liq-params-data');
+  var data = nodo ? JSON.parse(nodo.textContent) : { conceptos: [] };
+  var conceptos = data.conceptos || [];
+  var nuevos = {};
+  var anioActual = data.anio || new Date().getFullYear();
+  conceptos.forEach(function (c) {
+    nuevos[c.id] = {
+      anio_desde: anioActual,
+      semana_desde: '',
+      anio_hasta: anioActual,
+      semana_hasta: '',
+      valor: ''
+    };
+  });
+  function fmtNum(valor) {
+    var n = Number(valor);
+    if (!isFinite(n)) n = 0;
+    return n.toLocaleString('es-CL', { maximumFractionDigits: 4 });
+  }
+  function csrf() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+  function pedir(payload) {
+    return fetch('{% url "invergesal:guardar_parametro_gasto" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf(),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify(payload)
+    }).then(function (resp) {
+      return resp.json().then(function (data) {
+        return { ok: resp.ok && data.ok, data: data };
+      });
+    });
+  }
+  return {
+    abierto: false,
+    error: '',
+    conceptos: conceptos,
+    nuevos: nuevos,
+    fmtNum: fmtNum,
+    agregar: function (conceptoId) {
+      var n = this.nuevos[conceptoId] || {};
+      this.error = '';
+      if (window.mostrarTrabajando) {
+        window.mostrarTrabajando('Guardando parámetros...');
+      }
+      var self = this;
+      pedir({
+        accion: 'crear',
+        concepto: conceptoId,
+        anio_desde: n.anio_desde,
+        semana_desde: n.semana_desde,
+        anio_hasta: n.anio_hasta,
+        semana_hasta: n.semana_hasta,
+        valor: n.valor
+      }).then(function (res) {
+        if (!res.ok) {
+          if (window.ocultarTrabajando) window.ocultarTrabajando();
+          self.error = res.data.error || 'No se pudo guardar.';
+          return;
+        }
+        window.location.reload();
+      }).catch(function () {
+        if (window.ocultarTrabajando) window.ocultarTrabajando();
+        self.error = 'No se pudo guardar. Inténtalo de nuevo.';
+      });
+    },
+    eliminar: function (id) {
+      if (!confirm('¿Eliminar este periodo?')) return;
+      this.error = '';
+      if (window.mostrarTrabajando) {
+        window.mostrarTrabajando('Guardando parámetros...');
+      }
+      var self = this;
+      pedir({ accion: 'eliminar', id: id }).then(function (res) {
+        if (!res.ok) {
+          if (window.ocultarTrabajando) window.ocultarTrabajando();
+          self.error = res.data.error || 'No se pudo eliminar.';
+          return;
+        }
+        window.location.reload();
+      }).catch(function () {
+        if (window.ocultarTrabajando) window.ocultarTrabajando();
+        self.error = 'No se pudo eliminar. Inténtalo de nuevo.';
+      });
+    }
+  };
+}
+
+function liquidacionTc() {
+  var nodo = document.getElementById('liq-tc-data');
+  var data = nodo ? JSON.parse(nodo.textContent) : {};
+  function num(valor) {
+    if (valor == null || valor === '') return 0;
+    if (typeof valor === 'number') return valor;
+    var texto = String(valor).trim().replace(/\s/g, '').replace(/\$/g, '');
+    if (!texto) return 0;
+    if (texto.indexOf(',') >= 0) {
+      return parseFloat(texto.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+    var puntos = texto.match(/\./g);
+    if (puntos && puntos.length > 1) {
+      return parseFloat(texto.replace(/\./g, '')) || 0;
+    }
+    if (texto.indexOf('.') >= 0) {
+      var dec = texto.split('.').pop();
+      if (dec.length === 3 && /^\d+$/.test(dec)) {
+        return parseFloat(texto.replace(/\./g, '')) || 0;
+      }
+    }
+    return parseFloat(texto) || 0;
+  }
+  function round2(valor) {
+    return Math.round(valor * 100) / 100;
+  }
+  function fmtUsd(valor) {
+    var n = Number(valor);
+    if (!isFinite(n)) n = 0;
+    return n.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtEntero(valor) {
+    var n = Math.round(Number(valor) || 0);
+    return n.toLocaleString('es-CL', { maximumFractionDigits: 0 });
+  }
+  function extraVista(item) {
+    return {
+      marca: item.marca || 'AJUSTE',
+      nave: item.nave || '',
+      usdTxt: fmtUsd(item.usd || 0),
+      tcTxt: fmtUsd(item.tc || 0)
+    };
+  }
+  return {
+    abierto: false,
+    codigo: data.codigo || '',
+    anio: data.anio,
+    semana: data.semana,
+    embarque: Number(data.embarque) || 0,
+    tramosCsv: data.tramos_csv || [],
+    extras: (data.tramos_extra || []).map(extraVista),
+    nuevo: { marca: 'AJUSTE', nave: '', usd: '', tc: '' },
+    urlGuardar: '{% url "invergesal:guardar_tc_extra" %}',
+    num: num,
+    fmtUsd: fmtUsd,
+    fmtEntero: fmtEntero,
+    get tramosTodos() {
+      return this.tramosCsv.concat(this.extras.map(function (item) {
+        return { usd: num(item.usdTxt), tc: num(item.tcTxt) };
+      }));
+    },
+    get numerador() {
+      return this.tramosTodos.reduce(function (acc, t) { return acc + (t.usd * t.tc); }, 0);
+    },
+    get usdCubierto() {
+      return round2(this.tramosTodos.reduce(function (acc, t) { return acc + t.usd; }, 0));
+    },
+    get usdFalta() {
+      return round2(this.embarque - this.usdCubierto);
+    },
+    get tc() {
+      if (!this.embarque) return null;
+      return round2(this.numerador / this.embarque);
+    },
+    get fob() {
+      return Math.round(this.numerador);
+    },
+    csrf: function () {
+      var el = document.querySelector('[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    },
+    extrasPayload: function () {
+      return this.extras.map(function (item) {
+        return {
+          marca: item.marca,
+          nave: item.nave,
+          usd: num(item.usdTxt),
+          tc: num(item.tcTxt)
+        };
+      }).filter(function (item) { return item.usd || item.tc; });
+    },
+    agregar: function () {
+      var usd = num(this.nuevo.usd);
+      var tc = num(this.nuevo.tc);
+      if (!usd && !tc) return;
+      this.extras.push(extraVista({
+        marca: (this.nuevo.marca || 'AJUSTE').trim() || 'AJUSTE',
+        nave: (this.nuevo.nave || '').trim(),
+        usd: usd,
+        tc: tc
+      }));
+      this.nuevo = { marca: 'AJUSTE', nave: '', usd: '', tc: '' };
+      this.persistir();
+    },
+    quitar: function (idx) {
+      this.extras.splice(idx, 1);
+      this.persistir();
+    },
+    actualizarExtra: function (idx) {
+      var item = this.extras[idx];
+      if (!item) return;
+      item.usdTxt = fmtUsd(num(item.usdTxt));
+      item.tcTxt = fmtUsd(num(item.tcTxt));
+      this.persistir();
+    },
+    persistir: function () {
+      fetch(this.urlGuardar, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.csrf(),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          anio: this.anio,
+          semana: this.semana,
+          extras: this.extrasPayload()
+        })
+      }).catch(function () {});
+    }
+  };
+}
+
+function confirmarActualizacionSaldos() {
+  if (!confirm('Esto volverá a bajar el CSV publicado. ¿Continuar?')) {
+    return false;
+  }
+  if (window.mostrarTrabajando) {
+    window.mostrarTrabajando('Cargando Saldos Ecuador...');
+  }
+  return true;
+}
+
+(function () {
+  var tabla = document.getElementById('tabla-saldos-ecuador');
+  if (!tabla) return;
+  var estado = { col: 'semana', dir: 'desc' };
+
+  function valor(grupo, col, tipo) {
+    var crudo = grupo.getAttribute('data-' + col) || '';
+    if (tipo === 'num') return parseFloat(crudo) || 0;
+    return crudo.toString().toLowerCase();
+  }
+
+  function ordenar() {
+    var grupos = Array.prototype.slice.call(tabla.querySelectorAll('tbody.grupo-di'));
+    if (!grupos.length) return;
+    var th = tabla.querySelector('th.th-orden[data-sort="' + estado.col + '"]');
+    var tipo = th ? th.getAttribute('data-tipo') : 'text';
+    grupos.sort(function (a, b) {
+      var va = valor(a, estado.col, tipo);
+      var vb = valor(b, estado.col, tipo);
+      if (va < vb) return estado.dir === 'asc' ? -1 : 1;
+      if (va > vb) return estado.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    grupos.forEach(function (grupo) {
+      tabla.appendChild(grupo);
+    });
+    tabla.querySelectorAll('th.th-orden').forEach(function (celda) {
+      celda.classList.remove('is-asc', 'is-desc');
+      if (celda.getAttribute('data-sort') === estado.col) {
+        celda.classList.add(estado.dir === 'asc' ? 'is-asc' : 'is-desc');
+      }
+    });
+  }
+
+  tabla.querySelectorAll('th.th-orden').forEach(function (th) {
+    th.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var col = th.getAttribute('data-sort');
+      var tipo = th.getAttribute('data-tipo') || 'text';
+      if (estado.col === col) {
+        estado.dir = estado.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        estado.col = col;
+        estado.dir = tipo === 'num' ? 'desc' : 'asc';
+      }
+      ordenar();
+    });
+  });
+})();
+</script>
+{% endblock %}

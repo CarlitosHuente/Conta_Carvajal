@@ -20,3 +20,21 @@ def formato_cajas(value):
     except (TypeError, ValueError):
         numero = 0
     return f'{numero:,.0f}'.replace(',', '.')
+
+
+@register.filter
+def formato_usd(value):
+    try:
+        numero = float(value or 0)
+    except (TypeError, ValueError):
+        numero = 0
+    return f'{numero:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
+@register.filter
+def formato_entero(value):
+    try:
+        numero = float(value or 0)
+    except (TypeError, ValueError):
+        numero = 0
+    return f'{numero:,.0f}'.replace(',', '.')

@@ -1,0 +1,32 @@
+{
+  "siguiente_id": 4,
+  "periodos": [
+    {
+      "id": 1,
+      "concepto": "flete_terrestre",
+      "anio_desde": 2026,
+      "semana_desde": 11,
+      "anio_hasta": 2026,
+      "semana_hasta": 52,
+      "valor": "390000"
+    },
+    {
+      "id": 2,
+      "concepto": "servicio_frio",
+      "anio_desde": 2026,
+      "semana_desde": 1,
+      "anio_hasta": 2026,
+      "semana_hasta": 52,
+      "valor": "550"
+    },
+    {
+      "id": 3,
+      "concepto": "despacho",
+      "anio_desde": 2026,
+      "semana_desde": 11,
+      "anio_hasta": 2026,
+      "semana_hasta": 52,
+      "valor": "225"
+    }
+  ]
+}

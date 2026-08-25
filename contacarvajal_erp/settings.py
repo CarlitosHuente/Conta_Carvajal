@@ -202,6 +202,29 @@ INVERGESAL_GOOGLE_CREDENTIALS_JSON = os.environ.get(
     'GOOGLE_APPLICATION_CREDENTIALS_JSON',
     '',
 )
+INVERGESAL_SALDOS_ECUADOR_CSV_URL = os.environ.get(
+    'INVERGESAL_SALDOS_ECUADOR_CSV_URL',
+    'https://docs.google.com/spreadsheets/d/e/'
+    '2PACX-1vTebUVntcwTrub69mvm-Kvstg2tH0A8hQN1tRcXUaonP8Bh3xt7DjQyTxOGDI_Z7Q/'
+    'pub?gid=780129547&single=true&output=csv',
+)
+INVERGESAL_SALDOS_ECUADOR_CORPROBAN_CSV_URL = os.environ.get(
+    'INVERGESAL_SALDOS_ECUADOR_CORPROBAN_CSV_URL',
+    'https://docs.google.com/spreadsheets/d/e/'
+    '2PACX-1vTebUVntcwTrub69mvm-Kvstg2tH0A8hQN1tRcXUaonP8Bh3xt7DjQyTxOGDI_Z7Q/'
+    'pub?gid=598736898&single=true&output=csv',
+)
+INVERGESAL_SALDOS_ECUADOR_CSV_TIMEOUT = int(os.environ.get('INVERGESAL_SALDOS_ECUADOR_CSV_TIMEOUT', '45'))
+INVERGESAL_AISSTREAM_API_KEY = os.environ.get('INVERGESAL_AISSTREAM_API_KEY', '')
+INVERGESAL_AISSTREAM_API_KEY_FILE = os.environ.get(
+    'INVERGESAL_AISSTREAM_API_KEY_FILE',
+    str(BASE_DIR / 'aisstream_api_key.txt'),
+)
+INVERGESAL_AIS_LISTEN_SECONDS = int(os.environ.get('INVERGESAL_AIS_LISTEN_SECONDS', '90'))
+INVERGESAL_PARAMETROS_VIAJE_JSON = os.environ.get(
+    'INVERGESAL_PARAMETROS_VIAJE_JSON',
+    str(BASE_DIR / 'invergesal_data' / 'parametros_viaje.json'),
+)
 
 # --- SEGURIDAD ---
 # Permite que los PDFs se previsualicen en la pantalla dividida (iframes/embeds)

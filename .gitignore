@@ -22,3 +22,5 @@ Thumbs.db
 media/
 .django_cache/
 credenciales_google.json
+aisstream_api_key.txt
+invergesal_data/*.json.tmp

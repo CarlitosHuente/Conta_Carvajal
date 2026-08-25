@@ -1,0 +1,23 @@
+{
+  "dias_san_antonio": 11,
+  "dias_valparaiso": 14,
+  "dias_buques": {},
+  "colores": [
+    {
+      "hasta": 0,
+      "color": "#eef3f8"
+    },
+    {
+      "hasta": 19999,
+      "color": "#d1fae5"
+    },
+    {
+      "hasta": 49999,
+      "color": "#fde68a"
+    },
+    {
+      "hasta": null,
+      "color": "#fecaca"
+    }
+  ]
+}

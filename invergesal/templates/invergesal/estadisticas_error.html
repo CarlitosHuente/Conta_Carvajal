@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{% static 'invergesal/css/estilos.css' %}">
 <div class="invergesal-scope">
 <div class="container">
+  {% include 'invergesal/_pestanas.html' with pestana='estadisticas' %}
   <div class="d-flex align-items-center justify-content-between mb-4 gap-2 flex-wrap">
     <h1 class="h3 mb-0">Error al Cargar los Datos</h1>
     <span class="d-flex align-items-center gap-2">

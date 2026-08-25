@@ -380,7 +380,9 @@
           window.descargarConFetch(href, { mensaje: 'Preparando Excel...' });
           return;
         }
-        if (href.indexOf('/invergesal/') !== -1) {
+        if (href.indexOf('/invergesal/saldos-ecuador') !== -1) {
+          window.mostrarTrabajando('Cargando Saldos Ecuador...');
+        } else if (href.indexOf('/invergesal/') !== -1) {
           window.mostrarTrabajando('Cargando Invergesal...');
         }
       });
@@ -400,7 +402,9 @@
           });
           return;
         }
-        if (action.indexOf('/invergesal/') !== -1 || (form.getAttribute('action') || '').indexOf('/invergesal/') !== -1) {
+        if (action.indexOf('/invergesal/saldos-ecuador') !== -1 || (form.getAttribute('action') || '').indexOf('/invergesal/saldos-ecuador') !== -1) {
+          window.mostrarTrabajando('Cargando Saldos Ecuador...');
+        } else if (action.indexOf('/invergesal/') !== -1 || (form.getAttribute('action') || '').indexOf('/invergesal/') !== -1) {
           window.mostrarTrabajando('Procesando, por favor espere...');
         }
       });
