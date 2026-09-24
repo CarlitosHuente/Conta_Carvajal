@@ -24,3 +24,5 @@ media/
 credenciales_google.json
 aisstream_api_key.txt
 invergesal_data/*.json.tmp
+# URL de Saldos Ecuador: cada servidor guarda la suya y git no la pisa.
+invergesal_data/conexiones_saldos.json
