@@ -119,6 +119,10 @@
 <div id="historial-liquidaciones" class="mt-5" style="scroll-margin-top: 5.5rem;">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <h4 class="mb-0">Liquidaciones emitidas</h4>
+        <div class="d-flex flex-wrap gap-2">
+        {% if vista_es_admin %}
+        <a href="{% url 'rrhh:liquidacion_forzar' trabajador.pk %}" class="btn btn-sm btn-outline-warning">Forzar liquidación</a>
+        {% endif %}
         {% if total_liquidaciones > 3 %}
             {% if ver_todas_liquidaciones %}
             <a href="{% url 'rrhh:trabajador_detail' trabajador.pk %}#historial-liquidaciones" class="btn btn-sm btn-outline-secondary">
@@ -130,6 +134,7 @@
             </a>
             {% endif %}
         {% endif %}
+        </div>
     </div>
 
     <div class="card shadow-sm">
@@ -148,7 +153,10 @@
                     <tbody>
                         {% for liq in liquidaciones %}
                         <tr>
-                            <td><strong>{{ liq.mes }}/{{ liq.ano }}</strong></td>
+                            <td>
+                                <strong>{{ liq.mes }}/{{ liq.ano }}</strong>
+                                {% if liq.manual %}<span class="badge text-bg-warning ms-1">Manual</span>{% endif %}
+                            </td>
                             <td>
                                 <small class="text-muted">
                                     Desde {{ liq.contrato.fecha_inicio|date:"d/m/Y" }}
@@ -160,6 +168,19 @@
                             <td class="text-center text-nowrap">
                                 <a href="{% url 'rrhh:liquidacion_detail' liq.pk %}" class="btn btn-sm btn-outline-primary" title="Ver detalle"><i class="fas fa-eye"></i></a>
                                 <a href="{% url 'rrhh:liquidacion_pdf' liq.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Imprimir PDF"><i class="fas fa-file-pdf"></i></a>
+                                {% if vista_es_admin %}
+                                <a href="{% url 'rrhh:liquidacion_editar' liq.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar"
+                                   data-no-loading
+                                   onclick="if(!confirm('¿Editar la liquidación de {{ liq.mes }}/{{ liq.ano }}? Deja de coincidir con el cálculo automático.')) return false; if(window.mostrarTrabajando){window.mostrarTrabajando('Abriendo liquidación...');} return true;">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="post" action="{% url 'rrhh:liquidacion_eliminar' liq.pk %}" class="d-inline"
+                                      data-no-loading
+                                      onsubmit="if(!confirm('¿Eliminar la liquidación de {{ liq.mes }}/{{ liq.ano }} de {{ trabajador.nombre_completo }}? Esta acción no se puede deshacer.')) return false; if(window.mostrarTrabajando){window.mostrarTrabajando('Eliminando liquidación...');} return true;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </form>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}

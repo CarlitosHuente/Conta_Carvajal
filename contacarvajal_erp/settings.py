@@ -211,7 +211,7 @@ INVERGESAL_SALDOS_ECUADOR_CSV_URL = os.environ.get(
 INVERGESAL_SALDOS_ECUADOR_CORPROBAN_CSV_URL = os.environ.get(
     'INVERGESAL_SALDOS_ECUADOR_CORPROBAN_CSV_URL',
     'https://docs.google.com/spreadsheets/d/e/'
-    '2PACX-1vTebUVntcwTrub69mvm-Kvstg2tH0A8hQN1tRcXUaonP8Bh3xt7DjQyTxOGDI_Z7Q/'
+    '2PACX-1vQxsc3moRN_zu-NmIp236fgyFWv3lSijASotWh1OAtkNkh0y-gzZt8q05_6bdH_Dg/'
     'pub?gid=598736898&single=true&output=csv',
 )
 INVERGESAL_SALDOS_ECUADOR_CSV_TIMEOUT = int(os.environ.get('INVERGESAL_SALDOS_ECUADOR_CSV_TIMEOUT', '45'))

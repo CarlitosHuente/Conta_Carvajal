@@ -27,29 +27,27 @@
             </a>
         </div>
         {% empty %}
+        {% if not puede_invergesal_ui %}
         <p class="text-center">No hay empresas registradas.</p>
+        {% endif %}
         {% endfor %}
-    </div>
 
-    {% if puede_invergesal_ui %}
-    <div class="row mt-5">
-        <div class="col-12">
+        {% if puede_invergesal_ui %}
+        <div class="col-md-6 col-lg-4">
             <a href="{% url 'invergesal:estadisticas' %}" class="text-decoration-none">
-                <div class="card border-info shadow-sm card-hover-zoom">
-                    <div class="card-body d-flex align-items-center p-4">
-                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px;">
+                <div class="card h-100 shadow-sm border-info card-hover-zoom">
+                    <div class="card-body text-center p-4">
+                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto" style="width: 80px; height: 80px;">
                             <i class="fas fa-ship fa-2x"></i>
                         </div>
-                        <div>
-                            <h5 class="card-title text-dark fw-bold mb-1">Invergesal</h5>
-                            <p class="card-text text-muted mb-0">Estadísticas de carga. Independiente de la empresa seleccionada.</p>
-                        </div>
+                        <h5 class="card-title text-dark fw-bold">Invergesal</h5>
+                        <p class="card-text text-muted mb-0">Módulos de carga</p>
                     </div>
                 </div>
             </a>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     {% if user.perfil.rol == 'admin' or user.is_superuser %}
     <div class="row mt-5">

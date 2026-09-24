@@ -35,7 +35,10 @@ urlpatterns = [
     # URLs para Liquidaciones
     path('liquidacion/nueva/', views.crear_liquidacion_view, name='crear_liquidacion'),
     path('liquidacion/<int:pk>/', views.liquidacion_detail_view, name='liquidacion_detail'),
+    path('liquidacion/<int:pk>/editar/', views.liquidacion_editar_view, name='liquidacion_editar'),
+    path('liquidacion/<int:pk>/eliminar/', views.liquidacion_eliminar_view, name='liquidacion_eliminar'),
     path('liquidacion/<int:pk>/pdf/', views.liquidacion_pdf_view, name='liquidacion_pdf'),
+    path('trabajador/<int:trabajador_pk>/liquidacion/forzar/', views.liquidacion_forzar_view, name='liquidacion_forzar'),
     path('libro-remuneraciones/', views.libro_remuneraciones_view, name='libro_remuneraciones'),
     path('export-previred/', views_operaciones.export_previred_view, name='export_previred'),
     path('config-centralizacion-rrhh/', views_operaciones.configurar_centralizacion_rrhh_view, name='config_centralizacion_rrhh'),

@@ -47,6 +47,10 @@ def invergesal_required(view_func):
         if not usuario_puede_invergesal(request.user):
             messages.error(request, 'No tienes acceso a Invergesal. Contacta al administrador.')
             return redirect('core:home')
+        if request.session.get('empresa_activa_id'):
+            request.session.pop('empresa_activa_id', None)
+            from core.vista import limpiar_vista_cliente
+            limpiar_vista_cliente(request.session)
         return view_func(request, *args, **kwargs)
 
     return wrapped

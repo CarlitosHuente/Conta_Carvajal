@@ -1,22 +1,26 @@
 # rrhh/views.py
 
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.forms import modelformset_factory, inlineformset_factory
-from .models import Contrato, Trabajador, IndicadorEconomico, NovedadMensual, AFP, SistemaSalud, ItemContrato, Liquidacion, ConceptoVariable, TramoConcepto
+from .models import Contrato, Trabajador, IndicadorEconomico, NovedadMensual, AFP, SistemaSalud, ItemContrato, Liquidacion, ItemLiquidacion, CuotaPrestamoLiquidacion, ConceptoVariable, TramoConcepto
 from core.models import Empresa, PerfilUsuario
 from .forms import EmpresaForm, TrabajadorForm, ContratoForm, IndicadorEconomicoForm, NovedadMensualForm, ItemContratoForm, ConceptoVariableForm, TramoConceptoForm
 from django.contrib.auth.decorators import login_required
-from datetime import datetime
+from django.views.decorators.http import require_POST
+from datetime import datetime, date
 import requests
 from django.urls import reverse
 from .motor_remuneraciones import procesar_liquidacion
 from django.db.models import Prefetch
 import calendar
 from .models import RegistroCobro
-from django.db import models
+from django.db import models, transaction
 from core.permissions import require_access, ensure_empresa_operativa
+from core.vista import vista_es_admin_ui
+from .liquidacion_items import descuentos_para_presentacion
+from .libro_remuneraciones import COLUMNAS, MESES, excel_libro, libro_del_periodo
 from .calculos_rrhh import iter_periodos, periodo_a_entero
 
 
@@ -71,11 +75,16 @@ def _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=False
 
     exitos = 0
     fallos = 0
+    omitidas_manuales = 0
     errores = []
     for contrato in contratos_activos:
         try:
             liq = procesar_liquidacion(contrato, mes, ano)
-            if liq is not None:
+            if liq is None:
+                continue
+            if liq.manual:
+                omitidas_manuales += 1
+            else:
                 exitos += 1
         except Exception as e:
             fallos += 1
@@ -86,6 +95,7 @@ def _procesar_liquidaciones_mes(empresa, mes, ano, autocompletar_novedades=False
         'pendientes': [],
         'exitos': exitos,
         'fallos': fallos,
+        'omitidas_manuales': omitidas_manuales,
         'errores': errores,
     }
 
@@ -167,6 +177,7 @@ def crear_liquidacion_view(request):
 
             total_exitos = 0
             total_fallos = 0
+            total_omitidas = 0
             meses_sin_novedad = []
             todos_errores = []
 
@@ -179,6 +190,7 @@ def crear_liquidacion_view(request):
                     continue
                 total_exitos += resultado['exitos']
                 total_fallos += resultado['fallos']
+                total_omitidas += resultado.get('omitidas_manuales', 0)
                 todos_errores.extend(resultado['errores'])
 
             if meses_sin_novedad:
@@ -191,6 +203,11 @@ def crear_liquidacion_view(request):
                 messages.success(
                     request,
                     f"Rango procesado: {len(periodos)} mes(es), {total_exitos} liquidación(es) generada(s).",
+                )
+            if total_omitidas:
+                messages.info(
+                    request,
+                    f"Se dejaron sin cambiar {total_omitidas} liquidación(es) ingresadas o editadas a mano.",
                 )
             if total_fallos:
                 messages.error(request, f"Fallos en el rango: {'; '.join(todos_errores[:5])}")
@@ -208,6 +225,11 @@ def crear_liquidacion_view(request):
                 messages.success(
                     request,
                     f"Proceso finalizado. Se generaron/actualizaron {resultado['exitos']} liquidaciones.",
+                )
+            if resultado.get('omitidas_manuales'):
+                messages.info(
+                    request,
+                    f"Se dejaron sin cambiar {resultado['omitidas_manuales']} liquidación(es) ingresadas o editadas a mano.",
                 )
             if resultado['fallos']:
                 messages.error(
@@ -239,6 +261,11 @@ def crear_liquidacion_view(request):
             messages.success(
                 request,
                 f"Proceso finalizado. Se generaron/actualizaron {resultado['exitos']} liquidaciones exitosamente.",
+            )
+        if resultado.get('omitidas_manuales'):
+            messages.info(
+                request,
+                f"Se dejaron sin cambiar {resultado['omitidas_manuales']} liquidación(es) ingresadas o editadas a mano.",
             )
         if resultado['fallos']:
             messages.error(
@@ -619,7 +646,7 @@ def liquidacion_detail_view(request, pk):
     # Agrupamos los ítems para la plantilla
     haberes_imponibles = liquidacion.items.filter(tipo='HABER', es_imponible=True)
     haberes_no_imponibles = liquidacion.items.filter(tipo='HABER', es_imponible=False)
-    descuentos = liquidacion.items.filter(tipo='DESCUENTO')
+    descuentos = descuentos_para_presentacion(liquidacion)
 
     context = {
         'liquidacion': liquidacion,
@@ -640,13 +667,316 @@ def liquidacion_pdf_view(request, pk):
     liquidacion = get_object_or_404(Liquidacion, pk=pk, contrato__trabajador__empresa_id=empresa_id)
     haberes_imponibles = liquidacion.items.filter(tipo='HABER', es_imponible=True)
     haberes_no_imponibles = liquidacion.items.filter(tipo='HABER', es_imponible=False)
-    descuentos = liquidacion.items.filter(tipo='DESCUENTO')
+    descuentos = descuentos_para_presentacion(liquidacion)
 
     context = {
         'liquidacion': liquidacion, 'haberes_imponibles': haberes_imponibles,
         'haberes_no_imponibles': haberes_no_imponibles, 'descuentos': descuentos,
     }
     return render(request, 'rrhh/liquidacion_pdf.html', context)
+
+
+_CATEGORIAS_LINEA = {
+    'haber_imponible',
+    'haber_no_imponible',
+    'descuento_legal',
+    'descuento_otro',
+}
+
+
+def _respuesta_si_no_admin(request):
+    if not vista_es_admin_ui(request):
+        return HttpResponseForbidden('Solo administradores pueden realizar esta acción.')
+    return None
+
+
+def _categoria_de_item(item):
+    if item.tipo == 'HABER':
+        return 'haber_imponible' if item.es_imponible else 'haber_no_imponible'
+    return 'descuento_legal' if item.es_legal else 'descuento_otro'
+
+
+def _lineas_post(request):
+    nombres = request.POST.getlist('linea_nombre')
+    montos = request.POST.getlist('linea_monto')
+    categorias = request.POST.getlist('linea_categoria')
+    lineas = []
+    for nombre, monto, categoria in zip(nombres, montos, categorias):
+        nombre = (nombre or '').strip()
+        monto_txt = (monto or '').strip().replace('.', '').replace(' ', '')
+        if not nombre and not monto_txt:
+            continue
+        if not nombre:
+            raise ValueError('Cada línea con monto necesita un nombre.')
+        if categoria not in _CATEGORIAS_LINEA:
+            raise ValueError(f'Tipo inválido en «{nombre}».')
+        if ',' in monto_txt or not monto_txt.isdigit():
+            raise ValueError(f'Monto inválido en «{nombre}». Usa un entero, por ejemplo 150000.')
+        lineas.append({
+            'nombre': nombre[:100],
+            'monto': int(monto_txt),
+            'categoria': categoria,
+        })
+    if not lineas:
+        raise ValueError('Agrega al menos una línea con nombre y monto.')
+    return lineas
+
+
+def _aplicar_lineas_manuales(liquidacion, lineas, dias):
+    cuota = CuotaPrestamoLiquidacion.objects.filter(liquidacion=liquidacion).select_related('prestamo').first()
+    etiqueta_prestamo = ''
+    if cuota and cuota.prestamo.descripcion:
+        etiqueta_prestamo = cuota.prestamo.descripcion.strip()
+
+    liquidacion.items.all().delete()
+    haberes_imp = haberes_no = legales = varios = asig = 0
+    monto_cuota = None
+    for linea in lineas:
+        es_haber = linea['categoria'].startswith('haber')
+        es_imponible = linea['categoria'] == 'haber_imponible'
+        es_legal = linea['categoria'] == 'descuento_legal'
+        ItemLiquidacion.objects.create(
+            liquidacion=liquidacion,
+            nombre=linea['nombre'],
+            monto=linea['monto'],
+            tipo='HABER' if es_haber else 'DESCUENTO',
+            es_imponible=es_imponible if es_haber else False,
+            es_legal=es_legal,
+        )
+        if es_imponible:
+            haberes_imp += linea['monto']
+        elif es_haber:
+            haberes_no += linea['monto']
+            if linea['nombre'].lower().startswith('asignación familiar') or linea['nombre'].lower().startswith('asignacion familiar'):
+                asig += linea['monto']
+        elif es_legal:
+            legales += linea['monto']
+        else:
+            varios += linea['monto']
+            nombre = linea['nombre']
+            if cuota and (
+                (etiqueta_prestamo and nombre == etiqueta_prestamo)
+                or nombre.lower().startswith('cuota préstamo')
+                or nombre.lower().startswith('cuota prestamo')
+            ):
+                monto_cuota = linea['monto']
+
+    if cuota:
+        if monto_cuota is None:
+            cuota.delete()
+        else:
+            cuota.monto = monto_cuota
+            cuota.save(update_fields=['monto'])
+
+    liquidacion.dias_trabajados = dias
+    liquidacion.total_haberes_imponibles = haberes_imp
+    liquidacion.total_haberes_no_imponibles = haberes_no
+    liquidacion.total_descuentos_legales = legales
+    liquidacion.total_descuentos_varios = varios
+    liquidacion.total_asignacion_familiar = asig
+    liquidacion.sueldo_liquido = (haberes_imp + haberes_no) - (legales + varios)
+    liquidacion.manual = True
+    liquidacion.save()
+
+
+def _contexto_lineas(liquidacion, lineas, error=''):
+    return {
+        'modo': 'lineas',
+        'liquidacion': liquidacion,
+        'trabajador': liquidacion.contrato.trabajador,
+        'lineas': lineas,
+        'error': error,
+        'dias_trabajados': liquidacion.dias_trabajados,
+    }
+
+
+@login_required
+@require_POST
+def liquidacion_eliminar_view(request, pk):
+    denegado = _respuesta_si_no_admin(request)
+    if denegado:
+        return denegado
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    liquidacion = get_object_or_404(
+        Liquidacion, pk=pk, contrato__trabajador__empresa_id=empresa_id,
+    )
+    trabajador = liquidacion.contrato.trabajador
+    periodo = f'{liquidacion.mes}/{liquidacion.ano}'
+    liquidacion.delete()
+    messages.success(request, f'Liquidación {periodo} de {trabajador.nombre_completo} eliminada.')
+    return redirect(f"{reverse('rrhh:trabajador_detail', args=[trabajador.pk])}#historial-liquidaciones")
+
+
+@login_required
+def liquidacion_editar_view(request, pk):
+    denegado = _respuesta_si_no_admin(request)
+    if denegado:
+        return denegado
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    liquidacion = get_object_or_404(
+        Liquidacion.objects.select_related('contrato__trabajador'),
+        pk=pk,
+        contrato__trabajador__empresa_id=empresa_id,
+    )
+
+    if request.method == 'POST' and request.POST.get('accion') == 'recalcular':
+        try:
+            nueva = procesar_liquidacion(
+                liquidacion.contrato, liquidacion.mes, liquidacion.ano, reemplazar_manual=True,
+            )
+        except Exception as exc:
+            messages.error(request, f'No se pudo recalcular: {exc}')
+            return redirect('rrhh:liquidacion_editar', pk=liquidacion.pk)
+        if nueva is None:
+            messages.error(request, 'No se pudo recalcular: el trabajador no tiene días trabajados en ese mes.')
+            return redirect('rrhh:liquidacion_editar', pk=liquidacion.pk)
+        messages.success(request, f'Liquidación {nueva.mes}/{nueva.ano} recalculada con el motor.')
+        return redirect('rrhh:liquidacion_detail', pk=nueva.pk)
+
+    if request.method == 'POST':
+        try:
+            dias = int(request.POST.get('dias_trabajados') or 0)
+            if dias < 0 or dias > 31:
+                raise ValueError('Los días trabajados deben estar entre 0 y 31.')
+            lineas = _lineas_post(request)
+            with transaction.atomic():
+                _aplicar_lineas_manuales(liquidacion, lineas, dias)
+        except ValueError as exc:
+            lineas_error = []
+            for nombre, monto, categoria in zip(
+                request.POST.getlist('linea_nombre'),
+                request.POST.getlist('linea_monto'),
+                request.POST.getlist('linea_categoria'),
+            ):
+                lineas_error.append({'nombre': nombre, 'monto': monto, 'categoria': categoria})
+            context = _contexto_lineas(liquidacion, lineas_error or [{'nombre': '', 'monto': '', 'categoria': 'haber_imponible'}], str(exc))
+            context['dias_trabajados'] = request.POST.get('dias_trabajados') or liquidacion.dias_trabajados
+            return render(request, 'rrhh/liquidacion_manual.html', context)
+        messages.success(request, f'Liquidación {liquidacion.mes}/{liquidacion.ano} guardada como manual.')
+        return redirect('rrhh:liquidacion_detail', pk=liquidacion.pk)
+
+    lineas = [
+        {'nombre': item.nombre, 'monto': item.monto, 'categoria': _categoria_de_item(item)}
+        for item in liquidacion.items.order_by('id')
+    ]
+    if not lineas:
+        lineas = [{'nombre': '', 'monto': '', 'categoria': 'haber_imponible'}]
+    return render(request, 'rrhh/liquidacion_manual.html', _contexto_lineas(liquidacion, lineas))
+
+
+@login_required
+def liquidacion_forzar_view(request, trabajador_pk):
+    denegado = _respuesta_si_no_admin(request)
+    if denegado:
+        return denegado
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    trabajador = get_object_or_404(Trabajador, pk=trabajador_pk, empresa_id=empresa_id)
+    contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio')
+    today = datetime.now()
+
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar':
+        contrato = get_object_or_404(contratos, pk=request.POST.get('contrato_id'))
+        try:
+            mes = int(request.POST.get('mes'))
+            ano = int(request.POST.get('ano'))
+            dias = int(request.POST.get('dias_trabajados') or 30)
+            if mes < 1 or mes > 12:
+                raise ValueError('El mes no es válido.')
+            if ano < 2000 or ano > today.year + 1:
+                raise ValueError('El año no es válido.')
+            if dias < 0 or dias > 31:
+                raise ValueError('Los días trabajados deben estar entre 0 y 31.')
+            if Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano).exists():
+                raise ValueError('Ya existe una liquidación de ese período. Ábrela para editarla.')
+            lineas = _lineas_post(request)
+        except ValueError as exc:
+            lineas_error = []
+            for nombre, monto, categoria in zip(
+                request.POST.getlist('linea_nombre'),
+                request.POST.getlist('linea_monto'),
+                request.POST.getlist('linea_categoria'),
+            ):
+                lineas_error.append({'nombre': nombre, 'monto': monto, 'categoria': categoria})
+            return render(request, 'rrhh/liquidacion_manual.html', {
+                'modo': 'lineas',
+                'trabajador': trabajador,
+                'contrato': contrato,
+                'mes': request.POST.get('mes'),
+                'ano': request.POST.get('ano'),
+                'dias_trabajados': request.POST.get('dias_trabajados') or 30,
+                'lineas': lineas_error or [{'nombre': '', 'monto': '', 'categoria': 'haber_imponible'}],
+                'error': str(exc),
+            })
+
+        indicador = IndicadorEconomico.objects.filter(mes=mes, ano=ano).first()
+        ultimo = calendar.monthrange(ano, mes)[1]
+        with transaction.atomic():
+            liquidacion = Liquidacion.objects.create(
+                contrato=contrato,
+                mes=mes,
+                ano=ano,
+                fecha_emision=date(ano, mes, ultimo),
+                dias_trabajados=dias,
+                fecha_ingreso_contrato=contrato.fecha_inicio,
+                cargo_contrato=(contrato.cargo or '')[:120],
+                uf_valor=indicador.uf if indicador else 0,
+                utm_valor=indicador.utm if indicador else 0,
+                sueldo_minimo_valor=indicador.sueldo_minimo if indicador else 0,
+                afp_nombre=contrato.afp.nombre,
+                afp_tasa=contrato.afp.tasa_dependiente,
+                salud_nombre=contrato.sistema_salud.nombre,
+                manual=True,
+            )
+            _aplicar_lineas_manuales(liquidacion, lineas, dias)
+        messages.success(request, f'Liquidación {mes}/{ano} ingresada a mano.')
+        return redirect('rrhh:liquidacion_detail', pk=liquidacion.pk)
+
+    if request.method == 'POST':
+        contrato = get_object_or_404(contratos, pk=request.POST.get('contrato_id'))
+        try:
+            mes = int(request.POST.get('mes'))
+            ano = int(request.POST.get('ano'))
+        except (TypeError, ValueError):
+            messages.error(request, 'Indica mes y año válidos.')
+            return redirect('rrhh:liquidacion_forzar', trabajador_pk=trabajador.pk)
+        existente = Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano).first()
+        if existente:
+            return render(request, 'rrhh/liquidacion_manual.html', {
+                'modo': 'existe',
+                'trabajador': trabajador,
+                'contrato': contrato,
+                'mes': mes,
+                'ano': ano,
+                'liquidacion': existente,
+            })
+        return render(request, 'rrhh/liquidacion_manual.html', {
+            'modo': 'lineas',
+            'trabajador': trabajador,
+            'contrato': contrato,
+            'mes': mes,
+            'ano': ano,
+            'dias_trabajados': 30,
+            'lineas': [{'nombre': '', 'monto': '', 'categoria': 'haber_imponible'}],
+            'error': '',
+        })
+
+    return render(request, 'rrhh/liquidacion_manual.html', {
+        'modo': 'elegir',
+        'trabajador': trabajador,
+        'contratos': contratos,
+        'mes': today.month,
+        'ano': today.year,
+    })
+
 
 @login_required
 @require_access('rrhh', 'liquidaciones', 'ver')
@@ -661,27 +991,28 @@ def libro_remuneraciones_view(request):
     today = datetime.now()
     mes = int(request.GET.get('mes', today.month))
     ano = int(request.GET.get('ano', today.year))
+    filas, totales = libro_del_periodo(empresa, mes, ano)
 
-    liquidaciones = Liquidacion.objects.filter(
-        contrato__trabajador__empresa=empresa, mes=mes, ano=ano
-    ).select_related('contrato__trabajador').order_by('contrato__trabajador__apellido_paterno')
-
-    totales = {
-        'imponible': sum(l.total_haberes_imponibles for l in liquidaciones),
-        'no_imponible': sum(l.total_haberes_no_imponibles for l in liquidaciones),
-        'leyes': sum(l.total_descuentos_legales for l in liquidaciones),
-        'varios': sum(l.total_descuentos_varios for l in liquidaciones),
-        'liquido': sum(l.sueldo_liquido for l in liquidaciones),
-        'sis': sum(l.cotizacion_sis_empleador for l in liquidaciones),
-        'afc_emp': sum(l.cotizacion_afc_empleador for l in liquidaciones),
-        'asig_fam': sum(l.total_asignacion_familiar for l in liquidaciones),
-    }
+    if request.GET.get('formato') == 'excel':
+        contenido = excel_libro(empresa, mes, ano, filas, totales)
+        nombre = f'libro_remuneraciones_{empresa.rut}_{mes:02d}_{ano}.xlsx'
+        response = HttpResponse(
+            contenido,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+        return response
 
     context = {
-        'mes_seleccionado': mes, 'ano_seleccionado': ano,
-        'meses_opciones': range(1, 13), 'anos_opciones': range(2024, today.year + 2),
-        'liquidaciones': liquidaciones,
+        'mes_seleccionado': mes,
+        'ano_seleccionado': ano,
+        'mes_nombre': MESES[mes],
+        'meses_opciones': range(1, 13),
+        'anos_opciones': range(2024, today.year + 2),
+        'filas': filas,
         'totales': totales,
+        'columnas': COLUMNAS,
+        'empresa': empresa,
     }
     return render(request, 'rrhh/libro_remuneraciones.html', context)
 

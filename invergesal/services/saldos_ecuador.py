@@ -1,7 +1,6 @@
 import csv
 import io
 import logging
-import re
 from datetime import datetime
 
 import pytz
@@ -21,7 +20,7 @@ CSV_URL_BANAGREEN = (
 )
 CSV_URL_CORPROBAN = (
     'https://docs.google.com/spreadsheets/d/e/'
-    '2PACX-1vTebUVntcwTrub69mvm-Kvstg2tH0A8hQN1tRcXUaonP8Bh3xt7DjQyTxOGDI_Z7Q/'
+    '2PACX-1vQxsc3moRN_zu-NmIp236fgyFWv3lSijASotWh1OAtkNkh0y-gzZt8q05_6bdH_Dg/'
     'pub?gid=598736898&single=true&output=csv'
 )
 FUENTE_DEFAULT = 'banagreen'
@@ -151,19 +150,21 @@ def _parse_semana(valor):
 
 
 def _parse_di(valor):
-    texto = str(valor or '').strip()
+    """Normaliza DI para todas las fuentes (BANAGREEN, CORPROBAN y Liquidación).
+
+    En la planilla a veces viene con miles chilenos (198.575). En pantalla y en
+    agrupación siempre queda sin separador: 198575.
+    """
+    texto = str(valor or '').strip().replace(' ', '')
     if not texto:
         return ''
-    texto = texto.replace(' ', '')
-    if texto.endswith('.0'):
-        texto = texto[:-2]
-    if not re.fullmatch(r'\d+(\.0+)?', texto):
+    numero = parse_numero_chileno(texto)
+    if numero <= 0:
         return ''
-    try:
-        numero = int(float(texto))
-    except (TypeError, ValueError):
+    entero = int(round(numero))
+    if entero <= 0:
         return ''
-    return str(numero) if numero > 0 else ''
+    return str(entero)
 
 
 def _nave_valida(nave):

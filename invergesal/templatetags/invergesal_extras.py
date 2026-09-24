@@ -38,3 +38,14 @@ def formato_entero(value):
     except (TypeError, ValueError):
         numero = 0
     return f'{numero:,.0f}'.replace(',', '.')
+
+
+@register.filter
+def formato_di(value):
+    """DI sin miles: 198575, nunca 198.575."""
+    from invergesal.services.saldos_ecuador import _parse_di
+    normalizado = _parse_di(value)
+    if normalizado:
+        return normalizado
+    texto = str(value or '').strip().replace(' ', '').replace('.', '').replace(',', '')
+    return texto if texto.isdigit() else ''

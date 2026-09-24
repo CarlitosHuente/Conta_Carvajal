@@ -181,6 +181,11 @@ class Liquidacion(models.Model):
     total_descuentos_varios = models.IntegerField(default=0)
     
     sueldo_liquido = models.IntegerField(default=0)
+    manual = models.BooleanField(
+        default=False,
+        verbose_name='Ingresada o editada a mano',
+        help_text='Si está activa, el proceso masivo no reemplaza esta liquidación.',
+    )
 
     class Meta:
         unique_together = ('contrato', 'mes', 'ano')
@@ -196,6 +201,11 @@ class ItemLiquidacion(models.Model):
     monto = models.PositiveIntegerField()
     tipo = models.CharField(max_length=10, choices=TIPO_ITEM_CHOICES)
     es_imponible = models.BooleanField(default=True, verbose_name="¿Es imponible?")
+    es_legal = models.BooleanField(
+        default=False,
+        verbose_name='Descuento legal',
+        help_text='En descuentos: legal (AFP, salud, cesantía, impuesto) u otro descuento.',
+    )
 
     def __str__(self):
         return f"{self.nombre} (${self.monto})"

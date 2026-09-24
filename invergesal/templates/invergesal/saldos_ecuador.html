@@ -408,7 +408,7 @@
                 <tbody
                     class="grupo-di"
                     x-data="{ open: false }"
-                    data-di="{{ grupo.di }}"
+                    data-di="{{ grupo.di|formato_di }}"
                     data-semana="{{ grupo.semana_max }}"
                     data-nave="{{ grupo.naves_txt }}"
                     data-naviera="{{ grupo.navieras_txt }}"
@@ -416,8 +416,8 @@
                     data-cajas="{{ grupo.cajas }}"
                     data-total="{{ grupo.total }}"
                 >
-                    <tr @click="open = !open" class="fila-marca" role="button" title="Ver contenedores de la DI {{ grupo.di }}">
-                        <td><span class="icono-desplegar" x-text="open ? '▼' : '►'"></span>{{ grupo.di }}</td>
+                    <tr @click="open = !open" class="fila-marca" role="button" title="Ver contenedores de la DI {{ grupo.di|formato_di }}">
+                        <td><span class="icono-desplegar" x-text="open ? '▼' : '►'"></span>{{ grupo.di|formato_di }}</td>
                         <td>{{ grupo.semanas_txt }}</td>
                         <td>{{ grupo.naves_txt }}</td>
                         <td>{{ grupo.navieras_txt }}</td>
@@ -458,7 +458,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="fila-total-di">
-                                        <th colspan="6">Total DI {{ grupo.di }}</th>
+                                        <th colspan="6">Total DI {{ grupo.di|formato_di }}</th>
                                         <th class="text-end">{{ grupo.cajas|formato_cajas }}</th>
                                         <th></th>
                                         <th class="text-end">{{ grupo.total|formato_usd }}</th>

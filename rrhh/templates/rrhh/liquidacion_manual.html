@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Liquidación manual{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">
+            {% if modo == 'elegir' or modo == 'existe' %}Forzar liquidación{% else %}{% if liquidacion %}Editar liquidación{% else %}Ingresar liquidación{% endif %}{% endif %}
+        </h1>
+        <a href="{% url 'rrhh:trabajador_detail' trabajador.pk %}#historial-liquidaciones" class="btn btn-outline-secondary btn-sm">Volver a la ficha</a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if modo == 'elegir' %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted">Elige el contrato y el período. El formulario parte en blanco para que ingreses los montos a mano.</p>
+            <form method="post" onsubmit="if(window.mostrarTrabajando){window.mostrarTrabajando('Preparando liquidación...');}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Contrato</label>
+                        <select name="contrato_id" class="form-select" required>
+                            {% for c in contratos %}
+                            <option value="{{ c.pk }}">Desde {{ c.fecha_inicio|date:"d/m/Y" }}{% if c.cargo %} · {{ c.cargo }}{% endif %}{% if not c.vigente %} (no vigente){% endif %}</option>
+                            {% empty %}
+                            <option value="">Sin contratos</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Mes</label>
+                        <input type="number" name="mes" class="form-control" min="1" max="12" value="{{ mes }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Año</label>
+                        <input type="number" name="ano" class="form-control" min="2000" max="2100" value="{{ ano }}" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3" {% if not contratos %}disabled{% endif %}>Continuar</button>
+            </form>
+        </div>
+    </div>
+    {% elif modo == 'existe' %}
+    <div class="card shadow-sm border-warning">
+        <div class="card-body">
+            <p>Ya existe una liquidación de <strong>{{ mes }}/{{ ano }}</strong> para este contrato{% if liquidacion.manual %} (ingresada o editada a mano){% endif %}.</p>
+            <p>¿Quieres abrirla para editarla?</p>
+            <a href="{% url 'rrhh:liquidacion_editar' liquidacion.pk %}" class="btn btn-warning"
+               onclick="if(window.mostrarTrabajando){window.mostrarTrabajando('Abriendo liquidación...');}">
+                Sí, editar
+            </a>
+            <a href="{% url 'rrhh:liquidacion_forzar' trabajador.pk %}" class="btn btn-outline-secondary">Elegir otro período</a>
+        </div>
+    </div>
+    {% else %}
+    <form method="post" id="form-liquidacion-manual" onsubmit="return enviarLiquidacionManual(event);">
+        {% csrf_token %}
+        {% if not liquidacion %}
+        <input type="hidden" name="accion" value="guardar">
+        <input type="hidden" name="contrato_id" value="{{ contrato.pk }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <input type="hidden" name="ano" value="{{ ano }}">
+        <p class="text-muted">Período <strong>{{ mes }}/{{ ano }}</strong> · {{ trabajador.nombre_completo }}</p>
+        {% else %}
+        <p class="text-muted">{{ liquidacion.contrato.trabajador.nombre_completo }} · período <strong>{{ liquidacion.mes }}/{{ liquidacion.ano }}</strong></p>
+        {% endif %}
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <label class="form-label">Días trabajados</label>
+                <input type="number" name="dias_trabajados" class="form-control" style="max-width: 8rem;" min="0" max="31" value="{{ dias_trabajados }}" required>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table align-middle" id="tabla-lineas">
+                        <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                <th style="width: 10rem;">Monto</th>
+                                <th style="width: 16rem;">Tipo</th>
+                                <th style="width: 4rem;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for linea in lineas %}
+                            <tr>
+                                <td><input type="text" name="linea_nombre" class="form-control" value="{{ linea.nombre }}" maxlength="100"></td>
+                                <td><input type="text" name="linea_monto" class="form-control" value="{{ linea.monto }}" inputmode="numeric"></td>
+                                <td>
+                                    <select name="linea_categoria" class="form-select">
+                                        <option value="haber_imponible" {% if linea.categoria == 'haber_imponible' %}selected{% endif %}>Haber imponible</option>
+                                        <option value="haber_no_imponible" {% if linea.categoria == 'haber_no_imponible' %}selected{% endif %}>Haber no imponible</option>
+                                        <option value="descuento_legal" {% if linea.categoria == 'descuento_legal' %}selected{% endif %}>Descuento legal</option>
+                                        <option value="descuento_otro" {% if linea.categoria == 'descuento_otro' %}selected{% endif %}>Otro descuento</option>
+                                    </select>
+                                </td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();">Quitar</button></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarLinea();">Agregar línea</button>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="submit" name="accion" value="guardar" class="btn btn-primary">Guardar</button>
+            {% if liquidacion %}
+            <button type="submit" name="accion" value="recalcular" class="btn btn-outline-warning">Volver a calcular</button>
+            {% endif %}
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function agregarLinea() {
+    var tbody = document.querySelector('#tabla-lineas tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="text" name="linea_nombre" class="form-control" maxlength="100"></td>'
+        + '<td><input type="text" name="linea_monto" class="form-control" inputmode="numeric"></td>'
+        + '<td><select name="linea_categoria" class="form-select">'
+        + '<option value="haber_imponible">Haber imponible</option>'
+        + '<option value="haber_no_imponible">Haber no imponible</option>'
+        + '<option value="descuento_legal">Descuento legal</option>'
+        + '<option value="descuento_otro">Otro descuento</option>'
+        + '</select></td>'
+        + '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove();">Quitar</button></td>';
+    tbody.appendChild(tr);
+}
+function enviarLiquidacionManual(e) {
+    var btn = e.submitter;
+    if (btn && btn.value === 'recalcular') {
+        if (!confirm('¿Volver a calcular esta liquidación con el motor? Se pierden los montos ingresados a mano.')) {
+            return false;
+        }
+    }
+    if (window.mostrarTrabajando) {
+        window.mostrarTrabajando(btn && btn.value === 'recalcular' ? 'Recalculando liquidación...' : 'Guardando liquidación...');
+    }
+    return true;
+}
+</script>
+{% endblock %}

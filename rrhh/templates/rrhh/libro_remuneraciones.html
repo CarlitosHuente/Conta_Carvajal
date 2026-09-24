@@ -4,29 +4,62 @@
 {% block title %}Libro de Remuneraciones{% endblock %}
 
 {% block content %}
+<style>
+    body.theme-glass .libro-rem thead th,
+    .libro-rem thead th {
+        color: #fff !important;
+        font-weight: 700;
+        border-color: rgba(255, 255, 255, 0.25) !important;
+        vertical-align: middle;
+    }
+    .libro-rem thead th.libro-identificacion { background-color: #0A2B4C !important; }
+    .libro-rem thead th.libro-haberes { background-color: #146C43 !important; }
+    .libro-rem thead th.libro-descuentos { background-color: #9B2335 !important; }
+    .libro-rem thead th.libro-aportes-empleador { background-color: #8A5A00 !important; }
+    .libro-rem thead th.libro-totales { background-color: #0B6E4F !important; }
+    .libro-rem tbody td { color: #1a1a1a; background-color: #fff; }
+    .libro-rem tfoot td {
+        background-color: #d8dee6 !important;
+        color: #1a1a1a !important;
+        font-weight: 700;
+    }
+</style>
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Libro de Remuneraciones</h1>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h1 class="h3 mb-1 text-gray-800">Libro auxiliar de remuneraciones</h1>
+            <p class="text-muted mb-0">{{ empresa.razon_social }} · RUT {{ empresa.rut }} · {{ mes_nombre }} {{ ano_seleccionado }}</p>
+        </div>
+        <a href="{% url 'rrhh:libro_remuneraciones' %}?mes={{ mes_seleccionado }}&ano={{ ano_seleccionado }}&formato=excel"
+           class="btn btn-success"
+           data-no-loading
+           onclick="event.preventDefault(); window.descargarConFetch(this.href, {mensaje: 'Preparando Excel...', filename: 'libro_remuneraciones.xlsx'});">
+            <i class="fas fa-file-excel me-1"></i> Descargar Excel
+        </a>
+    </div>
+
+    <div class="alert alert-light border small">
+        Este registro sigue el artículo 62 del Código del Trabajo: identificación del trabajador, haberes, descuentos, aportes del empleador y líquido.
+        La Dirección del Trabajo recibe la declaración mensual en su portal, como Libro de Remuneraciones Electrónico (archivo CSV). Este Excel es el libro de la empresa.
+    </div>
 
     <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Filtro de Período</h6>
-        </div>
         <div class="card-body">
-            <form method="get" class="form-inline">
-                <div class="row">
-                    <div class="col-auto">
-                        <select name="mes" class="form-select">
-                            {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>Mes {{ m }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <select name="ano" class="form-select">
-                            {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cargar Libro</button>
-                    </div>
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label mb-1">Mes</label>
+                    <select name="mes" class="form-select">
+                        {% for m in meses_opciones %}<option value="{{ m }}" {% if m == mes_seleccionado %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1">Año</label>
+                    <select name="ano" class="form-select">
+                        {% for a in anos_opciones %}<option value="{{ a }}" {% if a == ano_seleccionado %}selected{% endif %}>{{ a }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Cargar libro</button>
                 </div>
             </form>
         </div>
@@ -35,49 +68,83 @@
     <div class="card shadow mb-4">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 0.85rem;">
-                    <thead class="table-dark">
+                <table class="table table-bordered table-sm table-hover mb-0 libro-rem" style="font-size: 0.78rem;">
+                    <thead class="text-center">
                         <tr>
-                            <th>RUT</th>
-                            <th>Trabajador</th>
-                            <th>Días Trab.</th>
-                            <th class="text-end">T. Imponible</th>
-                            <th class="text-end">T. No Imponible</th>
-                            <th class="text-end">Leyes Sociales</th>
-                            <th class="text-end">Otros Dctos.</th>
-                            <th class="text-end">SIS Empl.</th>
-                            <th class="text-end">AFC Empl.</th>
-                            <th class="text-end bg-success text-white">Líquido a Pagar</th>
+                            <th colspan="7" class="libro-identificacion">Identificación</th>
+                            <th colspan="11" class="libro-haberes">Haberes</th>
+                            <th colspan="7" class="libro-descuentos">Descuentos</th>
+                            <th colspan="3" class="libro-aportes-empleador">Aportes del empleador</th>
+                            <th class="libro-totales">Totales</th>
+                        </tr>
+                        <tr>
+                            {% for clave, etiqueta, grupo, es_monto in columnas %}
+                            <th class="libro-{{ grupo|slugify }}{% if es_monto %} text-end{% endif %}">{{ etiqueta }}</th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody>
-                        {% for liq in liquidaciones %}
+                        {% for fila in filas %}
                         <tr>
-                            <td>{{ liq.contrato.trabajador.rut }}</td>
-                            <td>{{ liq.contrato.trabajador.nombre_completo }}</td>
-                            <td class="text-center">{{ liq.dias_trabajados }}</td>
-                            <td class="text-end">${{ liq.total_haberes_imponibles|intcomma }}</td>
-                            <td class="text-end">${{ liq.total_haberes_no_imponibles|intcomma }}</td>
-                            <td class="text-end">${{ liq.total_descuentos_legales|intcomma }}</td>
-                            <td class="text-end">${{ liq.total_descuentos_varios|intcomma }}</td>
-                            <td class="text-end">${{ liq.cotizacion_sis_empleador|intcomma }}</td>
-                            <td class="text-end">${{ liq.cotizacion_afc_empleador|intcomma }}</td>
-                            <td class="text-end fw-bold">${{ liq.sueldo_liquido|intcomma }}</td>
+                            <td>{{ fila.rut }}</td>
+                            <td>{{ fila.nombre }}</td>
+                            <td>{{ fila.cargo }}</td>
+                            <td>{{ fila.ingreso }}</td>
+                            <td class="text-center">{{ fila.dias }}</td>
+                            <td>{{ fila.afp }}</td>
+                            <td>{{ fila.salud }}</td>
+                            <td class="text-end">${{ fila.sueldo_base|intcomma }}</td>
+                            <td class="text-end">${{ fila.gratificacion|intcomma }}</td>
+                            <td class="text-end">${{ fila.horas_extra|intcomma }}</td>
+                            <td class="text-end">${{ fila.otros_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ fila.total_imponible|intcomma }}</td>
+                            <td class="text-end">${{ fila.colacion|intcomma }}</td>
+                            <td class="text-end">${{ fila.movilizacion|intcomma }}</td>
+                            <td class="text-end">${{ fila.asignacion_familiar|intcomma }}</td>
+                            <td class="text-end">${{ fila.otros_no_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ fila.total_no_imponible|intcomma }}</td>
+                            <td class="text-end">${{ fila.total_haberes|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_afp|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_salud|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_adicional|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_cesantia|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_impuesto|intcomma }}</td>
+                            <td class="text-end">${{ fila.dcto_otros|intcomma }}</td>
+                            <td class="text-end">${{ fila.total_descuentos|intcomma }}</td>
+                            <td class="text-end">${{ fila.aporte_sis|intcomma }}</td>
+                            <td class="text-end">${{ fila.aporte_afc|intcomma }}</td>
+                            <td class="text-end">${{ fila.total_aportes|intcomma }}</td>
+                            <td class="text-end fw-bold">${{ fila.liquido|intcomma }}</td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="10" class="text-center py-4">No hay liquidaciones emitidas en este período.</td></tr>
+                        <tr><td colspan="29" class="text-center py-4">No hay liquidaciones emitidas en este período.</td></tr>
                         {% endfor %}
                     </tbody>
-                    {% if liquidaciones %}
-                    <tfoot class="table-secondary fw-bold">
+                    {% if filas %}
+                    <tfoot>
                         <tr>
-                            <td colspan="3" class="text-end">TOTALES</td>
-                            <td class="text-end">${{ totales.imponible|intcomma }}</td>
-                            <td class="text-end">${{ totales.no_imponible|intcomma }}</td>
-                            <td class="text-end">${{ totales.leyes|intcomma }}</td>
-                            <td class="text-end">${{ totales.varios|intcomma }}</td>
-                            <td class="text-end">${{ totales.sis|intcomma }}</td>
-                            <td class="text-end">${{ totales.afc_emp|intcomma }}</td>
+                            <td colspan="7" class="text-end">TOTALES</td>
+                            <td class="text-end">${{ totales.sueldo_base|intcomma }}</td>
+                            <td class="text-end">${{ totales.gratificacion|intcomma }}</td>
+                            <td class="text-end">${{ totales.horas_extra|intcomma }}</td>
+                            <td class="text-end">${{ totales.otros_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ totales.total_imponible|intcomma }}</td>
+                            <td class="text-end">${{ totales.colacion|intcomma }}</td>
+                            <td class="text-end">${{ totales.movilizacion|intcomma }}</td>
+                            <td class="text-end">${{ totales.asignacion_familiar|intcomma }}</td>
+                            <td class="text-end">${{ totales.otros_no_imponibles|intcomma }}</td>
+                            <td class="text-end">${{ totales.total_no_imponible|intcomma }}</td>
+                            <td class="text-end">${{ totales.total_haberes|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_afp|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_salud|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_adicional|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_cesantia|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_impuesto|intcomma }}</td>
+                            <td class="text-end">${{ totales.dcto_otros|intcomma }}</td>
+                            <td class="text-end">${{ totales.total_descuentos|intcomma }}</td>
+                            <td class="text-end">${{ totales.aporte_sis|intcomma }}</td>
+                            <td class="text-end">${{ totales.aporte_afc|intcomma }}</td>
+                            <td class="text-end">${{ totales.total_aportes|intcomma }}</td>
                             <td class="text-end">${{ totales.liquido|intcomma }}</td>
                         </tr>
                     </tfoot>

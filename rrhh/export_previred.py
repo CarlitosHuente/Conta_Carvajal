@@ -3,7 +3,7 @@
 import csv
 import io
 
-from .liquidacion_items import item_monto as _item_monto
+from .liquidacion_items import item_monto as _item_monto, items_monto_suma as _items_monto_suma
 from .models import Liquidacion
 
 
@@ -47,7 +47,7 @@ def generar_csv_previred(empresa, mes, ano):
         t = liq.contrato.trabajador
         descuentos = [i for i in liq.items.all() if i.tipo == 'DESCUENTO']
         monto_afp = _item_monto(descuentos, ['AFP '])
-        monto_salud = _item_monto(descuentos, ['Salud '])
+        monto_salud = _items_monto_suma(descuentos, ['Salud ', 'Adicional Isapre'])
         monto_cesantia = _item_monto(descuentos, ['Seguro de Cesantía'])
         monto_iu = _item_monto(descuentos, ['Impuesto Único'])
 

@@ -1,7 +1,6 @@
 import calendar
 import math
 from datetime import date
-from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from .models import (
@@ -11,24 +10,6 @@ from .models import (
 from .calculos_rrhh import (
     calcular_horas_extras, calcular_asignacion_familiar, tasa_afc_empleador,
 )
-
-
-def etiqueta_descuento_salud(contrato):
-    """Texto del ítem de liquidación, tipo AFP (nombre + dato entre paréntesis)."""
-    nombre_sys = (contrato.sistema_salud.nombre or '').strip()
-    base = f'Salud {nombre_sys}'
-    if nombre_sys.upper() == 'FONASA':
-        return f'{base} (7%)'
-    plan = contrato.plan_salud_pactado
-    if plan is not None and Decimal(str(plan)) > 0:
-        if contrato.moneda_plan_salud == 'UF':
-            d = Decimal(str(plan)).quantize(Decimal('0.001'))
-            frac = format(d, 'f').rstrip('0').rstrip('.')
-            return f'{base} ({frac} UF)'
-        clp = int(round(float(plan)))
-        miles = f'{clp:,}'.replace(',', '.')
-        return f'{base} (plan ${miles})'
-    return f'{base} (7%)'
 
 
 def calcular_impuesto_unico(base_tributable, utm):
@@ -66,12 +47,27 @@ def calcular_impuesto_unico(base_tributable, utm):
         rebaja = 30.82 * utm
         return max(0, round((base_tributable * 0.40) - float(rebaja)))
 
+def _es_descuento_legal(nombre):
+    n = (nombre or '').lower()
+    return n.startswith((
+        'afp ',
+        'salud ',
+        'adicional isapre',
+        'seguro de cesant',
+        'impuesto ',
+    ))
+
+
 @transaction.atomic
-def procesar_liquidacion(contrato, mes, ano):
+def procesar_liquidacion(contrato, mes, ano, reemplazar_manual=False):
     """
     Cerebro del ERP: Genera la liquidación de sueldo respetando topes e impuestos.
     Usa transaction.atomic para que, si algo falla, no guarde datos a medias.
+    Si ya existe una liquidación manual, no la reemplaza (salvo reemplazar_manual).
     """
+    liq_manual = Liquidacion.objects.filter(contrato=contrato, mes=mes, ano=ano, manual=True).first()
+    if liq_manual and not reemplazar_manual:
+        return liq_manual
     # 1. Búsqueda de Indicadores (Con fallback a la herencia más cercana)
     indicador = IndicadorEconomico.objects.filter(ano__lte=ano, mes__lte=mes).order_by('-ano', '-mes').first()
     if not indicador:
@@ -219,20 +215,22 @@ def procesar_liquidacion(contrato, mes, ano):
     items_a_guardar.append((f'AFP {contrato.afp.nombre} ({tasa_afp_historica}%)', monto_afp, 'DESCUENTO', False))
     total_descuentos_legales += monto_afp
 
-    # B. Salud (7% Fonasa o Plan Isapre en UF)
+    # B. Salud: 7% obligatorio y, si el plan Isapre lo supera, adicional en otra línea
     salud_7_pct = round(imponible_afp_salud * 0.07)
     monto_salud_final = salud_7_pct
-    
-    if contrato.sistema_salud.nombre != 'FONASA' and contrato.plan_salud_pactado > 0:
+    nombre_salud = (contrato.sistema_salud.nombre or '').strip()
+
+    if nombre_salud.upper() != 'FONASA' and contrato.plan_salud_pactado > 0:
         if contrato.moneda_plan_salud == 'UF':
             costo_plan_pesos = round(float(contrato.plan_salud_pactado) * uf)
         else:
             costo_plan_pesos = float(contrato.plan_salud_pactado)
-            
-        # La ley exige que la Isapre cobre mínimo el 7%. Si el plan es mayor, se cobra la diferencia como "Adicional Isapre".
-        monto_salud_final = max(salud_7_pct, costo_plan_pesos)
-        
-    items_a_guardar.append((etiqueta_descuento_salud(contrato), monto_salud_final, 'DESCUENTO', False))
+        monto_salud_final = max(salud_7_pct, round(costo_plan_pesos))
+
+    items_a_guardar.append((f'Salud {nombre_salud} (7%)', salud_7_pct, 'DESCUENTO', False))
+    adicional_isapre = monto_salud_final - salud_7_pct
+    if adicional_isapre > 0:
+        items_a_guardar.append(('Adicional Isapre', adicional_isapre, 'DESCUENTO', False))
     total_descuentos_legales += monto_salud_final
 
     # C. Seguro de Cesantía (0.6% si es indefinido)
@@ -313,7 +311,14 @@ def procesar_liquidacion(contrato, mes, ano):
     )
 
     for nombre, monto, tipo, es_imponible in items_a_guardar:
-        ItemLiquidacion.objects.create(liquidacion=liq, nombre=nombre, monto=monto, tipo=tipo, es_imponible=es_imponible)
+        ItemLiquidacion.objects.create(
+            liquidacion=liq,
+            nombre=nombre,
+            monto=monto,
+            tipo=tipo,
+            es_imponible=es_imponible,
+            es_legal=(tipo == 'DESCUENTO' and _es_descuento_legal(nombre)),
+        )
 
     for prestamo in prestamos_descontados:
         CuotaPrestamoLiquidacion.objects.create(

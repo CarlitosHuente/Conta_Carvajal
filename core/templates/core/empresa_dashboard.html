@@ -44,23 +44,6 @@
             </a>
         </div>
         {% endif %}
-
-        {% if puede_invergesal_ui %}
-        <div class="col-xl-5 col-md-6">
-            <a href="{% url 'invergesal:estadisticas' %}" class="dashboard-card d-block h-100 p-4">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="text-xs fw-bold text-success text-uppercase mb-1">Estadísticas de Carga</div>
-                        <div class="h4 mb-0 fw-bold">Invergesal</div>
-                        <p class="text-muted mt-2 mb-0 small">Reportes de carga desde Google Drive. No depende de la empresa activa.</p>
-                    </div>
-                    <div class="ms-3">
-                        <i class="fas fa-ship fa-3x text-success"></i>
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% endif %}
     </div>
 
     {% if not empresa_activa.tiene_rrhh and not empresa_activa.tiene_contabilidad %}
