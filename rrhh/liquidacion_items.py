@@ -82,3 +82,32 @@ def descuentos_para_presentacion(liquidacion):
     items[salud_idx] = LineaPresentacion(etiqueta_7, siete)
     items.insert(salud_idx + 1, LineaPresentacion('Adicional Isapre', salud.monto - siete))
     return items
+
+
+def _categoria_concepto(item):
+    if getattr(item, 'tipo', 'DESCUENTO') == 'HABER':
+        return 'haber_imponible' if item.es_imponible else 'haber_no_imponible'
+    nombre = (item.nombre or '').upper()
+    if nombre.startswith(('AFP ', 'SALUD ', 'ADICIONAL ISAPRE', 'SEGURO DE CESANT', 'IMPUESTO ')):
+        return 'descuento_legal'
+    if getattr(item, 'es_legal', False):
+        return 'descuento_legal'
+    return 'descuento_otro'
+
+
+def conceptos_para_edicion(liquidacion):
+    """Líneas del formulario. La salud histórica, guardada en un solo monto, se abre en 7% y adicional."""
+    lineas = []
+    for item in liquidacion.items.filter(tipo='HABER').order_by('id'):
+        lineas.append({
+            'nombre': item.nombre,
+            'monto': item.monto,
+            'categoria': _categoria_concepto(item),
+        })
+    for item in descuentos_para_presentacion(liquidacion):
+        lineas.append({
+            'nombre': item.nombre,
+            'monto': item.monto,
+            'categoria': _categoria_concepto(item),
+        })
+    return lineas

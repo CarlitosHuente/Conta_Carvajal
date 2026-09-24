@@ -19,7 +19,7 @@ from .models import RegistroCobro
 from django.db import models, transaction
 from core.permissions import require_access, ensure_empresa_operativa
 from core.vista import vista_es_admin_ui
-from .liquidacion_items import descuentos_para_presentacion
+from .liquidacion_items import conceptos_para_edicion, descuentos_para_presentacion
 from .libro_remuneraciones import COLUMNAS, MESES, excel_libro, libro_del_periodo
 from .calculos_rrhh import iter_periodos, periodo_a_entero
 
@@ -690,12 +690,6 @@ def _respuesta_si_no_admin(request):
     return None
 
 
-def _categoria_de_item(item):
-    if item.tipo == 'HABER':
-        return 'haber_imponible' if item.es_imponible else 'haber_no_imponible'
-    return 'descuento_legal' if item.es_legal else 'descuento_otro'
-
-
 def _lineas_post(request):
     nombres = request.POST.getlist('linea_nombre')
     montos = request.POST.getlist('linea_monto')
@@ -861,10 +855,7 @@ def liquidacion_editar_view(request, pk):
         messages.success(request, f'Liquidación {liquidacion.mes}/{liquidacion.ano} guardada como manual.')
         return redirect('rrhh:liquidacion_detail', pk=liquidacion.pk)
 
-    lineas = [
-        {'nombre': item.nombre, 'monto': item.monto, 'categoria': _categoria_de_item(item)}
-        for item in liquidacion.items.order_by('id')
-    ]
+    lineas = conceptos_para_edicion(liquidacion)
     if not lineas:
         lineas = [{'nombre': '', 'monto': '', 'categoria': 'haber_imponible'}]
     return render(request, 'rrhh/liquidacion_manual.html', _contexto_lineas(liquidacion, lineas))
