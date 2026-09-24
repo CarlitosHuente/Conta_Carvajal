@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Plantilla de finiquito{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="h4">Plantillas · Borrador de finiquito</h1>
+    <p class="text-muted">La estructura queda fija: título, comparecencia, servicios, la tabla de montos y el cierre. Solo editas las palabras. Las variables, entre llaves, se reemplazan al generar el PDF.</p>
+
+    <div class="mb-3">
+        <span class="small text-muted d-block mb-1">Haz clic en una variable para insertarla en el recuadro que estás editando.</span>
+        {% for token, ayuda in variables %}
+        <button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1" title="{{ ayuda }}" onclick="insertarVariable('{{ token }}')">
+            {{ token }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <form method="post" onsubmit="if(window.mostrarTrabajando){window.mostrarTrabajando('Guardando plantilla...');}">
+        {% csrf_token %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                {% for bloque in bloques %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">{{ bloque.etiqueta }}</label>
+                    {% if bloque.codigo == 'titulo' or bloque.codigo == 'lugar' %}
+                    <input type="text" name="{{ bloque.codigo }}" class="form-control bloque-texto" value="{{ bloque.texto }}">
+                    {% else %}
+                    <textarea name="{{ bloque.codigo }}" class="form-control bloque-texto" rows="4">{{ bloque.texto }}</textarea>
+                    {% endif %}
+                </div>
+                {% if bloque.codigo == 'servicios' %}
+                <div class="border rounded p-3 mb-3 bg-light">
+                    <strong>Tabla de conceptos</strong>
+                    <p class="mb-0 small text-muted">Aquí va el detalle de cada monto y el total. No se edita: sale del finiquito.</p>
+                </div>
+                {% endif %}
+                {% endfor %}
+                <div class="border rounded p-3 bg-light small text-muted">
+                    Al final del documento van las dos firmas: empleador y trabajador.
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar borrador</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var campoActivo = null;
+document.querySelectorAll('.bloque-texto').forEach(function (el) {
+    el.addEventListener('focus', function () { campoActivo = el; });
+});
+function insertarVariable(token) {
+    var el = campoActivo || document.querySelector('.bloque-texto');
+    if (!el) return;
+    var inicio = el.selectionStart || el.value.length;
+    var fin = el.selectionEnd || inicio;
+    el.value = el.value.slice(0, inicio) + token + el.value.slice(fin);
+    el.focus();
+    var pos = inicio + token.length;
+    el.setSelectionRange(pos, pos);
+}
+</script>
+{% endblock %}

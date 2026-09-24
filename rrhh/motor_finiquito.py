@@ -28,6 +28,53 @@ def calcular_indemnizacion_anos_servicio(contrato, fecha_termino, motivo):
     return int((dias_indemnizacion * sueldo_diario).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
+CAUSALES = (
+    ('RENUNCIA', 'Renuncia voluntaria', 'Art. 159 N° 2. Corresponde el feriado proporcional.'),
+    ('DESPIDO', 'Necesidades de la empresa', 'Art. 161. Feriado, años de servicio y un mes de aviso previo.'),
+    ('MUTUO_ACUERDO', 'Mutuo acuerdo', 'Art. 159 N° 1. Feriado y una indemnización de referencia por años de servicio.'),
+    ('VENCIMIENTO', 'Vencimiento del plazo', 'Art. 159 N° 4. Corresponde el feriado proporcional.'),
+)
+
+
+def _montos_base(contrato, fecha_termino):
+    trabajador = contrato.trabajador
+    dias_vac = saldo_vacaciones_trabajador(trabajador, fecha_termino)
+    if dias_vac < 0:
+        dias_vac = Decimal('0')
+    sueldo_mensual = int(contrato.sueldo_base_efectivo() or 0)
+    sueldo_diario = Decimal(sueldo_mensual) / Decimal('30')
+    monto_vacaciones = int((dias_vac * sueldo_diario).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    return dias_vac, monto_vacaciones, sueldo_mensual
+
+
+def propuestas_finiquito(contrato, fecha_termino):
+    """Una propuesta por cada causal habitual, con las líneas que después se pueden editar."""
+    dias_vac, monto_vacaciones, sueldo_mensual = _montos_base(contrato, fecha_termino)
+    dias_txt = format(dias_vac.quantize(Decimal('0.01')), 'f').rstrip('0').rstrip('.')
+    linea_vacaciones = {
+        'nombre': f'Feriado proporcional ({dias_txt} días)',
+        'monto': monto_vacaciones,
+    }
+    indem = calcular_indemnizacion_anos_servicio(contrato, fecha_termino, 'DESPIDO')
+    propuestas = []
+    for codigo, titulo, detalle in CAUSALES:
+        lineas = [dict(linea_vacaciones)]
+        if codigo == 'DESPIDO':
+            lineas.append({'nombre': 'Indemnización por años de servicio', 'monto': indem})
+            lineas.append({'nombre': 'Indemnización sustitutiva del aviso previo', 'monto': sueldo_mensual})
+        elif codigo == 'MUTUO_ACUERDO':
+            lineas.append({'nombre': 'Indemnización por años de servicio', 'monto': indem})
+        propuestas.append({
+            'motivo': codigo,
+            'titulo': titulo,
+            'detalle': detalle,
+            'dias_vacaciones': dias_vac,
+            'lineas': lineas,
+            'total': sum(linea['monto'] for linea in lineas),
+        })
+    return propuestas
+
+
 def calcular_finiquito(contrato, fecha_termino, motivo, incluir_ultimo_mes=False, mes_ultimo=None, ano_ultimo=None):
     """
     Devuelve dict con montos del finiquito sin persistir.

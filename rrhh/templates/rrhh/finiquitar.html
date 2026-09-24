@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load humanize l10n %}
+
+{% block title %}Finiquitar — {{ trabajador.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-0">{% if finiquito %}Editar finiquito{% else %}Finiquitar contrato{% endif %}</h1>
+            <p class="text-muted mb-0">{{ trabajador.nombre_completo }} · desde {{ contrato.fecha_inicio|date:"d/m/Y" }}{% if contrato.cargo %} · {{ contrato.cargo }}{% endif %}</p>
+        </div>
+        <a href="{% url 'rrhh:trabajador_detail' trabajador.pk %}" class="btn btn-outline-secondary btn-sm">Volver a la ficha</a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if modo == 'propuestas' %}
+    <form method="get" class="card shadow-sm mb-4" onsubmit="if(window.mostrarTrabajando){window.mostrarTrabajando('Calculando finiquito...');}">
+        <div class="card-body row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Fecha de término</label>
+                <input type="date" name="fecha" class="form-control" value="{{ fecha }}" required>
+            </div>
+            <div class="col-md-4">
+                <p class="mb-1"><strong>Feriado al {{ fecha }}:</strong> {{ saldo_vacaciones }} días</p>
+                <button type="submit" class="btn btn-primary">Calcular propuestas</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-3">
+        {% for propuesta in propuestas %}
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">{{ propuesta.titulo }}</h2>
+                    <p class="small text-muted">{{ propuesta.detalle }}</p>
+                    <ul class="list-unstyled mb-2">
+                        {% for linea in propuesta.lineas %}
+                        <li class="d-flex justify-content-between"><span>{{ linea.nombre }}</span><strong>${{ linea.monto|intcomma }}</strong></li>
+                        {% endfor %}
+                    </ul>
+                    <p class="fw-bold">Total propuesto: ${{ propuesta.total|intcomma }}</p>
+                    <form method="post" onsubmit="if(window.mostrarTrabajando){window.mostrarTrabajando('Abriendo finiquito...');}">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="elegir">
+                        <input type="hidden" name="fecha_termino" value="{{ fecha }}">
+                        <input type="hidden" name="motivo" value="{{ propuesta.motivo }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Usar esta propuesta y editar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    {{ preview_base|json_script:"preview-finiquito" }}
+    <form method="post" id="form-finiquito" onsubmit="return guardarFiniquito(event);">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="guardar">
+        <input type="hidden" name="motivo" value="{{ motivo }}">
+        <input type="hidden" name="dias_vacaciones" value="{{ dias_vacaciones|unlocalize }}">
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Fecha de término</label>
+                    <input type="date" name="fecha_termino" class="form-control" value="{{ fecha }}" required>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Causal</label>
+                    <p class="form-control-plaintext mb-0">{{ motivo_label }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <table class="table align-middle" id="tabla-finiquito">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th style="width: 12rem;">Monto</th>
+                            <th style="width: 4rem;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for linea in lineas %}
+                        <tr>
+                            <td><input type="text" name="linea_nombre" class="form-control" value="{{ linea.nombre }}"></td>
+                            <td><input type="text" name="linea_monto" class="form-control" value="{{ linea.monto }}" inputmode="numeric"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();">Quitar</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarLineaFiniquito();">Agregar línea</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 mb-0">Así queda el documento</h2>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="pdfPropuesta();">PDF de la propuesta</button>
+                </div>
+                <p class="small text-muted">Se actualiza con los montos de arriba. Verlo o bajar el PDF no guarda ni termina el contrato.</p>
+                <div id="propuesta-cuerpo" class="border rounded p-3 bg-white"></div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-danger mt-3">Guardar finiquito</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function agregarLineaFiniquito() {
+    var tbody = document.querySelector('#tabla-finiquito tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="text" name="linea_nombre" class="form-control"></td>'
+        + '<td><input type="text" name="linea_monto" class="form-control" inputmode="numeric"></td>'
+        + '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove();">Quitar</button></td>';
+    tbody.appendChild(tr);
+}
+function pesos(n) {
+    return '$' + Math.round(n || 0).toLocaleString('es-CL');
+}
+function escapar(texto) {
+    return String(texto || '').replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+function aplicarPlantilla(texto, vars) {
+    return escapar(String(texto || '').replace(/\{(\w+)\}/g, function (_, clave) {
+        return vars[clave] != null && vars[clave] !== '' ? vars[clave] : '—';
+    }));
+}
+function lineasActuales() {
+    var filas = [];
+    document.querySelectorAll('#tabla-finiquito tbody tr').forEach(function (tr) {
+        var nombre = (tr.querySelector('[name=linea_nombre]') || {}).value || '';
+        var monto = (tr.querySelector('[name=linea_monto]') || {}).value || '';
+        var digitos = String(monto).replace(/\D/g, '');
+        if (!nombre.trim() && !digitos) return;
+        filas.push({ nombre: nombre.trim(), monto: digitos ? parseInt(digitos, 10) : 0 });
+    });
+    return filas;
+}
+function pintarPropuesta() {
+    var nodo = document.getElementById('preview-finiquito');
+    var caja = document.getElementById('propuesta-cuerpo');
+    if (!nodo || !caja) return;
+    var base = JSON.parse(nodo.textContent);
+    var lineas = lineasActuales();
+    var total = lineas.reduce(function (s, l) { return s + l.monto; }, 0);
+    var vars = Object.assign({}, base.variables, { total: pesos(total) });
+    var fecha = document.querySelector('[name=fecha_termino]');
+    if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha.value)) {
+        var partes = fecha.value.split('-');
+        vars.fecha_termino = partes[2] + '/' + partes[1] + '/' + partes[0];
+    }
+    var html = '<h3 class="h5 text-center">' + aplicarPlantilla(base.titulo, vars) + '</h3>'
+        + '<p>' + aplicarPlantilla(base.intro, vars) + '</p>'
+        + '<p>' + aplicarPlantilla(base.servicios, vars) + '</p>'
+        + '<p>' + aplicarPlantilla(base.cierre, vars) + '</p>'
+        + '<table class="table table-sm mb-0"><thead><tr><th>Concepto</th><th class="text-end">Monto</th></tr></thead><tbody>';
+    lineas.forEach(function (l) {
+        html += '<tr><td>' + escapar(l.nombre) + '</td><td class="text-end">' + pesos(l.monto) + '</td></tr>';
+    });
+    html += '<tr class="fw-bold"><td>TOTAL</td><td class="text-end">' + pesos(total) + '</td></tr></tbody></table>';
+    caja.innerHTML = html;
+}
+function pdfPropuesta() {
+    var form = document.getElementById('form-finiquito');
+    var data = new FormData(form);
+    data.set('accion', 'vista_pdf');
+    window.descargarConFetch(form.getAttribute('action') || window.location.pathname, {
+        method: 'POST',
+        body: data,
+        mensaje: 'Preparando PDF...',
+        filename: 'propuesta_finiquito.pdf'
+    });
+}
+document.getElementById('tabla-finiquito').addEventListener('input', pintarPropuesta);
+var fechaTermino = document.querySelector('[name=fecha_termino]');
+if (fechaTermino) fechaTermino.addEventListener('change', pintarPropuesta);
+pintarPropuesta();
+function guardarFiniquito(e) {
+    var texto = {% if finiquito %}'¿Guardar los cambios de este finiquito?'{% else %}'¿Guardar el finiquito y terminar el contrato?'{% endif %};
+    if (!confirm(texto)) return false;
+    if (window.mostrarTrabajando) window.mostrarTrabajando('Guardando finiquito...');
+    return true;
+}
+</script>
+{% endblock %}

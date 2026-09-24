@@ -45,6 +45,9 @@ urlpatterns = [
     path('centralizar-remuneraciones/', views_operaciones.centralizar_remuneraciones_view, name='centralizar_remuneraciones'),
     path('finiquitos/', views_operaciones.finiquito_list_view, name='finiquito_list'),
     path('finiquito/<int:pk>/', views_operaciones.finiquito_detail_view, name='finiquito_detail'),
+    path('finiquito/<int:pk>/editar/', views_operaciones.finiquito_editar_view, name='finiquito_editar'),
+    path('finiquito/<int:pk>/pdf/', views_operaciones.finiquito_pdf_view, name='finiquito_pdf'),
+    path('plantillas/finiquito/', views_operaciones.plantilla_finiquito_view, name='plantilla_finiquito'),
     
     # API y Novedades
     path('api/get-indicadores/<int:ano>/<int:mes>/', views.api_get_indicadores_economicos, name='api_get_indicadores'),

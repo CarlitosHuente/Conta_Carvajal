@@ -286,6 +286,19 @@ class MovimientoVacaciones(models.Model):
         return f"{self.get_tipo_display()} {self.dias} días — {self.trabajador.nombre_completo}"
 
 
+class PlantillaDocumento(models.Model):
+    codigo = models.CharField(max_length=40, unique=True)
+    nombre = models.CharField(max_length=120)
+    bloques = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'Plantilla de documento'
+        verbose_name_plural = 'Plantillas de documentos'
+
+    def __str__(self):
+        return self.nombre
+
+
 class Finiquito(models.Model):
     MOTIVO_CHOICES = [
         ('RENUNCIA', 'Renuncia voluntaria'),
@@ -302,6 +315,11 @@ class Finiquito(models.Model):
     monto_ultimo_sueldo = models.PositiveIntegerField(default=0, help_text='Sueldo proporcional u otros haberes del cierre')
     total_bruto_finiquito = models.PositiveIntegerField(default=0)
     observaciones = models.TextField(blank=True, default='')
+    conceptos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Líneas editables del finiquito: nombre y monto.',
+    )
     fecha_emision = models.DateField(auto_now_add=True)
 
     class Meta:

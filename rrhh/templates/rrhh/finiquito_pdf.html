@@ -1,0 +1,42 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #111; }
+        h1 { font-size: 16px; text-align: center; }
+        h2 { font-size: 13px; text-align: center; font-weight: normal; }
+        p { line-height: 1.45; text-align: justify; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #333; padding: 6px; }
+        th { background: #eee; }
+        .total td { font-weight: bold; }
+        .firmas { margin-top: 48px; }
+        .firma { width: 45%; display: inline-block; text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>{{ documento.empresa.razon_social }}<br>RUT {{ documento.empresa.rut }}</h2>
+    <h1>{{ documento.titulo }}</h1>
+    <p>{{ documento.intro }}</p>
+    <p>{{ documento.servicios }}</p>
+    <p>{{ documento.cierre }}</p>
+    <table>
+        <tr><th>Concepto</th><th>Monto</th></tr>
+        {% if finiquito.conceptos %}
+        {% for linea in finiquito.conceptos %}
+        <tr><td>{{ linea.nombre }}</td><td style="text-align:right;">${{ linea.monto|intcomma }}</td></tr>
+        {% endfor %}
+        {% else %}
+        <tr><td>Feriado proporcional</td><td style="text-align:right;">${{ finiquito.monto_vacaciones|intcomma }}</td></tr>
+        <tr><td>Indemnización por años de servicio</td><td style="text-align:right;">${{ finiquito.monto_indemnizacion|intcomma }}</td></tr>
+        {% endif %}
+        <tr class="total"><td>TOTAL</td><td style="text-align:right;">${{ finiquito.total_bruto_finiquito|intcomma }}</td></tr>
+    </table>
+    <div class="firmas">
+        <div class="firma">________________________<br>Firma empleador</div>
+        <div class="firma">________________________<br>Firma trabajador</div>
+    </div>
+</body>
+</html>

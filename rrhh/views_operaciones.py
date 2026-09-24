@@ -1,17 +1,21 @@
 # rrhh/views_operaciones.py — Hub, personal, finiquitos, export, centralización
 
+import io
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.forms import modelformset_factory
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from contabilidad.models import AsientoContable
 from core.models import Empresa
 from core.permissions import ensure_empresa_operativa, require_access
+from core.vista import vista_es_admin_ui
 
 from .calculos_rrhh import saldo_vacaciones_trabajador
 from .centralizacion_rrhh import (
@@ -27,7 +31,6 @@ from .forms import (
     ConfiguracionCentralizacionRRHHForm,
     MovimientoVacacionesForm,
     PrestamoForm,
-    TerminarContratoForm,
     TrabajadorForm,
 )
 from .models import (
@@ -39,7 +42,15 @@ from .models import (
     Prestamo,
     Trabajador,
 )
-from .motor_finiquito import calcular_finiquito
+from .motor_finiquito import propuestas_finiquito
+from .plantilla_finiquito import (
+    BLOQUES,
+    VARIABLES,
+    contexto_finiquito,
+    documento_desde_lineas,
+    guardar_textos,
+    obtener_textos,
+)
 
 
 @login_required
@@ -194,67 +205,298 @@ def gestionar_vacaciones_view(request, trabajador_pk):
     })
 
 
+def _solo_admin_finiquito(request):
+    if not vista_es_admin_ui(request):
+        return HttpResponseForbidden('Solo administradores pueden finiquitar.')
+    return None
+
+
+def _decimal_dias(raw):
+    texto = str(raw or '0').strip().replace(' ', '')
+    if ',' in texto and '.' in texto:
+        texto = texto.replace('.', '').replace(',', '.')
+    else:
+        texto = texto.replace(',', '.')
+    try:
+        return Decimal(texto)
+    except InvalidOperation:
+        raise ValueError('Los días de vacaciones deben ser un número, por ejemplo 11.25.')
+
+
+def _lineas_finiquito_post(request):
+    nombres = request.POST.getlist('linea_nombre')
+    montos = request.POST.getlist('linea_monto')
+    lineas = []
+    for nombre, monto in zip(nombres, montos):
+        nombre = (nombre or '').strip()
+        monto_txt = ''.join(ch for ch in str(monto or '') if ch.isdigit())
+        if not nombre and not str(monto or '').strip():
+            continue
+        if not nombre:
+            raise ValueError('Cada línea con monto necesita un concepto.')
+        if not monto_txt:
+            raise ValueError(f'El monto de «{nombre}» debe ser un entero, por ejemplo 150000.')
+        lineas.append({'nombre': nombre[:200], 'monto': int(monto_txt)})
+    if not lineas:
+        raise ValueError('Agrega al menos un concepto.')
+    return lineas
+
+
+def _preview_base(contrato, fecha, motivo):
+    if isinstance(fecha, str):
+        try:
+            fecha_d = datetime.strptime(fecha, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_d = date.today()
+    else:
+        fecha_d = fecha or date.today()
+    motivo_label = dict(Finiquito.MOTIVO_CHOICES).get(motivo, motivo)
+    doc = documento_desde_lineas(contrato, fecha_d, motivo_label, [])
+    return {
+        'titulo': doc['textos']['titulo'],
+        'intro': doc['textos']['intro'],
+        'servicios': doc['textos']['servicios'],
+        'cierre': doc['textos']['cierre'],
+        'variables': doc['variables'],
+    }
+
+
+def _pdf_propuesta(request, contrato):
+    try:
+        fecha = datetime.strptime(request.POST.get('fecha_termino') or '', '%Y-%m-%d').date()
+    except ValueError:
+        fecha = date.today()
+    motivo = request.POST.get('motivo') or 'RENUNCIA'
+    motivo_label = dict(Finiquito.MOTIVO_CHOICES).get(motivo, motivo)
+    try:
+        lineas = _lineas_finiquito_post(request)
+    except (ValueError, InvalidOperation) as exc:
+        return HttpResponse(str(exc), status=400, content_type='text/plain; charset=utf-8')
+    documento = documento_desde_lineas(contrato, fecha, motivo_label, lineas)
+    borrador = type('Borrador', (), {})()
+    borrador.conceptos = lineas
+    borrador.total_bruto_finiquito = documento['total']
+    html = render_to_string('rrhh/finiquito_pdf.html', {
+        'finiquito': borrador,
+        'documento': documento,
+    })
+    try:
+        from xhtml2pdf import pisa
+        output = io.BytesIO()
+        pisa.CreatePDF(src=html, dest=output, encoding='utf-8')
+        payload = output.getvalue()
+        content_type = 'application/pdf'
+    except Exception:
+        payload = html.encode('utf-8')
+        content_type = 'text/html; charset=utf-8'
+    response = HttpResponse(payload, content_type=content_type)
+    response['Content-Disposition'] = 'attachment; filename="propuesta_finiquito.pdf"'
+    return response
+
+
+def _totales_desde_lineas(lineas, dias_vacaciones):
+    vacaciones = indemnizacion = otros = 0
+    for linea in lineas:
+        nombre = linea['nombre'].lower()
+        if nombre.startswith('feriado') or nombre.startswith('vacacion'):
+            vacaciones += linea['monto']
+        elif 'años de servicio' in nombre or 'anos de servicio' in nombre:
+            indemnizacion += linea['monto']
+        else:
+            otros += linea['monto']
+    return {
+        'dias_vacaciones_pendientes': dias_vacaciones,
+        'monto_vacaciones': vacaciones,
+        'monto_indemnizacion': indemnizacion,
+        'monto_ultimo_sueldo': otros,
+        'total_bruto_finiquito': vacaciones + indemnizacion + otros,
+        'conceptos': lineas,
+    }
+
+
+def _lineas_guardadas(finiquito):
+    if finiquito.conceptos:
+        return finiquito.conceptos
+    lineas = [{
+        'nombre': f'Feriado proporcional ({finiquito.dias_vacaciones_pendientes} días)',
+        'monto': finiquito.monto_vacaciones,
+    }]
+    if finiquito.monto_indemnizacion:
+        lineas.append({
+            'nombre': 'Indemnización por años de servicio',
+            'monto': finiquito.monto_indemnizacion,
+        })
+    if finiquito.monto_ultimo_sueldo:
+        lineas.append({
+            'nombre': 'Otros haberes del finiquito',
+            'monto': finiquito.monto_ultimo_sueldo,
+        })
+    return lineas
+
+
 @login_required
 @require_access('rrhh', 'trabajadores', 'editar')
 def terminar_contrato_view(request, contrato_id):
-    if request.user.perfil.rol != 'admin':
-        return HttpResponseForbidden('No tienes permiso.')
-
+    denegado = _solo_admin_finiquito(request)
+    if denegado:
+        return denegado
     empresa_id, redirect_response = ensure_empresa_operativa(request)
     if redirect_response:
         return redirect_response
 
-    contrato = get_object_or_404(Contrato, id=contrato_id, trabajador__empresa_id=empresa_id)
+    contrato = get_object_or_404(
+        Contrato.objects.select_related('trabajador'),
+        id=contrato_id,
+        trabajador__empresa_id=empresa_id,
+    )
     trabajador = contrato.trabajador
-    preview = None
+    existente = contrato.finiquitos.order_by('-fecha_emision', '-id').first()
+    if existente and request.method != 'POST':
+        return redirect('rrhh:finiquito_editar', pk=existente.pk)
 
-    if request.method == 'POST':
-        form = TerminarContratoForm(request.POST)
-        if form.is_valid():
-            fecha_termino = form.cleaned_data['fecha_termino']
-            motivo = form.cleaned_data['motivo']
-            contrato.fecha_fin = fecha_termino
-            contrato.vigente = False
-            contrato.save(update_fields=['fecha_fin', 'vigente'])
+    try:
+        fecha = datetime.strptime(request.POST.get('fecha_termino') or request.GET.get('fecha') or '', '%Y-%m-%d').date()
+    except ValueError:
+        fecha = date.today()
 
-            finiquito = None
-            if form.cleaned_data['generar_finiquito']:
-                mes_u = fecha_termino.month if form.cleaned_data['incluir_ultimo_mes'] else None
-                ano_u = fecha_termino.year if form.cleaned_data['incluir_ultimo_mes'] else None
-                datos = calcular_finiquito(
-                    contrato, fecha_termino, motivo,
-                    incluir_ultimo_mes=form.cleaned_data['incluir_ultimo_mes'],
-                    mes_ultimo=mes_u, ano_ultimo=ano_u,
-                )
-                finiquito = Finiquito.objects.create(
-                    contrato=contrato,
-                    fecha_termino=fecha_termino,
-                    motivo=motivo,
-                    **datos,
-                )
+    if request.method == 'POST' and request.POST.get('accion') == 'vista_pdf':
+        return _pdf_propuesta(request, contrato)
 
-            otros_vigentes = trabajador.contratos.filter(vigente=True).exists()
-            if not otros_vigentes:
-                trabajador.activo = False
-                trabajador.save(update_fields=['activo'])
+    if request.method == 'POST' and request.POST.get('accion') == 'guardar':
+        motivo = request.POST.get('motivo') or 'RENUNCIA'
+        if motivo not in dict(Finiquito.MOTIVO_CHOICES):
+            motivo = 'RENUNCIA'
+        try:
+            dias_vac = _decimal_dias(request.POST.get('dias_vacaciones'))
+            lineas = _lineas_finiquito_post(request)
+            datos = _totales_desde_lineas(lineas, dias_vac)
+        except (ValueError, InvalidOperation) as exc:
+            return render(request, 'rrhh/finiquitar.html', {
+                'modo': 'lineas',
+                'contrato': contrato,
+                'trabajador': trabajador,
+                'fecha': request.POST.get('fecha_termino'),
+                'motivo': motivo,
+                'motivo_label': dict(Finiquito.MOTIVO_CHOICES).get(motivo, motivo),
+                'dias_vacaciones': request.POST.get('dias_vacaciones') or '0',
+                'lineas': [
+                    {'nombre': n, 'monto': m}
+                    for n, m in zip(request.POST.getlist('linea_nombre'), request.POST.getlist('linea_monto'))
+                ] or [{'nombre': '', 'monto': ''}],
+                'preview_base': _preview_base(contrato, request.POST.get('fecha_termino'), motivo),
+                'error': str(exc),
+            })
 
-            messages.success(request, 'Contrato terminado correctamente.')
-            if finiquito:
-                return redirect('rrhh:finiquito_detail', pk=finiquito.pk)
-            return redirect('rrhh:trabajador_detail', pk=trabajador.pk)
-    else:
-        form = TerminarContratoForm()
-        if contrato.fecha_fin:
-            form.fields['fecha_termino'].initial = contrato.fecha_fin
+        contrato.fecha_fin = fecha
+        contrato.vigente = False
+        contrato.save(update_fields=['fecha_fin', 'vigente'])
+        if not trabajador.contratos.filter(vigente=True).exists():
+            trabajador.activo = False
+            trabajador.save(update_fields=['activo'])
+        finiquito = Finiquito.objects.create(
+            contrato=contrato,
+            fecha_termino=fecha,
+            motivo=motivo,
+            **datos,
+        )
+        messages.success(request, 'Finiquito guardado y contrato terminado.')
+        return redirect('rrhh:finiquito_detail', pk=finiquito.pk)
 
-    preview = calcular_finiquito(contrato, date.today(), 'RENUNCIA')
+    if request.method == 'POST' and request.POST.get('accion') == 'elegir':
+        motivo = request.POST.get('motivo') or 'RENUNCIA'
+        propuesta = next((p for p in propuestas_finiquito(contrato, fecha) if p['motivo'] == motivo), None)
+        if not propuesta:
+            messages.error(request, 'Elige una causal.')
+            return redirect('rrhh:terminar_contrato', contrato_id=contrato.id)
+        return render(request, 'rrhh/finiquitar.html', {
+            'modo': 'lineas',
+            'contrato': contrato,
+            'trabajador': trabajador,
+            'fecha': fecha.isoformat(),
+            'motivo': motivo,
+            'motivo_label': propuesta['titulo'],
+            'dias_vacaciones': propuesta['dias_vacaciones'],
+            'lineas': propuesta['lineas'],
+            'preview_base': _preview_base(contrato, fecha, motivo),
+            'error': '',
+        })
 
-    return render(request, 'rrhh/terminar_contrato.html', {
-        'form': form,
+    return render(request, 'rrhh/finiquitar.html', {
+        'modo': 'propuestas',
         'contrato': contrato,
         'trabajador': trabajador,
-        'preview': preview,
-        'saldo_vacaciones': saldo_vacaciones_trabajador(trabajador),
+        'fecha': fecha.isoformat(),
+        'propuestas': propuestas_finiquito(contrato, fecha),
+        'saldo_vacaciones': saldo_vacaciones_trabajador(trabajador, fecha),
+    })
+
+
+@login_required
+@require_access('rrhh', 'trabajadores', 'editar')
+def finiquito_editar_view(request, pk):
+    denegado = _solo_admin_finiquito(request)
+    if denegado:
+        return denegado
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+
+    finiquito = get_object_or_404(
+        Finiquito.objects.select_related('contrato__trabajador'),
+        pk=pk,
+        contrato__trabajador__empresa_id=empresa_id,
+    )
+    if request.method == 'POST' and request.POST.get('accion') == 'vista_pdf':
+        return _pdf_propuesta(request, finiquito.contrato)
+
+    if request.method == 'POST':
+        try:
+            fecha = datetime.strptime(request.POST.get('fecha_termino') or '', '%Y-%m-%d').date()
+        except ValueError:
+            fecha = finiquito.fecha_termino
+        try:
+            dias_vac = _decimal_dias(request.POST.get('dias_vacaciones') or finiquito.dias_vacaciones_pendientes)
+            lineas = _lineas_finiquito_post(request)
+            datos = _totales_desde_lineas(lineas, dias_vac)
+        except (ValueError, InvalidOperation) as exc:
+            return render(request, 'rrhh/finiquitar.html', {
+                'modo': 'lineas',
+                'finiquito': finiquito,
+                'contrato': finiquito.contrato,
+                'trabajador': finiquito.contrato.trabajador,
+                'fecha': request.POST.get('fecha_termino') or finiquito.fecha_termino.isoformat(),
+                'motivo': finiquito.motivo,
+                'motivo_label': finiquito.get_motivo_display(),
+                'dias_vacaciones': request.POST.get('dias_vacaciones') or finiquito.dias_vacaciones_pendientes,
+                'lineas': [
+                    {'nombre': n, 'monto': m}
+                    for n, m in zip(request.POST.getlist('linea_nombre'), request.POST.getlist('linea_monto'))
+                ],
+                'preview_base': _preview_base(finiquito.contrato, request.POST.get('fecha_termino'), finiquito.motivo),
+                'error': str(exc),
+            })
+        for campo, valor in datos.items():
+            setattr(finiquito, campo, valor)
+        finiquito.fecha_termino = fecha
+        finiquito.save()
+        contrato = finiquito.contrato
+        contrato.fecha_fin = fecha
+        contrato.save(update_fields=['fecha_fin'])
+        messages.success(request, 'Finiquito actualizado.')
+        return redirect('rrhh:finiquito_detail', pk=finiquito.pk)
+
+    return render(request, 'rrhh/finiquitar.html', {
+        'modo': 'lineas',
+        'finiquito': finiquito,
+        'contrato': finiquito.contrato,
+        'trabajador': finiquito.contrato.trabajador,
+        'fecha': finiquito.fecha_termino.isoformat(),
+        'motivo': finiquito.motivo,
+        'motivo_label': finiquito.get_motivo_display(),
+        'dias_vacaciones': finiquito.dias_vacaciones_pendientes,
+        'lineas': _lineas_guardadas(finiquito),
+        'preview_base': _preview_base(finiquito.contrato, finiquito.fecha_termino, finiquito.motivo),
+        'error': '',
     })
 
 
@@ -280,9 +522,63 @@ def finiquito_detail_view(request, pk):
         return redirect_response
 
     finiquito = get_object_or_404(
-        Finiquito, pk=pk, contrato__trabajador__empresa_id=empresa_id,
+        Finiquito.objects.select_related('contrato__trabajador__empresa'),
+        pk=pk,
+        contrato__trabajador__empresa_id=empresa_id,
     )
-    return render(request, 'rrhh/finiquito_detail.html', {'finiquito': finiquito})
+    return render(request, 'rrhh/finiquito_detail.html', {
+        'finiquito': finiquito,
+        'documento': contexto_finiquito(finiquito),
+    })
+
+
+@login_required
+@require_access('rrhh', 'trabajadores', 'ver')
+def finiquito_pdf_view(request, pk):
+    empresa_id, redirect_response = ensure_empresa_operativa(request)
+    if redirect_response:
+        return redirect_response
+    finiquito = get_object_or_404(
+        Finiquito.objects.select_related('contrato__trabajador__empresa'),
+        pk=pk,
+        contrato__trabajador__empresa_id=empresa_id,
+    )
+    html = render_to_string('rrhh/finiquito_pdf.html', {
+        'finiquito': finiquito,
+        'documento': contexto_finiquito(finiquito),
+    })
+    try:
+        from xhtml2pdf import pisa
+        output = io.BytesIO()
+        pisa.CreatePDF(src=html, dest=output, encoding='utf-8')
+        payload = output.getvalue()
+        content_type = 'application/pdf'
+        filename = f'finiquito_{finiquito.contrato.trabajador.rut}.pdf'
+    except Exception:
+        payload = html.encode('utf-8')
+        content_type = 'text/html; charset=utf-8'
+        filename = 'finiquito.html'
+    response = HttpResponse(payload, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def plantilla_finiquito_view(request):
+    if not vista_es_admin_ui(request):
+        return HttpResponseForbidden('Solo administradores pueden editar plantillas.')
+    if request.method == 'POST':
+        guardar_textos(request.POST)
+        messages.success(request, 'Borrador de finiquito guardado.')
+        return redirect('rrhh:plantilla_finiquito')
+    textos = obtener_textos()
+    return render(request, 'rrhh/plantilla_finiquito.html', {
+        'bloques': [
+            {'codigo': codigo, 'etiqueta': etiqueta, 'texto': textos[codigo]}
+            for codigo, etiqueta, _defecto in BLOQUES
+        ],
+        'variables': VARIABLES,
+    })
 
 
 @login_required

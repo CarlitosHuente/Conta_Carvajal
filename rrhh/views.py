@@ -356,7 +356,7 @@ def trabajador_detail_view(request, pk):
         return redirect_response
 
     trabajador = get_object_or_404(Trabajador, pk=pk, empresa_id=empresa_id)
-    contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio')
+    contratos = Contrato.objects.filter(trabajador=trabajador).order_by('-fecha_inicio').prefetch_related('finiquitos')
 
     liquidaciones_qs = (
         Liquidacion.objects.filter(contrato__trabajador=trabajador)

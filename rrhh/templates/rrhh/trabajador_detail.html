@@ -99,8 +99,14 @@
                         <a href="{% url 'rrhh:contrato_edit' contrato.pk %}" class="btn btn-sm btn-outline-primary" title="Editar datos del contrato"><i class="fas fa-edit me-1"></i>Editar</a>
                         <a href="{% url 'rrhh:gestionar_items_contrato' contrato.id %}" class="btn btn-sm btn-outline-info" title="Gestionar Bonos/Descuentos Fijos"><i class="fas fa-sliders-h me-1"></i>Ítems</a>
                         <a href="{% url 'rrhh:gestionar_prestamos' contrato.id %}" class="btn btn-sm btn-outline-secondary" title="Préstamos"><i class="fas fa-hand-holding-usd"></i></a>
-                        {% if contrato.vigente and user.perfil.rol == 'admin' %}
-                        <a href="{% url 'rrhh:terminar_contrato' contrato.id %}" class="btn btn-sm btn-outline-danger" title="Terminar contrato">Terminar</a>
+                        {% if vista_es_admin %}
+                        {% with finiquito=contrato.finiquitos.all|first %}
+                        {% if finiquito %}
+                        <a href="{% url 'rrhh:finiquito_editar' finiquito.pk %}" class="btn btn-sm btn-outline-danger" title="Editar finiquito">Finiquito</a>
+                        {% elif contrato.vigente %}
+                        <a href="{% url 'rrhh:terminar_contrato' contrato.id %}" class="btn btn-sm btn-outline-danger" title="Finiquitar contrato">Finiquitar</a>
+                        {% endif %}
+                        {% endwith %}
                         {% endif %}
                     </td>
                 </tr>
